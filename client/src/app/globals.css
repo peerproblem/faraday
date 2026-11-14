@@ -1,10 +1,11 @@
-/* @sw3/ui sits between Tailwind's reset and its utilities: its rules beat the reset, and a layout
-   utility (grid placement, width, gap) on an sw3 component still applies. */
-@layer theme, base, sw3, components, utilities;
+/* Layer order: Tailwind's theme and reset, then MapLibre's stylesheet, then @sw3/ui (which ships in its own
+   sw3 layer), then app components and Tailwind's utilities. A layout utility on an sw3 component applies,
+   and the map's own CSS stays below sw3 so MapView can theme it. */
+@layer theme, base, maplibre, sw3, components, utilities;
 @import "tailwindcss";
-@import "@sw3/ui/styles.css" layer(sw3);
+@import "maplibre-gl/dist/maplibre-gl.css" layer(maplibre);
+@import "@sw3/ui/styles.css";
 @import "./tokens.css";
-@import "../components/ui/standins.css";
 
 /* Tailwind only knows the design system's values. Its own palette, type scale and radii are removed,
    so a class like text-red-500 or rounded-xl does not exist. Names follow the --sw-* tokens one to one. */

@@ -7,61 +7,52 @@ system is absorbed here, and the rest of the app does not change.
 ## What is pinned
 
 `client/vendor/SW3_VERSION` names the commit. The tarball next to it is what `npm ci` installs.
-v1 is commit `2e087cc` of `peerproblem/sw3.0-ui-sdk`.
+Faraday runs sw3 v2: `@sw3/ui` 0.2.0, commit `b2c609c` of `peerproblem/sw3.0-ui-sdk` (the `v0.2.0` tag
+plus the map fixes that followed it).
 
-## Upgrading (v1 to v2)
+## Upgrading
 
 1. `scripts/sync-design.sh <tag or commit>` from the repository root.
-2. `cd client && npm run typecheck`. A changed prop or a renamed export shows up here, in this folder.
+2. Read the SDK's `CHANGELOG.md`, especially "Breaking changes and migration".
+3. `cd client && npm run typecheck`. A changed prop or a renamed export shows up here, in this folder.
    Fix it in the adapter file, so callers keep their imports.
-3. Go through the stand-ins below. For each part the new version ships, replace the stand-in with the
-   real component, keep the adapter's export name and props where possible, and delete its block in
-   `standins.css`.
 4. `npm test`, then `npm run dev` and `npm run e2e` (the sweep covers every page at 1280px and 375px,
    light and dark, and saves screenshots to `e2e/out`). Compare `/dev/ui` and `/dev/fixtures/flood`
    with the screenshots from before the upgrade.
-5. Remove the workarounds below that the new version makes unnecessary.
 
 ## Files
 
-| Kind | Files |
+Every file is a plain re-export of sw3, except these:
+
+| File | What it adds |
 | - | - |
-| Plain re-exports of sw3 | accordion, alert-dialog, card, charts, field, icon, input, meter, pagination, popover, provider, resizable, scroll-area, separator, stat, switch, tabs, textarea, timeline, toast, tooltip, typography, waterfall, agent |
-| sw3 with a workaround | button.tsx, segmented-control.tsx, point-map.tsx |
-| Stand-ins | table.tsx, citation.tsx, skeleton.tsx, link.tsx, link-card.tsx, badge.tsx (warning tone only), standins.css |
+| point-map.tsx | Faraday's places on an sw3 MapView. Resolves the MapLibre worker with `new URL(..., import.meta.url)` for Next and passes it as `workerUrl`. Loaded lazily by the map widget |
+| meta.ts | `designLimits` from sw3's registry, for code that needs sw3's numeric rules |
 
-## Stand-ins: parts v1 does not have
+## How Faraday uses sw3 v2
 
-Each one is marked `data-fd="<name>"` in the DOM and has a block in `standins.css`. They use `--sw-*`
-tokens only.
+v1 lacked several parts, and Faraday filled them with stand-ins and workarounds. v2 ships all of them,
+so the stand-ins (and `standins.css`) are gone:
 
-| Stand-in | Used for | Replace with (expected in v2) |
-| - | - | - |
-| `DataTable` in table.tsx | Table widget | sw3 Table |
-| `CitationChip` in citation.tsx | The source chip on every figure. Opens an sw3 Popover | An sw3 chip-sized trigger or citation component |
-| `Skeleton`, `Empty` in skeleton.tsx | Boards that fill in while they are built | sw3 Skeleton and empty state |
-| `ToneBadge` warning tone in badge.tsx | Stale figures, degraded services, watch-level advisories | A `warning` variant on sw3 Badge |
-| `TextLink` in link.tsx | Links in text | An sw3 text link |
-| `LinkCard` in link-card.tsx | Board tiles that are real links | `href` on sw3 Card |
-| `.fd-live-dot` in standins.css | The pulsing dot of a live board | A live or pulsing dot on sw3 Badge |
-
-## Workarounds for v1 behaviour
-
-| Where | What v1 does | What the adapter does |
-| - | - | - |
-| button.tsx, segmented-control.tsx, `SortButton` in table.tsx | The agent bridge finds plain buttons and segmented controls only through its DOM fallback, and that fallback skips everything inside Tabs, Accordion, Resizable and ScrollArea. A button in a tab panel is invisible to agents | Registers the control with `useAgentBinding` |
-| point-map.tsx | MapView markers have three looks (`default`, `start`, `end`) and no popups. Faraday has six kinds of place | Folds the kinds onto the three looks. The list under the map names each kind in words |
-| point-map.tsx, `client/scripts/copy-map-worker.mjs` | MapLibre loads its worker from a file next to its own module. Next moves the module and the map stays blank | Copies the worker to `public/vendor` after install and calls `setWorkerUrl` |
-| `components/board/agent-bridge.tsx` | Only the agent can mark a step as needing confirmation. The app cannot mark an element | Asks the person for steps on "Recompile the board", "Delete board" and "Delete forever", by label |
-| `app/tokens.css` | sw3 names the Geist family literally | Points `--sw-font-sans` and `--sw-font-mono` at the `next/font` variables |
-| `app/globals.css` | The stylesheet has no layer | Imports it into a `sw3` layer under Tailwind's utilities, so a layout class on an sw3 component applies |
-| Timeline widget | Items have a progress state, not an importance | Marks major events with an icon in the marker and a "Major" badge |
-| Stat tiles | A Stat has no tone for its value | Values are not coloured. Status is shown with badges |
+| Need | sw3 v2 part |
+| - | - |
+| Agents see Buttons and SegmentedControls in Tabs, Accordion, Resizable and ScrollArea | The bridge itself. No `useAgentBinding` wrappers |
+| A person confirms an agent's destructive step | `data-sw-confirm=""` on the control and `createAgent({ confirm })` in `components/board/agent-bridge.tsx` |
+| Table widget | `Table`, sortable through `TableColumn.compare`, scrolls sideways from the keyboard |
+| Source chip on every figure | `CitationChip` |
+| Boards that fill in while they are built | `Skeleton` and `EmptyState` |
+| Stale figures, degraded services, live boards | `Badge variant="warning"`, `Badge pulse`, `Stat tone`, Timeline `importance="high"` |
+| Places by kind | MapView marker kinds (`impact`, `shelter`, `closure`...) and popups |
+| Links | `Link` in text, `Card href` for tiles, `Heading as="h1"` for page titles |
+| Layering | sw3 ships in the `sw3` layer. `app/globals.css` orders `theme, base, maplibre, sw3, components, utilities` |
+| Fonts | `app/tokens.css` sets `--sw-font-sans` and `--sw-font-mono` to the `next/font` variables, which v2 supports |
 
 ## Rules for the rest of the app
 
 - Colours, type sizes and radii come from the design system. Tailwind's own palette, type scale and
   radii are removed in `globals.css`, and its colour names follow the `--sw-*` tokens one to one.
+- The accent is sw3's neutral default. Faraday sets no brand accent.
 - Tailwind is for layout: grid, flex, gaps, widths, margins.
 - No `.sw-*` selector in app CSS.
+- Mark any control that changes or deletes someone's board with `data-sw-confirm=""`.
 - Board data carries no style. The server still sends `header.accent`; the client ignores it.

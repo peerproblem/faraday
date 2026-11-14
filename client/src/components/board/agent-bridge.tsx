@@ -3,22 +3,18 @@
 import { useEffect } from "react";
 import { createAgent, registerTools, type AllowRequest } from "@/components/ui/agent";
 
-/** Actions that change or delete someone's board. An agent may ask for them, but a person decides. */
-export const NEEDS_A_PERSON = ["Recompile the board", "Delete board", "Delete forever"];
-
 /**
- * sw3 v1 lets the agent mark its own step as needing confirmation, but has no way for the app to mark an
- * element. So the app decides here, by the control's name.
+ * Controls that change or delete someone's board carry data-sw-confirm. The bridge refuses an agent's step on
+ * them unless this callback says yes, so a person decides.
  */
-export function allowStep(req: Pick<AllowRequest, "label" | "action" | "confirm">, ask: (q: string) => boolean = (q) => window.confirm(q)): boolean {
-  const guarded = NEEDS_A_PERSON.some((name) => req.label.trim().toLowerCase() === name.toLowerCase());
-  return guarded || req.confirm ? ask(`An agent wants to: ${req.label}. Allow it?`) : true;
+export function confirmStep(req: Pick<AllowRequest, "label" | "action">, ask: (q: string) => boolean = (q) => window.confirm(q)): boolean {
+  return ask(`An agent wants to: ${req.label}. Allow it?`);
 }
 
 export function AgentBridge() {
   useEffect(() => {
-    const agent = createAgent({ allow: (req) => allowStep(req) });
-    // The bridge's allow already asks the person, so WebMCP does not ask a second time.
+    const agent = createAgent({ confirm: (req) => confirmStep(req) });
+    // Marked controls are confirmed above; everything else on the page is open to the agent.
     return registerTools(agent, { allow: () => true });
   }, []);
   return null;

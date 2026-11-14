@@ -1,6 +1,6 @@
 /* The bridge between Faraday and @sw3/ui. This is the only place the app sets a --sw-* value.
-   sw3 names the Geist family literally; next/font serves it under a generated name, so the two font
-   tokens point at next/font's variables instead. Everything else comes from the design system. */
+   sw3 v2 lets an app set its font tokens: next/font serves Geist under a generated name, so the two font
+   tokens point at next/font's variables. Everything else, the neutral accent included, is sw3's default. */
 :root {
   --sw-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --sw-font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
