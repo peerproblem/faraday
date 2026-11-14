@@ -1,8 +1,8 @@
 "use client";
 
 import { Ago } from "@/components/ago";
-import { TextLink } from "@/components/ui/link";
-import { Text } from "@/components/ui/typography";
+import { Link } from "@/components/ui/link";
+import { Caption, Text } from "@/components/ui/typography";
 import type { Source } from "@/lib/spec";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
@@ -27,18 +27,18 @@ export function feedItems(sources: Source[], limit = 15): Source[] {
 export function FeedWidget({ allSources, building, filter }: WidgetProps<"feed">) {
   const types = filter?.sourceTypes?.length ? new Set(filter.sourceTypes) : null;
   const news = feedItems(types ? allSources.filter((s) => s.sourceType !== null && types.has(s.sourceType)) : allSources);
-  if (!news.length) return <Empty building={building}>No coverage yet.</Empty>;
+  if (!news.length) return <Empty building={building} title="No coverage yet" description="News and monitored pages appear here as they are read." />;
   return (
     <ul className="divide-y divide-hairline">
       {news.map((s) => (
         <li key={s.id} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
           <Text size="sm">
-            <TextLink href={s.url} external>
+            <Link href={s.url} target="_blank" rel="noreferrer">
               {s.title ?? s.url}
-            </TextLink>
+            </Link>
           </Text>
-          <Text as="div" size="sm" tone="muted" className="flex flex-wrap gap-x-2">
-            <span className="font-mono text-xs">{s.id}</span>
+          <Text as="div" size="sm" tone="muted" className="flex flex-wrap items-baseline gap-x-2">
+            <Caption>{s.id}</Caption>
             <span>{s.publisher ?? "web"}</span>
             <span>{s.publishedAt ? <Ago t={s.publishedAt} /> : "date unknown"}</span>
             {s.kind === "monitor" ? <span>via monitor</span> : null}

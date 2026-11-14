@@ -2,11 +2,32 @@
 
 import { Component, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
-import { ToneBadge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Caption, Text } from "@/components/ui/typography";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, Skeleton } from "@/components/ui/skeleton";
+import { Text } from "@/components/ui/typography";
 
-export { Empty } from "@/components/ui/skeleton";
+/**
+ * What a widget shows when it has nothing: skeleton lines while the board is still being built (the region is
+ * busy, a status line says so), and an sw3 EmptyState once the widget is known to be empty.
+ */
+export function Empty({ building, title, description }: { building: boolean; title: string; description?: string }) {
+  if (building) {
+    return (
+      <div className="flex flex-col gap-2">
+        <span role="status" className="sr-only">
+          Filling in
+        </span>
+        <div aria-busy="true" className="flex flex-col gap-2">
+          <Skeleton height="1.25rem" width="60%" />
+          <Skeleton height="1rem" />
+          <Skeleton height="1rem" width="80%" />
+        </div>
+      </div>
+    );
+  }
+  return <EmptyState title={title} description={description} />;
+}
 
 type BoundaryProps = { resetKey: unknown; children: ReactNode };
 
@@ -66,23 +87,21 @@ export function WidgetFrame({
       style={transitionName ? { viewTransitionName: transitionName } : undefined}
     >
       <Card padding="md" className="h-full">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h2 id={`${id}-title`} className="m-0 flex">
-            <Caption>{title}</Caption>
-          </h2>
-          {isNew ? (
-            <ToneBadge tone="accent" mono>
-              New
-            </ToneBadge>
-          ) : null}
+        <CardHeader className="flex-row flex-wrap items-center gap-x-3 gap-y-2">
+          <CardTitle as="h2" id={`${id}-title`}>
+            {title}
+          </CardTitle>
+          {isNew ? <Badge variant="accent">New</Badge> : null}
           {updatedAt ? (
             <Text as="span" size="sm" tone="muted" data-updated>
               Updated <Ago t={updatedAt} />
             </Text>
           ) : null}
           {tools ? <div className="ml-auto flex flex-wrap items-center gap-1.5">{tools}</div> : null}
-        </div>
-        <WidgetBoundary resetKey={resetKey}>{children}</WidgetBoundary>
+        </CardHeader>
+        <CardContent>
+          <WidgetBoundary resetKey={resetKey}>{children}</WidgetBoundary>
+        </CardContent>
       </Card>
       {updatedAt ? <span key={updatedAt} aria-hidden="true" className="fd-updated-ring" /> : null}
     </section>

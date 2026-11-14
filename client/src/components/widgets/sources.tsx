@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TextLink } from "@/components/ui/link";
+import { Link } from "@/components/ui/link";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Text } from "@/components/ui/typography";
+import { Caption, Text } from "@/components/ui/typography";
 import type { SourceType } from "@/lib/spec";
 import type { WidgetProps } from "./types";
 
@@ -25,19 +26,28 @@ export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
     <div className="flex flex-col gap-3">
       <Text size="sm" tone="subtle">
         {allSources.length} sources from the live web, read through Context.dev
-        {breakdown ? <span className="text-muted-foreground"> ({breakdown})</span> : null}
+        {breakdown ? ` (${breakdown})` : null}
       </Text>
       {allSources.length ? (
         <ScrollArea maxHeight={256} aria-label={`${widget.title} list`}>
           <ol className="grid gap-1.5">
             {shown.map((s) => (
-              <li key={s.id} className="flex min-w-0 gap-2 text-sm">
-                <span className="w-9 shrink-0 font-mono text-xs leading-5 text-muted-foreground">{s.id}</span>
-                <span className="hidden w-20 shrink-0 text-muted-foreground @md:inline">{s.sourceType ?? s.kind}</span>
-                <TextLink href={s.url} external className="min-w-0 truncate text-subtle">
-                  {s.publisher ? `${s.publisher}: ` : ""}
-                  {s.title ?? s.url}
-                </TextLink>
+              <li key={s.id} className="flex min-w-0 items-baseline gap-2">
+                <Caption className="w-9 shrink-0">{s.id}</Caption>
+                <Text as="span" size="sm" tone="muted" className="hidden w-20 shrink-0 @md:inline">
+                  {s.sourceType ?? s.kind}
+                </Text>
+                <Text as="span" size="sm" className="min-w-0 truncate">
+                  <Link href={s.url} target="_blank" rel="noreferrer">
+                    {s.publisher ? `${s.publisher}: ` : ""}
+                    {s.title ?? s.url}
+                  </Link>
+                </Text>
+                {s.via === "oxylabs" ? (
+                  <Badge variant="outline" mono className="shrink-0">
+                    via Oxylabs
+                  </Badge>
+                ) : null}
               </li>
             ))}
           </ol>

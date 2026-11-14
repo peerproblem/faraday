@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ToneBadge } from "@/components/ui/badge";
-import { Icon } from "@/components/ui/icon";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   Timeline,
@@ -14,7 +12,6 @@ import {
   TimelineTime,
   TimelineTitle,
 } from "@/components/ui/timeline";
-import { Text } from "@/components/ui/typography";
 import { toMs, when } from "@/lib/time";
 import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
@@ -24,14 +21,14 @@ type Filter = "all" | "high";
 
 const filters: { value: Filter; label: string }[] = [
   { value: "all", label: "All events" },
-  { value: "high", label: "Major only" },
+  { value: "high", label: "High importance" },
 ];
 
 export function TimelineWidget({ widget, data, sources, building, filter: personal }: WidgetProps<"timeline">) {
   const [filter, setFilter] = useState<Filter>("all");
   const keep = personal?.minImportance === "high" ? ["high"] : personal?.minImportance === "medium" ? ["high", "medium"] : null;
   const all = (data?.items ?? []).filter((t) => t && typeof t.id === "string" && t.title && (!keep || keep.includes(t.importance)));
-  if (!all.length) return <Empty building={building}>No events yet.</Empty>;
+  if (!all.length) return <Empty building={building} title="No events yet" />;
   const items = filter === "high" ? all.filter((t) => t.importance === "high") : all;
   return (
     <div className="flex flex-col gap-4">
@@ -41,22 +38,12 @@ export function TimelineWidget({ widget, data, sources, building, filter: person
       {items.length ? (
         <Timeline aria-label={widget.title} size="sm">
           {items.map((t) => (
-            <TimelineItem key={t.id} value={t.id} data-importance={t.importance}>
-              {/* Importance is said in words too, so it never rests on the marker alone. */}
-              <TimelineMarker>{t.importance === "high" ? <Icon name="alert" aria-hidden="true" /> : null}</TimelineMarker>
+            // sw3 labels a high-importance event in words, next to its title, whatever its marker shows.
+            <TimelineItem key={t.id} value={t.id} importance={t.importance === "high" ? "high" : "normal"}>
+              <TimelineMarker />
               <TimelineConnector />
               <TimelineContent>
-                <TimelineTitle>
-                  {t.title}
-                  {t.importance === "high" ? (
-                    <>
-                      {" "}
-                      <ToneBadge tone="danger" mono>
-                        Major
-                      </ToneBadge>
-                    </>
-                  ) : null}
-                </TimelineTitle>
+                <TimelineTitle>{t.title}</TimelineTitle>
                 <TimelineTime dateTime={toMs(t.at) !== null ? (t.at ?? undefined) : undefined}>{when(t.at)}</TimelineTime>
                 <TimelineDescription>
                   {t.detail ? `${t.detail} ` : null}
@@ -67,9 +54,7 @@ export function TimelineWidget({ widget, data, sources, building, filter: person
           ))}
         </Timeline>
       ) : (
-        <Text size="sm" tone="muted">
-          No major events. Switch to all events to see the rest.
-        </Text>
+        <Empty building={false} title="No high-importance events" description="Switch to all events to see the rest." />
       )}
     </div>
   );

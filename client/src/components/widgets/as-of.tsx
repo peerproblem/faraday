@@ -1,7 +1,7 @@
 "use client";
 
 import { Ago } from "@/components/ago";
-import { ToneBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Text } from "@/components/ui/typography";
 import { isStale } from "@/lib/time";
 
@@ -14,9 +14,9 @@ export function AsOf({ t, tier, prefix = "as of" }: { t: string | null | undefin
         {prefix} <Ago t={t} />
       </Text>
       {isStale(t, tier) ? (
-        <ToneBadge tone="warning" mono title="This figure is more than a day old">
+        <Badge variant="warning" title="This figure is more than a day old">
           Stale
-        </ToneBadge>
+        </Badge>
       ) : null}
     </span>
   );

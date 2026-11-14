@@ -11,7 +11,7 @@ import { Empty } from "./widget-frame";
 export function TrendWidget({ data, sources, building }: WidgetProps<"trend">) {
   const points = data?.points ?? [];
   const pts = cleanPoints(points);
-  if (pts.length < 2 || !data) return <Empty building={building}>Not enough reports for a trend yet.</Empty>;
+  if (pts.length < 2 || !data) return <Empty building={building} title="Not enough reports for a trend" description="A trend needs at least two reports of the figure." />;
   const summary = trendSummary(data.label, points, data.unit);
   const last = data.points[data.points.length - 1];
   return (
