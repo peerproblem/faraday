@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Ago } from "@/components/ago";
 import { boardBadge } from "@/components/board-grid";
+import { SeverityMeter } from "@/components/severity-meter";
 import { ToneBadge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
 import { LinkCard } from "@/components/ui/link-card";
-import { Meter } from "@/components/ui/meter";
 import { Caption, Display, Text } from "@/components/ui/typography";
 import { boardUrl } from "@/lib/config";
 import { crisisTypes, type BoardCard, type PersonalViewCard } from "@/lib/spec";
@@ -40,18 +40,7 @@ export function TopicHero({ topic }: { topic: BoardCard }) {
       ) : null}
       {typeof topic.severity === "number" ? (
         <div className="w-56 max-w-full">
-          <Meter
-            label="Severity"
-            value={Math.min(5, Math.max(0, topic.severity))}
-            min={0}
-            max={5}
-            low={2}
-            high={4}
-            optimum={0}
-            size="sm"
-            formatOptions={{ style: "decimal", maximumFractionDigits: 1 }}
-            getValueLabel={(v) => `${v} of 5`}
-          />
+          <SeverityMeter value={topic.severity} />
         </div>
       ) : null}
     </LinkCard>
