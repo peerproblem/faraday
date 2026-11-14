@@ -12,8 +12,13 @@ export type XResponse = {
   errors?: unknown[];
 };
 
+/** Operators of the X website's search box that API v2 recent search rejects with HTTP 400 ("invalid operator").
+ * Planning models write them from habit (-filter:retweets, min_faves:10, since:2026-11-01), and one of them fails the whole request. */
+const WEB_ONLY_OPERATOR = /(?<![\w:])-?(?:filter|include|min_faves|min_retweets|min_replies|since|until|near|within|geocode):\S+/gi;
+
 export function xQuery(queries: string[]): string | null {
-  const parts = queries.map((q) => q.replace(/(?<![\w:])-?is:retweet\b/gi, "").trim()).filter(Boolean).slice(0, 2);
+  const clean = (q: string) => q.replace(WEB_ONLY_OPERATOR, "").replace(/(?<![\w:])-?is:retweet\b/gi, "").replace(/\s+/g, " ").trim();
+  const parts = queries.map(clean).filter(Boolean).slice(0, 2);
   if (!parts.length) return null;
   const q = `(${parts.map((p) => `(${p})`).join(" OR ")}) -is:retweet`;
   return q.length <= 512 ? q : null;

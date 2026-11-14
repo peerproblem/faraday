@@ -57,7 +57,9 @@ export async function gather(
     ),
   ];
   const social = opts.boardId && q.socialQueries?.length
-    ? gatherX(opts.boardId, q.socialQueries, signal, opts).catch(() => {
+    ? gatherX(opts.boardId, q.socialQueries, signal, opts).catch((e) => {
+        // The board only gets the generic line; the cause (an HTTP status, never a header or token) goes to the worker log.
+        console.warn(JSON.stringify({ ts: new Date().toISOString(), level: "warn", msg: "x search failed", proc: "worker", boardId: opts.boardId, error: (e as Error).message }));
         failures.push("X social search failed (credentials, budget store or API unavailable)");
         return [] as FoundDoc[];
       })

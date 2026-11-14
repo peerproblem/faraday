@@ -32,7 +32,7 @@ Widgets (in reading order). Available types:
 - feed, changelog, sources: always last, in that order.
 Use span "full" for narrative, stat-grid, map, tables, changelog and sources; "half" for the rest.
 
-For socialQueries, use up to 2 short keyword/hashtag queries in the affected place’s local language, not natural-language news questions. Include lang:xx only when confident of the local language. Social posts are unverified signals.
+For socialQueries, use up to 2 short keyword/hashtag queries in the affected place’s local language, not natural-language news questions. Include lang:xx only when confident of the local language. Use X API v2 syntax only: words, quoted phrases, hashtags, OR, parentheses and lang:xx. Never write filter:, min_faves:, since: or until: (website-only operators that the API rejects); retweets are excluded for you. Social posts are unverified signals.
 
 For localQueries, use up to 2 short keyword queries in the affected place's local language (for example Ukrainian for Kyiv), aimed at local official pages, utilities and local news. They run as a web search from that country. Leave empty when the local language is English or there is no physical place.
 

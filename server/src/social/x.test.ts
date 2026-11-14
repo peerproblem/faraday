@@ -75,6 +75,10 @@ describe("X recent search", () => {
   it("combines local keywords/hashtags and preserves language filters while excluding retweets", () => {
     expect(xQuery(["Valencia #DANA lang:es", "inundaciones"])).toBe("((Valencia #DANA lang:es) OR (inundaciones)) -is:retweet");
     expect(xQuery(["flood -is:retweet"])).toBe("((flood)) -is:retweet");
+    // Website-only operators fail the whole v2 request with HTTP 400, so they are removed.
+    expect(xQuery(["(huelga general OR huelga vivienda) (Madrid OR Barcelona) -filter:retweets lang:es", "#HuelgaGeneral min_faves:10 since:2026-11-01"]))
+      .toBe("(((huelga general OR huelga vivienda) (Madrid OR Barcelona) lang:es) OR (#HuelgaGeneral)) -is:retweet");
+    expect(xQuery(["filter:media"])).toBeNull();
     expect(xQuery([])).toBeNull();
     expect(xQuery(["x".repeat(513)])).toBeNull();
   });
