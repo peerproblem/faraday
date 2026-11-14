@@ -6,10 +6,19 @@ Faraday의 UI 컴포넌트는 `@sw3/ui`를 표준으로 삼는다. Vercel UI SDK
 
 SW3의 코너 스무딩과 에이전트 연동은 실제 컴포넌트를 렌더해 적용한다. `SwProvider`, `sw-root`, `@sw3/ui/styles.css`를 연결하고 보드 단위 WebMCP 등록에서 같은 도구가 중복 노출되지 않는지 확인한다. README의 `built on Vercel's UI SDK` 문구는 실제 전환 상태에 맞춰 갱신한다.
 
+## SDK 버전 기준
+
+| 단계 | SDK 기준 | 적용 시점 |
+| --- | --- | --- |
+| v1 | [`v0.1.0` 태그](https://github.com/peerproblem/sw3.0-ui-sdk/tree/v0.1.0), `2e087ccfb569ae5276a3cae85866faf11b9e1395` | Faraday 초기 통합 기준 |
+| v2 | `faraday/v2-components`의 [`48b26e8`](https://github.com/peerproblem/sw3.0-ui-sdk/commit/48b26e811ee2e3fd03e26749251646473ca00be0), `48b26e811ee2e3fd03e26749251646473ca00be0` | 10개 fork 통합이 완료된 뒤 Phase 5b에서 검수를 통과한 컴포넌트부터 교체 |
+
+두 기준의 패키지 버전은 모두 `0.1.0`이다. `client/vendor`에 서로 다른 파일명으로 보관하고 lockfile이 해당 tarball을 가리키는지 확인한다. v2는 브랜치가 이동해도 위의 전체 커밋 SHA로 빌드한다.
+
 ## 통합 직후 준비
 
 - [ ] 통합 커밋을 기록하고 `client/src/components/ui`의 export와 위젯의 import를 대조해 아래 검수표를 갱신한다. 검수표의 초기 범위는 통합 전 보드와 Studio 화면을 기준으로 한다. [Faraday 기준 커밋](https://github.com/peerproblem/faraday/tree/01406eb0241b21f4108cae790839e82dc34f8f00)
-- [ ] SW3 릴리스 태그 또는 전체 커밋 SHA를 고정한다. sync 스크립트로 SDK를 빌드·패킹하고 `client/vendor`의 tarball과 lockfile을 검증한다. 생성된 `registry.json`을 tarball과 동일한 커밋에서 사용한다.
+- [ ] 위에 고정한 SDK 기준에서 sync 스크립트로 빌드·패킹하고 `client/vendor`의 tarball과 lockfile을 검증한다. 생성된 `registry.json`을 tarball과 동일한 커밋에서 사용한다.
 - [ ] `registry.json`의 규칙을 위젯 스키마와 생성·수정 프롬프트에 반영한다. 예를 들어 `Stat`은 한 줄에 최대 5개를 배치하고 초과분은 다음 줄에 표시한다. 서버와 클라이언트의 `BoardSpec`, 생성 프롬프트, 보드 렌더러에서 보드별 `accent`를 제거한다. 기존 `accent` 값을 담은 저장 보드와 스트리밍 중인 부분 스펙도 열어 본다. `warning` 같은 상태는 텍스트로 전달하고 강조색은 SW3의 파란색을 사용한다.
 - [ ] 동일한 Next 16 환경에서 교체 전후 `npm run build`와 `npm run start`를 실행한다. `/`, `/studio/[id]`, `/b/[slug]`에서 직접 로드와 클라이언트 이동을 확인한다. 각 경로의 초기 JS와 지도 지연 로드 청크 크기를 동일한 방식으로 비교해 기록한다. hydration 오류, 지도 워커·스타일 로딩 실패, 배포 환경에서의 tarball 설치 실패가 있으면 해당 변경을 보류한다.
 
