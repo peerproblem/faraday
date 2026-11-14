@@ -13,6 +13,7 @@ type FactDbRow = {
   as_of: string | null;
   source_ids: string;
   quote: string | null;
+  quote_en?: string | null;
   verified: number;
   status: FactStatus;
   superseded_by: number | null;
@@ -34,6 +35,7 @@ function toFact(r: FactDbRow): Fact {
     asOf: r.as_of,
     sourceIds: json<string[]>(r.source_ids) ?? [],
     quote: r.quote,
+    quoteEn: r.quote_en ?? null,
     verified: Number(r.verified) === 1,
     status: r.status,
     supersededBy: r.superseded_by === null ? null : Number(r.superseded_by),
@@ -208,4 +210,14 @@ export async function saveRejected(boardId: string, runId: number | null, reject
 
 export async function updatePlaceCoords(factId: number, lat: number, lon: number): Promise<void> {
   await run(`UPDATE facts SET payload = JSON_SET(payload, '$.lat', ?, '$.lon', ?) WHERE id = ? AND kind = 'place'`, [lat, lon, factId]);
+}
+
+/** Stores English translations of quotes. Only fills a fact that has none, so a retried step cannot overwrite one. */
+export async function setQuoteTranslations(boardId: string, rows: { id: number; quoteEn: string }[]): Promise<void> {
+  if (!rows.length) return;
+  await tx(async (db) => {
+    for (const r of rows) {
+      await db.run(`UPDATE facts SET quote_en = ? WHERE id = ? AND board_id = ? AND quote_en IS NULL`, [r.quoteEn.slice(0, 1000), r.id, boardId]);
+    }
+  });
 }

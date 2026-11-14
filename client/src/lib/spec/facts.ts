@@ -60,6 +60,8 @@ export type Fact<K extends FactKind = FactKind> = {
   asOf: string | null;
   sourceIds: string[];
   quote: string | null;
+  /** English translation of `quote`, written after verification for sources that are not in English. */
+  quoteEn?: string | null;
   verified: boolean;
   status: FactStatus;
   supersededBy: number | null;

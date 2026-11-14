@@ -6,6 +6,7 @@ import {
   type AlertListData,
   type BoardData,
   type BoardSpecV2,
+  type Cited,
   type Fact,
   type HeaderData,
   type LinkListData,
@@ -27,6 +28,7 @@ import {
   type WidgetData,
   type WidgetType,
 } from "../spec";
+import { evidenceOf } from "./evidence";
 import { CONFLICT_WINDOW_MS, dayOf, timeOf } from "./merge";
 import { corroboratedBy, isSocialSource, trustedFacts } from "./trust";
 import { numbersEqual } from "./verify";
@@ -178,7 +180,7 @@ function toneFor(key: string, label: string, unit: string | null): StatItem["ton
   return "info";
 }
 
-type RankCtx = { official: Set<string>; relevance: Map<string, number> };
+type RankCtx = { official: Set<string>; relevance: Map<string, number>; sources: Map<string, Source> };
 
 function factRank(f: Fact, ctx: RankCtx): [number, number, number, number, number] {
   return [
@@ -208,7 +210,11 @@ function byAsOfDesc(a: Fact, b: Fact): number {
   return b.createdAt - a.createdAt || b.id - a.id;
 }
 
-const cited = (f: Fact) => ({ sources: [...f.sourceIds], asOf: f.asOf });
+/** An item's citation: its sources, its time, and the verified sentence when it may be shown (see evidenceOf). */
+function cited(f: Fact, sources: Map<string, Source>): Cited {
+  const evidence = evidenceOf(f, sources);
+  return { sources: [...f.sourceIds], asOf: f.asOf, ...(evidence ? { evidence } : {}) };
+}
 
 function metricItem(key: string, plan: Plan, active: Fact<"metric">[], history: Fact<"metric">[], ctx: RankCtx): StatItem | null {
   const cands = active.filter((f) => f.key === key);
@@ -258,7 +264,7 @@ function metricItem(key: string, plan: Plan, active: Fact<"metric">[], history: 
     tone: toneFor(key, label, unit),
     conflict: conflicts.length ? conflicts : null,
     history: points.map((pt) => ({ t: pt.t, v: pt.v })),
-    ...cited(cur),
+    ...cited(cur, ctx.sources),
   };
 }
 
@@ -323,6 +329,7 @@ export function assemble(input: {
   const ctx: RankCtx = {
     official: new Set(input.sources.filter((s) => s.sourceType === "official").map((s) => s.id)),
     relevance: new Map(input.sources.map((s) => [s.id, s.relevance ?? 0])),
+    sources: new Map(input.sources.map((s) => [s.id, s])),
   };
   const metrics = of("metric");
   const historyFacts = new Map<number, Fact<"metric">>();
@@ -373,8 +380,9 @@ export function assemble(input: {
   for (const w of widgets) {
     switch (w.type) {
       case "on-the-ground": {
-        const items = untrusted.filter((f) => f.quote).sort(byAsOfDesc).slice(0, 20)
-          .map((f) => ({ id: `social-${f.id}`, quote: f.quote!, ...cited(f) }));
+        // English only: a post in another language is shown by its translation, and not at all until it has one.
+        const items = [...untrusted].sort(byAsOfDesc).map((f) => ({ f, c: cited(f, ctx.sources) })).filter(({ c }) => c.evidence).slice(0, 20)
+          .map(({ f, c }) => ({ id: `social-${f.id}`, quote: c.evidence!.quote, ...c }));
         set(w, items.length ? { items } : null);
         break;
       }
@@ -398,7 +406,7 @@ export function assemble(input: {
         const items = of("event")
           .sort(byAsOfDesc)
           .slice(0, 50)
-          .map((f) => ({ id: `e${f.id}`, at: f.asOf, title: f.payload.title, detail: f.payload.detail ?? "", importance: f.payload.importance ?? "medium", ...cited(f) }));
+          .map((f) => ({ id: `e${f.id}`, at: f.asOf, title: f.payload.title, detail: f.payload.detail ?? "", importance: f.payload.importance ?? "medium", ...cited(f, ctx.sources) }));
         set(w, items.length ? ({ items } satisfies TimelineData) : null);
         break;
       }
@@ -416,7 +424,7 @@ export function assemble(input: {
             lon: f.payload.lon as number,
             kind: MAP_KINDS.has(f.payload.placeKind) ? f.payload.placeKind : ("incident" as MapPointKind),
             note: f.payload.note ?? "",
-            ...cited(f),
+            ...cited(f, ctx.sources),
           }));
         set(w, points.length || location ? ({ center: location, points } satisfies MapData) : null);
         break;
@@ -433,7 +441,7 @@ export function assemble(input: {
           .map((f) => ({
             id: `r${f.id}`,
             cells: Object.fromEntries(t.columns.map((c) => [c.key, String(f.payload.cells?.[c.key] ?? "")])),
-            ...cited(f),
+            ...cited(f, ctx.sources),
           }));
         set(w, rows.length ? ({ columns: t.columns.map((c) => ({ ...c })), rows } satisfies TableData) : null);
         break;
@@ -442,7 +450,7 @@ export function assemble(input: {
         const items = of("status")
           .filter((f) => f.payload.group === w.bind || f.key.startsWith(`${w.bind}:`))
           .sort((a, b) => STATE_ORDER[a.payload.state] - STATE_ORDER[b.payload.state] || a.payload.name.localeCompare(b.payload.name) || a.id - b.id)
-          .map((f) => ({ id: `st${f.id}`, name: f.payload.name, state: f.payload.state, note: f.payload.note ?? "", ...cited(f) }));
+          .map((f) => ({ id: `st${f.id}`, name: f.payload.name, state: f.payload.state, note: f.payload.note ?? "", ...cited(f, ctx.sources) }));
         set(w, items.length ? ({ items } satisfies StatusGridData) : null);
         break;
       }
@@ -461,7 +469,7 @@ export function assemble(input: {
             level: f.payload.level,
             url: f.payload.url ?? null,
             active: f.payload.active !== false,
-            ...cited(f),
+            ...cited(f, ctx.sources),
           }));
         set(w, items.length ? ({ items } satisfies AlertListData) : null);
         break;

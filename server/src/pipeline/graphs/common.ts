@@ -15,7 +15,7 @@ import {
   type BoardRow,
   type FoundDoc,
 } from "../../repo/boards";
-import { applyMerge, listFacts, metricHistory, saveRejected } from "../../repo/facts";
+import { applyMerge, listFacts, metricHistory, saveRejected, setQuoteTranslations } from "../../repo/facts";
 import type {
   BoardData,
   BoardSpecV2,
@@ -35,6 +35,7 @@ import { batches, extractBatch, pickExtractSources, type Focus } from "../nodes/
 import { EMPTY_HINTS, makeHints, needsHints } from "../nodes/hints";
 import { pickReadTargets, readSources, type ReadStats } from "../nodes/read";
 import { englishTitles, type SourceTitle } from "../nodes/titles";
+import { pickQuotes, translateQuotes } from "../nodes/translate";
 import { triage, untriaged, type TriageResult } from "../nodes/triage";
 import { LIMITS } from "../nodes/util";
 
@@ -209,7 +210,7 @@ export async function mergeRound(ctx: RunCtx, plan: Plan, round: string, out: Ex
       )
     : EMPTY_HINTS;
   const opts = mergeOpts(await listSources(ctx.boardId, { includeDiscarded: true }));
-  return ctx.step(
+  const diff = await ctx.step(
     "merge",
     { round, n: out.staged.length, sources: out.sourceIds },
     async () => {
@@ -222,6 +223,29 @@ export async function mergeRound(ctx: RunCtx, plan: Plan, round: string, out: Ex
       return result.diff;
     },
     { key: round, timeoutMs: 30_000, retries: 2 },
+  );
+  await translateRound(ctx, round);
+  return diff;
+}
+
+/**
+ * Writes English translations for verified quotes from non-English sources (the board is English only, and the
+ * quote is what people read behind a figure and in an on-the-ground report). One model call per round, the facts
+ * just merged and older ones still waiting. Optional: without a translation a quote is simply not shown.
+ */
+export async function translateRound(ctx: RunCtx, round: string): Promise<number> {
+  const [facts, sources] = await Promise.all([listFacts(ctx.boardId, { status: ["active"] }), listSources(ctx.boardId, { includeDiscarded: true })]);
+  const targets = pickQuotes(facts, sources);
+  if (!targets.length) return 0;
+  return ctx.step(
+    "translate",
+    { round, ids: targets.map((t) => t.id) },
+    async (_i, use, signal) => {
+      const done = await translateQuotes(targets, use, signal);
+      await setQuoteTranslations(ctx.boardId, done);
+      return done.length;
+    },
+    { key: round, timeoutMs: 45_000, optional: true, fallback: 0 },
   );
 }
 

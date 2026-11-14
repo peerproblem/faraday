@@ -64,7 +64,17 @@ export function widgetKeyOf(w: Pick<Widget, "type" | "bind"> & { key?: string })
   return singleWidgetTypes.includes(w.type) ? w.type : `${w.type}:${w.bind}`;
 }
 
-export type Cited = { sources: string[]; asOf: string | null };
+/** The verified sentence behind an item, copied word for word from one of its sources. */
+export type Evidence = {
+  /** Id of the source the sentence is from. */
+  source: string;
+  /** The sentence in English: the source's own words, or their translation when `original` is set. */
+  quote: string;
+  /** Only for a source that is not in English: its own words, which `quote` translates. Shown folded away. */
+  original?: string;
+};
+
+export type Cited = { sources: string[]; asOf: string | null; evidence?: Evidence };
 
 export type StatItem = Cited & {
   key: string;
@@ -81,6 +91,7 @@ export type StatItem = Cited & {
   history: { t: string; v: number }[];
 };
 
+/** `quote` is English: the post's own words, or their translation (then `evidence.original` holds the post as written). */
 export type OnTheGroundData = { items: (Cited & { id: string; quote: string })[] };
 
 export type NarrativeData = { sentences: { text: string; sources: string[] }[] };

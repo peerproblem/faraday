@@ -288,6 +288,20 @@ describe("social promotion boundary", () => {
   });
 });
 
+it("shows a post in another language by its translation, and not at all until it has one", () => {
+  const post = { ...sources[0], id: "sx", kind: "social" as const, sourceType: "social" as const, lang: "es" };
+  const report: Fact = { id: 90, boardId: "b", kind: "event", key: "march", payload: { title: "March", detail: "", importance: "medium" }, valueNum: null, asOf: null,
+    sourceIds: ["sx"], quote: "La marcha llena la Gran Via.", verified: true, status: "active", supersededBy: null, runId: null, createdAt: 1 };
+  const run = (f: Fact) => assemble({ plan, spec: specFromPlan(plan), facts: [f], metricHistory: [], sources: [...sources, post], prev: null, overrides: {}, now: 1 });
+  const waiting = run(report);
+  expect(waiting.data.widgets["on-the-ground"]).toBeUndefined();
+  expect(JSON.stringify(waiting.data)).not.toContain("La marcha");
+  const translated = run({ ...report, quoteEn: "The march fills Gran Via." });
+  expect(translated.data.widgets["on-the-ground"]).toEqual({
+    items: [{ id: "social-90", quote: "The march fills Gran Via.", sources: ["sx"], asOf: null, evidence: { source: "sx", quote: "The march fills Gran Via.", original: "La marcha llena la Gran Via." } }],
+  });
+});
+
 it("represents corroborated social claims using the independent news fact and removes their unverified entry", () => {
   const social = { ...sources[0], id: "sx", kind: "social" as const, sourceType: "social" as const };
   const asOf = "2026-11-14T00:00:00Z";
