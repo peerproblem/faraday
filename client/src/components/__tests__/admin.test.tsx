@@ -3,6 +3,7 @@ import "./mocks";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AdminDashboard, AdminLogin } from "@/components/admin/admin-console";
+import { createAgent } from "@/components/ui/agent";
 import type { BoardCard } from "@/lib/spec";
 
 type Call = [string, RequestInit | undefined];
@@ -84,5 +85,33 @@ describe("admin dashboard", () => {
     await waitFor(() => expect(calls("/api/admin/topics/t1/state")).toHaveLength(1));
     expect(JSON.parse(String(calls("/api/admin/topics/t1/state")[0][1]!.body))).toEqual({ state: "archived" });
     await waitFor(() => expect(within(screen.getByRole("tabpanel")).getByRole("button", { name: "Restore" })).toBeTruthy());
+  });
+
+  test("controls in the topics tab are visible to the agent bridge, and Delete needs the app's confirmation", async () => {
+    fetchMock.mockImplementation(async (u) => (String(u).includes("/topics/t1") && !String(u).endsWith("/state") ? json({ ok: true }) : json({ topics: [topic()], candidates: [], requests: [] })));
+    render(<AdminDashboard initialDiscover initialTopics={[topic()]} />);
+    const snap = createAgent().snapshot();
+    const archive = snap.find((c) => c.label === "Archive");
+    expect(archive?.component).toBe("button");
+    const del = snap.find((c) => c.label === "Delete");
+    expect(del?.component).toBe("alert-dialog");
+    expect(del?.requiresConfirmation).toBe(true);
+    expect(archive?.requiresConfirmation).toBeFalsy();
+
+    // Without a confirm callback the bridge refuses the marked control.
+    const refused = await createAgent().act({ steps: [{ ref: "Delete", action: "open" }] });
+    expect(refused.ok).toBe(false);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+
+    const asked: string[] = [];
+    const agent = createAgent({ confirm: (req) => (asked.push(req.label), false) });
+    const declined = await agent.act({ steps: [{ ref: "Delete", action: "open" }] });
+    expect(declined.ok).toBe(false);
+    expect(asked).toEqual(["Delete"]);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+
+    const approved = await createAgent({ confirm: () => true }).act({ steps: [{ ref: "Delete", action: "open" }] });
+    expect(approved.ok, approved.error?.message).toBe(true);
+    await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
   });
 });

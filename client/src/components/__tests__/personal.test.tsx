@@ -104,7 +104,9 @@ describe("display filters", () => {
     const layout: PersonalLayout = { ...emptyLayout(b.version), filters: { timeline: { kind: "timeline", minImportance: "high" } } };
     render(<PersonalBoard initial={b} initialView={{ layout, rev: 1 }} />);
     const tl = screen.getByRole("region", { name: b.spec!.widgets.find((w) => w.type === "timeline")!.title });
-    expect(within(tl).queryAllByText("Major").length).toBe(within(tl).getAllByRole("listitem").length);
+    const items = within(tl).getAllByRole("listitem");
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((li) => li.getAttribute("data-importance") === "high")).toBe(true);
   });
 });
 

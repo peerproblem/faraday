@@ -4,16 +4,29 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Board } from "@/components/board/board";
 import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { EmptyState } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { Caption, Text } from "@/components/ui/typography";
+import { Toggle } from "@/components/ui/toggle";
+import { Heading, Text } from "@/components/ui/typography";
 import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
@@ -173,17 +186,13 @@ export function PersonalBoard({
         >
           <Icon name="chevron-down" width={16} height={16} />
         </Button>
-        <Button
-          variant={lw.pinned ? "secondary" : "ghost"}
+        <Toggle
           size="sm"
-          aria-label={lw.pinned ? `Unpin ${t}` : `Pin ${t} to the top`}
-          aria-pressed={lw.pinned}
-          onClick={() =>
-            commit({ ...current, pinned: lw.pinned ? current.pinned.filter((x) => x !== k) : [...current.pinned.filter((x) => x !== k), k] })
-          }
-        >
-          <Icon name="star" width={16} height={16} />
-        </Button>
+          icon={<Icon name="star" width={16} height={16} />}
+          aria-label={`Pin ${t} to the top`}
+          pressed={lw.pinned}
+          onPressedChange={(on) => commit({ ...current, pinned: on ? [...current.pinned.filter((x) => x !== k), k] : current.pinned.filter((x) => x !== k) })}
+        />
         <Button
           variant="ghost"
           size="sm"
@@ -212,9 +221,9 @@ export function PersonalBoard({
 
   const actions = (
     <>
-      <Button variant={editing ? "accent" : "outline"} size="sm" onClick={() => setEditing((v) => !v)} aria-pressed={editing}>
-        {editing ? "Done" : "Edit layout"}
-      </Button>
+      <Toggle variant="outline" size="sm" pressed={editing} onPressedChange={setEditing}>
+        Edit layout
+      </Toggle>
       <Button variant="ghost" size="sm" loading={busy === "undo"} onClick={() => void undo()}>
         Undo
       </Button>
@@ -256,7 +265,9 @@ export function PersonalBoard({
 
       {editing ? (
         <Card padding="md" className="gap-3">
-          <Caption>Hidden sections</Caption>
+          <Heading as="h2" size="sm">
+            Hidden sections
+          </Heading>
           {hiddenWidgets.length ? (
             <ul className="flex flex-wrap gap-2">
               {hiddenWidgets.map((w) => {
@@ -271,14 +282,26 @@ export function PersonalBoard({
               })}
             </ul>
           ) : (
-            <Text size="sm" tone="muted">
-              Nothing is hidden.
-            </Text>
+            <EmptyState headingLevel={3} title="Nothing is hidden" description="Hide a section with its eye button while you edit." />
           )}
           <div>
-            <Button variant="danger" size="sm" loading={busy === "remove"} onClick={() => void remove()}>
-              Remove from my dashboards
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger variant="danger" size="sm" loading={busy === "remove"} data-sw-confirm="">
+                Remove from my dashboards
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove this dashboard?</AlertDialogTitle>
+                  <AlertDialogDescription>Your layout, filters and pins for this topic are deleted. The shared board stays.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep it</AlertDialogCancel>
+                  <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => remove()}>
+                    Remove
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </Card>
       ) : null}

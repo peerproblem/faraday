@@ -15,17 +15,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ToneBadge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { TextLink } from "@/components/ui/link";
+import { Link } from "@/components/ui/link";
+import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Table, type TableColumn, type TableRow } from "@/components/ui/table";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { OverlayHost, toast } from "@/components/ui/toast";
-import { Caption, Display, Text } from "@/components/ui/typography";
+import { Caption, Heading, Text } from "@/components/ui/typography";
 import {
   adminLogin,
   adminLogout,
@@ -70,9 +72,9 @@ export function AdminLogin() {
     <div className="mx-auto max-w-md pt-8 sm:pt-16">
       <Card padding="lg" radius="xl" className="gap-6">
         <Caption>/admin</Caption>
-        <Display as="h1" size="md">
+        <Heading as="h1" size="lg">
           Admin sign-in
-        </Display>
+        </Heading>
         <Text tone="subtle">For the people who run Faraday&apos;s shared topics.</Text>
         <form
           className="grid gap-4"
@@ -150,9 +152,9 @@ export function AdminDashboard({ initialDiscover, initialTopics }: { initialDisc
       <header className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-3">
           <Caption>/admin</Caption>
-          <Display as="h1" size="md">
+          <Heading as="h1" size="lg">
             Admin
-          </Display>
+          </Heading>
         </div>
         <div className="ml-auto">
           <Button variant="outline" size="sm" loading={signingOut} onClick={() => void signOut()}>
@@ -163,9 +165,9 @@ export function AdminDashboard({ initialDiscover, initialTopics }: { initialDisc
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card padding="md" className="gap-3">
-          <h2 className="m-0 flex">
-            <Caption>Discovery</Caption>
-          </h2>
+          <Heading as="h2" size="sm">
+            Discovery
+          </Heading>
           <Switch
             label="Discover new topics automatically"
             checked={discover}
@@ -250,9 +252,9 @@ function RegisterTopic({ onCreated }: { onCreated: (t: BoardCard) => void }) {
 
   return (
     <Card padding="md" className="gap-3">
-      <h2 className="m-0 flex">
-        <Caption>Register a topic</Caption>
-      </h2>
+      <Heading as="h2" size="sm">
+        Register a topic
+      </Heading>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -281,7 +283,7 @@ function RegisterTopic({ onCreated }: { onCreated: (t: BoardCard) => void }) {
 
 function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onChanged: () => Promise<void>; onRemoved: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
-  if (!topics.length) return <Text size="sm" tone="muted">No topics yet. Register one above.</Text>;
+  if (!topics.length) return <EmptyState title="No topics yet" description="Register one above, or turn discovery on." />;
 
   async function changeState(t: BoardCard, state: "active" | "archived") {
     setBusy(t.id);
@@ -305,63 +307,81 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
     }
   }
 
-  return (
-    <ul className="divide-y divide-hairline">
-      {topics.map((t) => {
-        const s = boardBadge(t);
-        const archived = t.topicState === "archived";
-        return (
-          <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 first:pt-0 last:pb-0">
-            <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
-              <Text className="font-medium">{t.title ?? t.prompt}</Text>
-              <div className="flex flex-wrap items-center gap-2">
-                <ToneBadge tone={s.tone}>{s.text}</ToneBadge>
-                <ToneBadge tone="neutral" mono>
-                  {archived ? "archived" : (t.topicState ?? "active")}
-                </ToneBadge>
-                {t.crisisType ? (
-                  <ToneBadge tone="neutral" mono>
-                    {t.crisisType}
-                  </ToneBadge>
-                ) : null}
-                <Text as="span" size="sm" tone="muted">
-                  updated <Ago t={t.updatedAt} />
-                </Text>
-              </div>
-            </div>
-            <Text as="div" size="sm" className="flex flex-wrap items-center gap-3">
-              <TextLink href={boardUrl(t.slug)}>Board</TextLink>
-              <TextLink href={`/studio/${t.id}`}>Studio</TextLink>
-            </Text>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" loading={busy === t.id} onClick={() => void changeState(t, archived ? "active" : "archived")}>
-                {archived ? "Restore" : "Archive"}
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger variant="danger" size="sm">
-                  Delete
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this topic?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t.title ?? "This topic"}, its sources, its monitors and everyone&apos;s dashboards of it are deleted. The link stops working.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep it</AlertDialogCancel>
-                    <AlertDialogAction variant="danger" onClick={() => remove(t)}>
-                      Delete forever
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
+  const rows: TableRow[] = topics.map((t) => {
+    const s = boardBadge(t);
+    const archived = t.topicState === "archived";
+    const name = t.title ?? t.prompt;
+    return {
+      id: t.id,
+      cells: {
+        topic: <span className="font-medium">{name}</span>,
+        status: (
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge variant={s.tone} pulse={s.live}>
+              {s.text}
+            </Badge>
+            <Badge variant={archived ? "outline" : "neutral"} mono>
+              {archived ? "archived" : (t.topicState ?? "active")}
+            </Badge>
+            {t.crisisType ? (
+              <Badge variant="neutral" mono>
+                {t.crisisType}
+              </Badge>
+            ) : null}
+          </span>
+        ),
+        updated: <Ago t={t.updatedAt} />,
+        links: (
+          <span className="flex flex-wrap items-center gap-3 whitespace-nowrap">
+            <Link href={boardUrl(t.slug)} aria-label={`Board of ${name}`}>
+              Board
+            </Link>
+            <Link href={`/studio/${t.id}`} aria-label={`Studio of ${name}`}>
+              Studio
+            </Link>
+          </span>
+        ),
+        actions: (
+          <span className="flex flex-nowrap items-center justify-end gap-2">
+            <Button variant="outline" size="sm" loading={busy === t.id} onClick={() => void changeState(t, archived ? "active" : "archived")}>
+              {archived ? "Restore" : "Archive"}
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger variant="danger" size="sm" data-sw-confirm="">
+                Delete
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this topic?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t.title ?? "This topic"}, its sources, its monitors and everyone&apos;s dashboards of it are deleted. The link stops working.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep it</AlertDialogCancel>
+                  <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => remove(t)}>
+                    Delete forever
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </span>
+        ),
+      },
+    };
+  });
+
+  const byId = new Map(topics.map((t) => [t.id, t]));
+  const of = (r: TableRow) => byId.get(r.id)!;
+  const columns: TableColumn[] = [
+    { id: "topic", label: "Topic", rowHeader: true, compare: (a, b) => (of(a).title ?? of(a).prompt).localeCompare(of(b).title ?? of(b).prompt) },
+    { id: "status", label: "Status" },
+    { id: "updated", label: "Updated", compare: (a, b) => of(a).updatedAt - of(b).updatedAt },
+    { id: "links", label: "Open" },
+    { id: "actions", label: "Actions", align: "end" },
+  ];
+
+  return <Table caption="Topics" columns={columns} rows={rows} />;
 }
 
 /** Loads once when mounted. Null while loading, an Error when it failed. */
@@ -384,27 +404,37 @@ function useLoad<T>(load: () => Promise<T>) {
   return value;
 }
 
-function Loaded<T>({ value, children }: { value: T | Error | null; children: (v: T) => ReactNode }) {
-  if (value === null)
-    return (
-      <Text size="sm" tone="muted">
-        Loading…
+function Loaded<T>({ label, value, children }: { label: string; value: T | Error | null; children: (v: T) => ReactNode }) {
+  const loading = value === null;
+  return (
+    <div className="flex flex-col gap-3">
+      <Text as="span" size="sm" tone="muted" role="status" className="sr-only">
+        {loading ? `Loading ${label}…` : `${label} loaded.`}
       </Text>
-    );
-  if (value instanceof Error)
-    return (
-      <Text size="sm" className="text-danger" role="alert">
-        {value.message}
-      </Text>
-    );
-  return <>{children(value)}</>;
+      <div aria-busy={loading} className="flex flex-col gap-3">
+        {loading ? (
+          <>
+            <Skeleton height={20} width="60%" />
+            <Skeleton height={20} />
+            <Skeleton height={20} width="80%" />
+          </>
+        ) : value instanceof Error ? (
+          <Text size="sm" className="text-danger" role="alert">
+            {value.message}
+          </Text>
+        ) : (
+          children(value)
+        )}
+      </div>
+    </div>
+  );
 }
 
-const decisionClass: Record<TopicCandidateView["decision"], string> = {
-  created: "text-success",
-  matched: "text-accent",
-  rejected: "text-muted-foreground",
-  deferred: "text-warning",
+const decisionVariant: Record<TopicCandidateView["decision"], BadgeVariant> = {
+  created: "success",
+  matched: "accent",
+  rejected: "neutral",
+  deferred: "warning",
 };
 
 const loadCandidates = () => listCandidates(50);
@@ -412,38 +442,46 @@ const loadCandidates = () => listCandidates(50);
 function DiscoveryPanel() {
   const r = useLoad(loadCandidates);
   return (
-    <Loaded value={r}>
-      {({ candidates }) =>
-        candidates.length ? (
-          <ul className="grid gap-3">
-            {candidates.map((c) => (
-              <li key={c.id} className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-baseline gap-x-2">
-                  <Text as="span" size="sm" className="font-medium">
-                    {c.title}
-                  </Text>
-                  <span className={`font-mono text-xs ${decisionClass[c.decision] ?? ""}`}>{c.decision}</span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {c.crisisType} {c.score.toFixed(2)}
-                  </span>
-                </div>
-                <Text size="sm" tone="muted">
-                  {[c.locationName, c.reason].filter(Boolean).join(". ")} <Ago t={c.createdAt} />
+    <Loaded label="Discovery results" value={r}>
+      {({ candidates }) => {
+        if (!candidates.length)
+          return <EmptyState title="No discovery results yet" description="They appear after the scheduler runs with discovery on." />;
+        const byId = new Map(candidates.map((c) => [String(c.id), c]));
+        const of = (row: TableRow) => byId.get(row.id)!;
+        const columns: TableColumn[] = [
+          { id: "event", label: "Event", rowHeader: true },
+          { id: "decision", label: "Decision", compare: (a, b) => of(a).decision.localeCompare(of(b).decision) },
+          { id: "score", label: "Score", align: "end", compare: (a, b) => of(a).score - of(b).score },
+          { id: "seen", label: "Seen", compare: (a, b) => of(a).createdAt - of(b).createdAt },
+          { id: "topic", label: "Topic" },
+        ];
+        const rows: TableRow[] = candidates.map((c) => ({
+          id: String(c.id),
+          cells: {
+            event: (
+              <span className="flex flex-col gap-1">
+                <span className="font-medium">{c.title}</span>
+                <Text as="span" size="sm" tone="muted">
+                  {[c.crisisType, c.locationName, c.reason].filter(Boolean).join(". ")}
                 </Text>
-                {c.boardId ? (
-                  <Text as="span" size="sm">
-                    <TextLink href={`/studio/${c.boardId}`}>Open topic</TextLink>
-                  </Text>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Text size="sm" tone="muted">
-            Nothing yet. Discovery results appear after the scheduler runs with discovery on.
-          </Text>
-        )
-      }
+              </span>
+            ),
+            decision: (
+              <Badge variant={decisionVariant[c.decision] ?? "neutral"} mono>
+                {c.decision}
+              </Badge>
+            ),
+            score: c.score.toFixed(2),
+            seen: <Ago t={c.createdAt} />,
+            topic: c.boardId ? (
+              <Link href={`/studio/${c.boardId}`} aria-label={`Open topic for ${c.title}`}>
+                Open topic
+              </Link>
+            ) : null,
+          },
+        }));
+        return <Table caption="Discovery results" columns={columns} rows={rows} />;
+      }}
     </Loaded>
   );
 }
@@ -454,30 +492,31 @@ function RequestsPanel({ topics }: { topics: BoardCard[] }) {
   const r = useLoad(loadRequests);
   const titles = new Map(topics.map((t) => [t.id, t.title ?? t.prompt]));
   return (
-    <Loaded value={r}>
-      {({ requests }: { requests: TopicRequestView[] }) =>
-        requests.length ? (
-          <ul className="grid gap-2">
-            {requests.map((q) => (
-              <li key={q.id} className="flex flex-wrap gap-x-3 gap-y-1">
-                <Text as="span" size="sm" tone="muted" className="w-16 shrink-0 font-mono text-xs leading-5">
-                  <Ago t={q.createdAt} />
-                </Text>
-                <Text as="span" size="sm" className="min-w-0 flex-1 basis-60">
-                  {q.text}
-                </Text>
-                <Text as="span" size="sm" tone="muted">
-                  {titles.get(q.boardId) ?? q.boardId}, {q.status}
-                </Text>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Text size="sm" tone="muted">
-            Nobody has asked a topic to track anything new.
-          </Text>
-        )
-      }
+    <Loaded label="Requests" value={r}>
+      {({ requests }: { requests: TopicRequestView[] }) => {
+        if (!requests.length) return <EmptyState title="No requests" description="Nobody has asked a topic to track anything new." />;
+        const byId = new Map(requests.map((q) => [String(q.id), q]));
+        const columns: TableColumn[] = [
+          { id: "when", label: "When", compare: (a, b) => byId.get(a.id)!.createdAt - byId.get(b.id)!.createdAt },
+          { id: "text", label: "Request", rowHeader: true },
+          { id: "topic", label: "Topic" },
+          { id: "status", label: "Status" },
+        ];
+        const rows: TableRow[] = requests.map((q) => ({
+          id: String(q.id),
+          cells: {
+            when: <Ago t={q.createdAt} />,
+            text: q.text,
+            topic: titles.get(q.boardId) ?? q.boardId,
+            status: (
+              <Badge variant="neutral" mono>
+                {q.status}
+              </Badge>
+            ),
+          },
+        }));
+        return <Table caption="Requests" columns={columns} rows={rows} />;
+      }}
     </Loaded>
   );
 }
