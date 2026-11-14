@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { subscribe, subscribeAll, publish, subscriberCount } from "../bus";
+import { publicSources } from "../pipeline/public-source";
 import { one, all } from "../db/pool";
 import { removeBoardMonitors, runBoardMonitors } from "../monitors";
 import {
@@ -171,7 +172,9 @@ export function createApp(opts: AppOptions = {}) {
   async function view(id: string): Promise<BoardView | null> {
     const cached = cache.get(id);
     if (cached) return cached;
-    const v = await getBoardView(id);
+    const stored = await getBoardView(id);
+    // English only: non-English source titles and snippets never leave the server.
+    const v = stored ? { ...stored, sources: publicSources(stored.sources) } : null;
     if (v) cache.set(id, v);
     return v;
   }
@@ -335,7 +338,8 @@ export function createApp(opts: AppOptions = {}) {
         if (closed) return;
         if (msg.type === "event" && msg.event.id <= replayedUpTo) return;
         const id = msg.type === "event" ? String(msg.event.id) : undefined;
-        chain = chain.then(() => stream.writeSSE({ data: JSON.stringify(msg), id })).catch(() => {});
+        const out: StreamMsg = msg.type === "sources" ? { ...msg, added: publicSources(msg.added) } : msg;
+        chain = chain.then(() => stream.writeSSE({ data: JSON.stringify(out), id })).catch(() => {});
       };
       const off = subscribe(id, (msg) => (replaying ? queued.push(msg) : write(msg)));
 

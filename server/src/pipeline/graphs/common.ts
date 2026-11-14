@@ -4,10 +4,12 @@ import {
   addSources,
   discardSources,
   getBoard,
+  getSources,
   getSourceTexts,
   listSources,
   markExtracted,
   refreshSources,
+  setSourceLanguage,
   setSourceTriage,
   setStatus,
   type BoardRow,
@@ -31,7 +33,8 @@ import { mergeFacts, type MergeOpts } from "../merge";
 import { verifyFacts } from "../verify";
 import { batches, extractBatch, pickExtractSources, type Focus } from "../nodes/extract";
 import { EMPTY_HINTS, makeHints, needsHints } from "../nodes/hints";
-import { pickReadTargets, readSources } from "../nodes/read";
+import { pickReadTargets, readSources, type ReadStats } from "../nodes/read";
+import { englishTitles, type SourceTitle } from "../nodes/titles";
 import { triage, untriaged, type TriageResult } from "../nodes/triage";
 import { LIMITS } from "../nodes/util";
 
@@ -84,26 +87,73 @@ export async function triageRound(ctx: RunCtx, plan: Plan, round: string): Promi
     { key: round, timeoutMs: 90_000, retries: 1 },
   );
   if (res.dropped.length) ctx.emit({ type: "sources", added: [], discarded: res.dropped });
+  await languageRound(ctx, round, targets, res);
   return res;
+}
+
+/**
+ * Records each triaged source's language. Kept non-English sources get an English display title (the board is
+ * English only); clients get them again so they replace the original titles. Failure is not fatal: those sources are
+ * still marked non-English, so the UI shows them by site name with no snippet.
+ */
+async function languageRound(ctx: RunCtx, round: string, targets: Source[], res: TriageResult): Promise<void> {
+  const english = res.rows.filter((r) => r.english >= 0.5).map((r) => ({ id: r.id, lang: "en", titleEn: null }));
+  const kept = new Set(res.kept);
+  const foreignRows = res.rows.filter((r) => r.english < 0.5);
+  const foreignKept = targets.filter((s) => kept.has(s.id) && foreignRows.some((r) => r.id === s.id));
+  const foreignDropped = foreignRows.filter((r) => !kept.has(r.id)).map((r) => ({ id: r.id, lang: "und", titleEn: null }));
+  let titles: SourceTitle[] = [];
+  if (foreignKept.length) {
+    titles = await ctx.step(
+      "titles",
+      { round, ids: foreignKept.map((s) => s.id) },
+      async (_i, use, signal) => {
+        try {
+          return await englishTitles(foreignKept, use, signal);
+        } catch (e) {
+          if (signal.aborted) throw e;
+          await ctx.event("error", `Could not write English titles for ${foreignKept.length} non-English sources: ${errText(e)}`);
+          return foreignKept.map((s) => ({ id: s.id, lang: "und", titleEn: null }));
+        }
+      },
+      { key: round, timeoutMs: 45_000, optional: true, fallback: foreignKept.map((s) => ({ id: s.id, lang: "und", titleEn: null })) },
+    );
+  }
+  await setSourceLanguage(ctx.boardId, [...english, ...foreignDropped, ...titles]);
+  if (foreignKept.length) {
+    const updated = await getSources(ctx.boardId, foreignKept.map((s) => s.id));
+    if (updated.length) ctx.emit({ type: "sources", added: updated, discarded: [] });
+  }
 }
 
 /**
  * Reads full pages for the best official and web sources. Optional: failures fall back to snippets.
  * `fresh`: ids to fetch without cache (pages a monitor saw change); they are read first.
  */
-export async function readRound(ctx: RunCtx, round: string, sources: Source[], max: number, fresh: string[] = []): Promise<string[]> {
+export async function readRound(
+  ctx: RunCtx,
+  round: string,
+  sources: Source[],
+  max: number,
+  fresh: string[] = [],
+  country: string | null = null,
+): Promise<string[]> {
   const freshIds = new Set(fresh);
   const targets = [
     ...pickReadTargets(sources.filter((s) => freshIds.has(s.id)), max),
     ...pickReadTargets(sources.filter((s) => !freshIds.has(s.id)), max),
   ].slice(0, Math.max(0, max));
   if (targets.length === 0) return [];
-  return ctx.step(
+  let stats: ReadStats | null = null;
+  const ids = await ctx.step(
     "read",
-    { round, ids: targets.map((s) => s.id), fresh: targets.filter((s) => freshIds.has(s.id)).map((s) => s.id) },
-    (_i, use, signal) => readSources(ctx.boardId, targets, use, signal, freshIds),
-    { key: round, timeoutMs: 45_000, optional: true, fallback: [] },
+    { round, ids: targets.map((s) => s.id), fresh: targets.filter((s) => freshIds.has(s.id)).map((s) => s.id), country },
+    (_i, use, signal) => readSources(ctx.boardId, targets, use, signal, freshIds, { country, onStats: (s) => (stats = s) }),
+    { key: round, timeoutMs: 90_000, optional: true, fallback: [] },
   );
+  const st = stats as ReadStats | null;
+  if (st?.rescued) await ctx.event("stage", `Oxylabs read ${st.rescued} ${st.rescued === 1 ? "page" : "pages"} Context.dev could not`, st);
+  return ids;
 }
 
 export type ExtractOutcome = { staged: StagedFact[]; rejected: { fact: ExtractedFact; reason: string }[]; sourceIds: string[] };

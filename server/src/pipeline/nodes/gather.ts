@@ -1,19 +1,43 @@
 import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
 import { gatherX } from "../../social/x";
+import { oxylabsEnabled, oxySearch } from "../../oxylabs";
 import type { Usage } from "../../graph/runner";
 import type { BoardTier, Plan } from "../../spec";
 
-export type GatherResult = { docs: FoundDoc[]; calls: number; failures: string[] };
+export type GatherResult = {
+  docs: FoundDoc[];
+  /** Context.dev calls only. */
+  calls: number;
+  failures: string[];
+  /** Oxylabs local search: results before dedupe, the ones no other source had, and the calls made. */
+  localFound: number;
+  localAdded: number;
+  oxylabsCalls: number;
+};
+
+/** Local-language queries first, then the first web query, run from the crisis country. */
+export function localSearchQueries(q: { localQueries?: string[]; webQueries: string[] }): string[] {
+  return [...(q.localQueries ?? []).filter(Boolean).slice(0, 2), ...q.webQueries.slice(0, 1)];
+}
 
 export function freshnessFor(lookbackDays: number) {
   return lookbackDays <= 1 ? ("last_24_hours" as const) : lookbackDays <= 7 ? ("last_week" as const) : ("last_month" as const);
 }
 
 export async function gather(
-  q: { newsQueries: string[]; webQueries: string[]; socialQueries?: string[]; lookbackDays: Plan["lookbackDays"] },
+  q: { newsQueries: string[]; webQueries: string[]; socialQueries?: string[]; localQueries?: string[]; lookbackDays: Plan["lookbackDays"] },
   use: Usage,
   signal: AbortSignal,
-  opts: { sinceMs?: number; newsLimit?: number; webResults?: number; boardId?: string; polling?: boolean; tier?: BoardTier } = {},
+  opts: {
+    sinceMs?: number;
+    newsLimit?: number;
+    webResults?: number;
+    boardId?: string;
+    polling?: boolean;
+    tier?: BoardTier;
+    /** ISO 3166-1 alpha-2 country of the crisis. Oxylabs local search runs only when set. */
+    country?: string | null;
+  } = {},
 ): Promise<GatherResult> {
   const sinceMs = opts.sinceMs ?? Date.now() - q.lookbackDays * 86_400_000;
   const freshness = freshnessFor(q.lookbackDays);
@@ -38,9 +62,29 @@ export async function gather(
         return [] as FoundDoc[];
       })
     : Promise.resolve([] as FoundDoc[]);
-  const [results, socialDocs] = await Promise.all([Promise.all(jobs), social]);
+  const country = opts.country ?? null;
+  const localQs = country && oxylabsEnabled() ? localSearchQueries(q) : [];
+  const local = Promise.all(
+    localQs.map((query) =>
+      oxySearch(query, { location: country ?? undefined, maxResults: 8, signal }).catch((e) => {
+        failures.push(`Local search from ${country} failed: ${(e as Error).message}`);
+        return [] as FoundDoc[];
+      }),
+    ),
+  );
+  const [results, socialDocs, localDocs] = await Promise.all([Promise.all(jobs), social, local]);
   use.context(jobs.length);
-  return { docs: dedupeDocs([...results.flat(), ...socialDocs]), calls: jobs.length, failures };
+  // Context.dev first, so a URL both APIs found stays a Context.dev source; what remains from Oxylabs is new.
+  const before = dedupeDocs([...results.flat(), ...socialDocs]);
+  const docs = dedupeDocs([...before, ...localDocs.flat()]);
+  return {
+    docs,
+    calls: jobs.length,
+    failures,
+    localFound: localDocs.flat().length,
+    localAdded: docs.length - before.length,
+    oxylabsCalls: localQs.length,
+  };
 }
 
 export function dedupeDocs(docs: FoundDoc[]): FoundDoc[] {

@@ -15,6 +15,7 @@ import {
   forgetWebhookEvent,
   getBoard,
   getBoardView,
+  getSources,
   getSourceTexts,
   listBoards,
   listDueBoards,
@@ -38,6 +39,7 @@ import {
   seenChangeIds,
   setMonitorSeen,
   setSchedule,
+  setSourceLanguage,
   setSourceTriage,
   setStatus,
   setVisibility,
@@ -112,6 +114,23 @@ describe.skipIf(!enabled)("repo/boards", () => {
     expect(view.data?.header.headline?.text).toBe("h52");
     const [card] = (await listBoards({ limit: 10, ownerId: "u2" }))!;
     expect(card).toMatchObject({ id, crisisType: "flood", severity: 3.6, headline: "h52", accent: "blue", title: "Valencia Floods", tier: "hot" });
+  });
+
+  it("stores which API found a source and its language and English title", async () => {
+    const { id } = await createBoard("Provenance board here", null);
+    const [a, b] = await addSources(id, [
+      { url: "https://kyiv.example/1", title: "Графіки", publisher: "kyiv.example", publishedAt: null, snippet: "Текст", kind: "web", via: "oxylabs", geo: "UA" },
+      { url: "https://news.example/2", title: "Outages", publisher: "news.example", publishedAt: null, snippet: "s", kind: "news" },
+    ]);
+    expect(a).toMatchObject({ via: "oxylabs", lang: null, titleEn: null });
+    expect(b.via).toBeNull();
+    await setSourceLanguage(id, [
+      { id: "s1", lang: "uk", titleEn: "Outage schedules" },
+      { id: "s2", lang: "en", titleEn: null },
+    ]);
+    const [s1] = await getSources(id, ["s1"]);
+    expect(s1).toMatchObject({ via: "oxylabs", lang: "uk", titleEn: "Outage schedules", title: "Графіки", snippet: "Текст" });
+    expect((await listSources(id))[1]).toMatchObject({ lang: "en", titleEn: null });
   });
 
   it("dedupes sources by url without fragment and continues ids", async () => {

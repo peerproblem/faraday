@@ -62,7 +62,12 @@ export type Source = {
   /** P(on topic) from triage. Null until triaged. */
   relevance: number | null;
   sourceType: SourceType | null;
+  /** Which API found it. Null on sources stored before provenance was recorded. */
+  via?: SourceVia | null;
 };
+
+export const sourceVias = ["contextdev", "oxylabs", "x"] as const;
+export type SourceVia = (typeof sourceVias)[number];
 
 export type BoardEvent = {
   id: number;

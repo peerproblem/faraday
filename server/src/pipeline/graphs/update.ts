@@ -11,13 +11,14 @@ import {
   type SyncResult,
 } from "../../monitors";
 import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
-import { geocodeBoard, type GeocodeResult } from "../nodes/geocode";
+import { geocodeBoard, placeCountry, type GeocodeResult } from "../nodes/geocode";
+import { oxylabsEnabled, oxySearch } from "../../oxylabs";
 import { listMonitors, listSources, markChanged, markMonitorsSynced, markPolled, saveBoardVersion } from "../../repo/boards";
 import { listFacts } from "../../repo/facts";
 import type { FactDiff } from "../../spec";
 import { diffData, type HeaderOverrides } from "../assemble";
 import { assess, materiality, type Assessment, type Materiality } from "../nodes/assess";
-import { dedupeDocs, gather, rotateQueries } from "../nodes/gather";
+import { dedupeDocs, gather, localSearchQueries, rotateQueries } from "../nodes/gather";
 import { writeNarrative, type Narrative } from "../nodes/narrative";
 import { changeNote } from "../nodes/note";
 import { untriaged } from "../nodes/triage";
@@ -54,12 +55,25 @@ export const updateGraph: GraphFn = async (ctx) => {
   const queries = followup ? (payload.newsQueries ?? []).slice(0, 3) : rotateQueries(plan.newsQueries, now, POLL_INTERVAL_MS.hot);
   const webQueries = followup ? (payload.webQueries ?? []).slice(0, 3) : [];
   const freshness = plan.lookbackDays <= 1 ? "last_24_hours" : plan.lookbackDays <= 7 ? "last_week" : "last_month";
+  // One Oxylabs local search per scheduled poll, rotating through the local-language and first web query.
+  // The country comes from the geocoder; without it (or without a key) nothing runs.
+  const placeName = plan.location?.name;
+  // Reads of local pages are routed through the country on every poll; the local search runs on scheduled polls only.
+  const readCountry = placeName && oxylabsEnabled() ? await placeCountry(placeName).catch(() => null) : null;
+  const country = followup ? null : readCountry;
+  const localQuery = country ? (rotateQueries(localSearchQueries(plan), now, POLL_INTERVAL_MS.hot, 1)[0] ?? null) : null;
 
   const collected = await ctx.step(
     "collect",
-    { queries, webQueries, since },
+    { queries, webQueries, since, ...(localQuery ? { localQuery, country } : {}) },
     async (i, use, signal) => {
       const failures: string[] = [];
+      const localP = localQuery && country
+        ? oxySearch(localQuery, { location: country, maxResults: 8, signal }).catch((e) => {
+            failures.push(`Local search from ${country} failed: ${(e as Error).message}`);
+            return [] as FoundDoc[];
+          })
+        : Promise.resolve([] as FoundDoc[]);
       const newsP = Promise.all([
         ...i.queries.map((q) =>
           searchNews(q, i.since, 10, signal).catch((e) => {
@@ -77,14 +91,15 @@ export const updateGraph: GraphFn = async (ctx) => {
       use.context(i.queries.length + i.webQueries.length);
       const socialP = gather({ newsQueries: [], webQueries: [], socialQueries: followup ? [] : plan.socialQueries, lookbackDays: plan.lookbackDays }, use, signal,
         { boardId: ctx.boardId, polling: true, tier: board.tier });
-      const [news, social, m] = await Promise.all([newsP, socialP, collectMonitorChanges(ctx.boardId, signal)]);
+      const [news, social, m, local] = await Promise.all([newsP, socialP, collectMonitorChanges(ctx.boardId, signal), localP]);
       failures.push(...social.failures);
       use.context(m.calls);
       // Monitor docs carry raw page text only; the judge model's summary goes to the change event, not to sources.
       const filled = await fetchChangeTexts(dedupeDocs(m.changes.flatMap(changeDocs)), signal);
       use.context(filled.calls);
       return {
-        docs: dedupeDocs([...filled.docs, ...news.flat(), ...social.docs]),
+        // Oxylabs last, so a URL Context.dev also found stays a Context.dev source.
+        docs: dedupeDocs([...filled.docs, ...news.flat(), ...social.docs, ...local]),
         changes: m.changes.map((c) => ({
           id: c.id,
           monitorId: c.monitorId,
@@ -149,7 +164,7 @@ export const updateGraph: GraphFn = async (ctx) => {
   // Pages a monitor saw change are read again without cache: the stored text predates the change.
   const reread = fresh.filter((s) => refreshedIds.has(s.id) || s.kind === "monitor").map((s) => s.id);
   const rereadSet = new Set(reread);
-  await readRound(ctx, "u1", fresh.filter((s) => s.sourceType === "official" || rereadSet.has(s.id)), Math.min(4, 2 + reread.length), reread);
+  await readRound(ctx, "u1", fresh.filter((s) => s.sourceType === "official" || rereadSet.has(s.id)), Math.min(4, 2 + reread.length), reread, readCountry);
   const picked = await extractable(ctx, hasFacts, 15, keptIds);
   const out = await extractRound(ctx, plan, "u1", picked);
   const diff = await mergeRound(ctx, plan, "u1", out);

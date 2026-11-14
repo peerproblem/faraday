@@ -15,9 +15,11 @@ import type {
   Plan,
   Source,
   SourceType,
+  SourceVia,
   TopicState,
   Visibility,
 } from "../spec";
+import { sourceVias } from "../spec";
 
 export type FoundDoc = {
   url: string;
@@ -26,6 +28,10 @@ export type FoundDoc = {
   publishedAt: string | null;
   snippet: string | null;
   kind: Source["kind"];
+  /** Which API found it. */
+  via?: SourceVia;
+  /** ISO 3166-1 alpha-2 country the search or read was routed through (Oxylabs local search). */
+  geo?: string | null;
   /**
    * Set on monitor changes: the snippet is the raw text the page has now. A source the board already has for this URL
    * is refreshed (see refreshSources) instead of being skipped as a duplicate.
@@ -485,7 +491,12 @@ type SourceRow = {
   snippet: string | null;
   relevance: number | null;
   source_type: SourceType | null;
+  via: string | null;
+  lang: string | null;
+  title_en: string | null;
 };
+
+const viaOf = (v: string | null): SourceVia | null => ((sourceVias as readonly string[]).includes(v ?? "") ? (v as SourceVia) : null);
 
 const toSource = (r: SourceRow): Source => ({
   id: r.id,
@@ -498,9 +509,12 @@ const toSource = (r: SourceRow): Source => ({
   snippet: r.snippet,
   relevance: num(r.relevance),
   sourceType: r.source_type,
+  via: viaOf(r.via),
+  lang: r.lang ?? null,
+  titleEn: r.title_en ?? null,
 });
 
-const SOURCE_COLS = `id, url, title, publisher, kind, published_at, fetched_at, snippet, relevance, source_type`;
+const SOURCE_COLS = `id, url, title, publisher, kind, published_at, fetched_at, snippet, relevance, source_type, via, lang, title_en`;
 
 export async function listSources(boardId: string, opts?: { includeDiscarded?: boolean }): Promise<Source[]> {
   const rows = await all<SourceRow>(
@@ -545,16 +559,19 @@ export async function addSources(boardId: string, docs: FoundDoc[]): Promise<Sou
         snippet: doc.snippet,
         relevance: null,
         sourceType: doc.kind === "social" ? "social" : null,
+        via: doc.via ?? null,
+        lang: null,
+        titleEn: null,
         hash,
         content: doc.refresh ? contentHash(doc.snippet) : null,
       });
     }
     if (added.length) {
-      const placeholders = added.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", ");
+      const placeholders = added.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", ");
       await db.run(
-        `INSERT INTO sources (board_id, id, url, title, publisher, kind, published_at, fetched_at, snippet, url_hash, content_hash, source_type)
+        `INSERT INTO sources (board_id, id, url, title, publisher, kind, published_at, fetched_at, snippet, url_hash, content_hash, source_type, via)
          VALUES ${placeholders}`,
-        added.flatMap((s) => [boardId, s.id, s.url, s.title, s.publisher, s.kind, s.publishedAt, s.fetchedAt, s.snippet, s.hash, s.content, s.sourceType]),
+        added.flatMap((s) => [boardId, s.id, s.url, s.title, s.publisher, s.kind, s.publishedAt, s.fetchedAt, s.snippet, s.hash, s.content, s.sourceType, s.via ?? null]),
       );
     }
     return added.map(({ hash: _hash, content: _content, ...s }) => s);
@@ -621,6 +638,32 @@ export async function setSourceTriage(boardId: string, rows: { id: string; relev
       await db.run(`UPDATE sources SET relevance = ?, source_type = CASE WHEN kind = 'social' THEN 'social' ELSE ? END WHERE board_id = ? AND id = ?`, [r.relevance, r.sourceType, boardId, r.id]);
     }
   });
+}
+
+/** Stores triage's language call and, for non-English sources, an English display title. */
+export async function setSourceLanguage(boardId: string, rows: { id: string; lang: string; titleEn: string | null }[]): Promise<void> {
+  if (!rows.length) return;
+  await tx(async (db) => {
+    for (const r of rows) {
+      await db.run(`UPDATE sources SET lang = ?, title_en = ? WHERE board_id = ? AND id = ?`, [
+        r.lang.slice(0, 8),
+        r.titleEn?.slice(0, 300) ?? null,
+        boardId,
+        r.id,
+      ]);
+    }
+  });
+}
+
+/** The given sources as stored now, in id order. */
+export async function getSources(boardId: string, ids: string[]): Promise<Source[]> {
+  if (!ids.length) return [];
+  const rows = await all<SourceRow>(
+    `SELECT ${SOURCE_COLS} FROM sources WHERE board_id = ? AND id IN (${ids.map(() => "?").join(", ")})
+     ORDER BY CAST(SUBSTRING(id, 2) AS UNSIGNED)`,
+    [boardId, ...ids],
+  );
+  return rows.map(toSource);
 }
 
 export async function markExtracted(boardId: string, ids: string[], at = Date.now()): Promise<void> {

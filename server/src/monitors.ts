@@ -434,6 +434,7 @@ export function changeDocs(c: MonitorChange): FoundDoc[] {
       publishedAt: c.detectedAt,
       snippet: t.length ? clip(t.join("\n\n"), SNIPPET_CHARS) : null,
       kind: "monitor" as const,
+      via: "contextdev" as const,
       refresh: true,
     };
   });

@@ -66,6 +66,18 @@ Boards are also agent-ready: each one registers its controls as WebMCP tools.
 | `monitors` | Semantic change detection every 10 minutes on a search and on official pages |
 | Webhook `change.detected` | Triggers an update the moment a monitor fires |
 
+## Oxylabs for the local view
+
+Global search misses what is only published locally. When a crisis has a place, the geocoder gives its country, and [Oxylabs Web API](https://oxylabs.io/) searches from that country in the local language.
+
+| Endpoint | Used for |
+| :- | :- |
+| `/v1/search` with `location` | Local-language queries searched from the affected country, at build time and once per poll. Results Context.dev already found are dropped, so what is left is what global search missed. |
+| `/v1/scrape` with `location` | Reads the pages that local search found, through the same country. |
+| `/v1/scrape` with `run_js` | A second try for pages Context.dev could not read, rendered in a browser. |
+
+Local pages are in the local language, but the board stays in English: non-English sources get an English display title, and their original text never reaches the UI. Quotes are still verified against the original page.
+
 ## Architecture
 
 | Host | Runs on | What |

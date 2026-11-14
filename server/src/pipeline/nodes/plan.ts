@@ -34,6 +34,8 @@ Use span "full" for narrative, stat-grid, map, tables, changelog and sources; "h
 
 For socialQueries, use up to 2 short keyword/hashtag queries in the affected place’s local language, not natural-language news questions. Include lang:xx only when confident of the local language. Social posts are unverified signals.
 
+For localQueries, use up to 2 short keyword queries in the affected place's local language (for example Ukrainian for Kyiv), aimed at local official pages, utilities and local news. They run as a web search from that country. Leave empty when the local language is English or there is no physical place.
+
 Queries must name the specific place, organisation or event so they do not drift to other crises.`;
 
 export async function makePlan(program: string, use: Usage, signal: AbortSignal, now = new Date()): Promise<Plan> {
@@ -75,6 +77,7 @@ export function normalizePlan(plan: Plan): Plan {
     entities: plan.entities.slice(0, 8),
     newsQueries: plan.newsQueries.filter(Boolean).slice(0, 5),
     socialQueries: (plan.socialQueries ?? []).filter(Boolean).slice(0, 2),
+    localQueries: (plan.localQueries ?? []).filter(Boolean).slice(0, 2),
     webQueries: plan.webQueries.filter(Boolean).slice(0, 4),
     metrics,
     tables,

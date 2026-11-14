@@ -40,6 +40,7 @@ export const planSchema = z.object({
   entities: z.array(z.string()).describe("3 to 8 proper names that identify this crisis: places, organisations, systems, named storms"),
   newsQueries: z.array(z.string()).describe("3 to 5 natural-language news queries, specific to this crisis"),
   socialQueries: z.array(z.string()).optional().describe("0 to 2 short X search queries: local-language place/event keywords and hashtags, OR alternatives, optional lang:xx for the local language. No retweets. Empty when irrelevant."),
+  localQueries: z.array(z.string()).optional().describe("0 to 2 short keyword web search queries in the affected place's local language, for local official pages and local news. Empty when the local language is English or there is no physical place."),
   webQueries: z.array(z.string()).describe("2 to 4 web queries for official advisories, emergency services, shelters, help and status pages"),
   monitor: z.object({
     query: z.string().describe("A web search query that will surface new developments"),

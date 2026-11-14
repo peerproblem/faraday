@@ -39,7 +39,7 @@ describe("contextdev cassettes", () => {
     delete process.env.EVAL_REPLAY;
     __setContextClientForTest(fakeClient());
     const docs = await searchWeb("q", "last_week", 3);
-    expect(docs).toEqual([{ url: "https://www.gov.example/alert", title: "Alert", publisher: "gov.example", publishedAt: null, snippet: "Evacuate now", kind: "web" }]);
+    expect(docs).toEqual([{ url: "https://www.gov.example/alert", title: "Alert", publisher: "gov.example", publishedAt: null, snippet: "Evacuate now", kind: "web", via: "contextdev" }]);
   });
 
   it("records, then replays without the network", async () => {

@@ -240,8 +240,8 @@ describe("monitors", () => {
     const [ch] = (await collectMonitorChanges("b1")).changes;
     const docs = changeDocs(ch);
     expect(docs).toEqual([
-      { url: "https://status.example/incident", title: null, publisher: "status.example", publishedAt: "2026-11-14T10:00:00Z", snippet: "480 of 500 sites are operational.", kind: "monitor", refresh: true },
-      { url: "https://status.example/region", title: null, publisher: "status.example", publishedAt: "2026-11-14T10:00:00Z", snippet: "North: 120 sites up", kind: "monitor", refresh: true },
+      { url: "https://status.example/incident", title: null, publisher: "status.example", publishedAt: "2026-11-14T10:00:00Z", snippet: "480 of 500 sites are operational.", kind: "monitor", via: "contextdev", refresh: true },
+      { url: "https://status.example/region", title: null, publisher: "status.example", publishedAt: "2026-11-14T10:00:00Z", snippet: "North: 120 sites up", kind: "monitor", via: "contextdev", refresh: true },
     ]);
     const corpus = docs.map((d) => `${d.title ?? ""}\n${d.snippet ?? ""}`).join("\n");
     expect(quoteInText("All 500 sites are operational.", corpus)).toBe(false);

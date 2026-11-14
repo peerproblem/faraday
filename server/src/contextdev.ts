@@ -96,7 +96,7 @@ export function hostOf(u: string): string | null {
 export async function searchNews(query: string, sinceMs: number, limit = 10, signal?: AbortSignal): Promise<FoundDoc[]> {
   // Round the window to the hour so recorded cassettes match on replay within the same hour bucket.
   const from = Math.floor(sinceMs / 3_600_000) * 3_600_000;
-  return taped("news.search", [query, cassetteMode() === "off" ? sinceMs : from, limit], async () => {
+  const docs = await taped("news.search", [query, cassetteMode() === "off" ? sinceMs : from, limit], async () => {
     const res = await ctx().news.search(
       { searchBy: { type: "natural_language", query }, filterBy: { date: { from: cassetteMode() === "off" ? sinceMs : from } }, limit },
       { signal },
@@ -110,6 +110,8 @@ export async function searchNews(query: string, sinceMs: number, limit = 10, sig
       kind: "news" as const,
     }));
   });
+  // Tagged outside the tape so cassettes recorded before provenance still get it.
+  return docs.map((d) => ({ ...d, via: "contextdev" as const }));
 }
 
 export async function searchWeb(
@@ -118,7 +120,7 @@ export async function searchWeb(
   numResults = 6,
   signal?: AbortSignal,
 ): Promise<FoundDoc[]> {
-  return taped("web.search", [query, freshness, numResults], async () => {
+  const docs = await taped("web.search", [query, freshness, numResults], async () => {
     const res = await ctx().web.search(
       {
         query,
@@ -142,6 +144,7 @@ export async function searchWeb(
       };
     });
   });
+  return docs.map((d) => ({ ...d, via: "contextdev" as const }));
 }
 
 /**

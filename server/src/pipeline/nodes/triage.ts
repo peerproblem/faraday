@@ -4,7 +4,8 @@ import type { Usage } from "../../graph/runner";
 import { sourceTypes, type Plan, type Source, type SourceType } from "../../spec";
 import { LIMITS, pool } from "./util";
 
-export type TriageRow = { id: string; relevance: number; sourceType: SourceType; hasFacts: number };
+/** english: P(the source is written in English). Non-English sources are shown by an English title only. */
+export type TriageRow = { id: string; relevance: number; sourceType: SourceType; hasFacts: number; english: number };
 export type TriageResult = { rows: TriageRow[]; kept: string[]; dropped: string[]; failed: string[] };
 
 const QUESTIONS = {
@@ -26,6 +27,10 @@ const QUESTIONS = {
   hasFacts: {
     type: "boolean" as const,
     instructions: "Does the text state concrete figures, times, places or instructions?",
+  },
+  english: {
+    type: "boolean" as const,
+    instructions: "Is the title and text written in English?",
   },
 };
 
@@ -59,6 +64,7 @@ export async function triage(plan: Plan, sources: Source[], use: Usage, signal: 
         relevance: r.answers.onTopic.probability,
         sourceType: s.kind === "social" ? "social" : (sourceTypes as readonly string[]).includes(choice) ? choice : "other",
         hasFacts: r.answers.hasFacts.probability,
+        english: r.answers.english?.probability ?? 1,
       };
     } catch (e) {
       if (signal.aborted) throw e;

@@ -52,7 +52,7 @@ export async function searchX(query: string, opts: { sinceId?: string; signal?: 
     const text = post.note_tweet?.text ?? post.note_post?.text ?? post.text;
     if (!text?.trim()) return [];
     return [{ url: `https://x.com/${user.username}/status/${post.id}`, title: `@${user.username}`,
-      publisher: `@${user.username}`, publishedAt: post.created_at ?? null, snippet: text, kind: "social" }];
+      publisher: `@${user.username}`, publishedAt: post.created_at ?? null, snippet: text, kind: "social", via: "x" }];
   });
 }
 

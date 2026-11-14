@@ -6,6 +6,8 @@ vi.mock("../../repo/geocode", () => ({ getCachedGeocode: vi.fn(), putCachedGeoco
 vi.mock("../../repo/facts", () => ({ updatePlaceCoords: vi.fn() }));
 vi.mock("../../repo/boards", () => ({ saveSourceText: vi.fn() }));
 vi.mock("../../contextdev", () => ({ scrapeMarkdown: vi.fn(), searchNews: vi.fn(), searchWeb: vi.fn() }));
+// The root .env may hold an Oxylabs key; these suites must never reach the network.
+vi.mock("../../oxylabs", () => ({ oxylabsEnabled: () => false, oxySearch: vi.fn(async () => []), oxyScrape: vi.fn(async () => null) }));
 
 const { decide } = await import("../../llm/decide");
 const { getCachedGeocode, putCachedGeocode } = await import("../../repo/geocode");

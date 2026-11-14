@@ -7,6 +7,7 @@ import { m005 } from "./005_monitor_sync";
 import { m006 } from "./006_social";
 import { m007 } from "./007_topics_and_views";
 import { m008 } from "./008_app_settings";
+import { m009 } from "./009_source_provenance";
 
 // F-DB owns this folder. Add 005, 006... here in order. Never edit an applied migration.
-export const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008];
+export const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009];

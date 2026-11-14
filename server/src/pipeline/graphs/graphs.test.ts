@@ -22,6 +22,8 @@ vi.mock("../../repo/boards", () => ({
   refreshSources: vi.fn(async () => []),
   markMonitorsSynced: vi.fn(),
   setSourceTriage: vi.fn(),
+  setSourceLanguage: vi.fn(),
+  getSources: vi.fn(async () => []),
   discardSources: vi.fn(),
   markExtracted: vi.fn(),
   getSourceTexts: vi.fn(async () => new Map()),
@@ -45,6 +47,8 @@ vi.mock("../../repo/facts", () => ({
 }));
 vi.mock("../../repo/geocode", () => ({ getCachedGeocode: vi.fn(async () => ({ lat: 1, lon: 2, displayName: "x" })), putCachedGeocode: vi.fn() }));
 vi.mock("../../contextdev", () => ({ searchNews: vi.fn(), searchWeb: vi.fn(), scrapeMarkdown: vi.fn(async () => null) }));
+// The root .env may hold an Oxylabs key; these suites must never reach the network.
+vi.mock("../../oxylabs", () => ({ oxylabsEnabled: () => false, oxySearch: vi.fn(async () => []), oxyScrape: vi.fn(async () => null) }));
 vi.mock("../../monitors", () => ({
   collectMonitorChanges: vi.fn(async () => ({ changes: [], calls: 0 })),
   ensureBoardMonitors: vi.fn(async () => "search monitor m1"),

@@ -9,9 +9,10 @@ import { assemble, specFromPlan, type HeaderOverrides } from "../assemble";
 import { assess, type Assessment } from "../nodes/assess";
 import { checkCoverage, followUpQueries } from "../nodes/coverage";
 import { gather } from "../nodes/gather";
-import { geocodeBoard, type GeocodeResult } from "../nodes/geocode";
+import { geocodeBoard, placeCountry, type GeocodeResult } from "../nodes/geocode";
 import { writeNarrative, type Narrative } from "../nodes/narrative";
 import { makePlan } from "../nodes/plan";
+import { oxylabsEnabled } from "../../oxylabs";
 import { pickReadTargets } from "../nodes/read";
 import { LIMITS, POLL_INTERVAL_MS, programOf } from "../nodes/util";
 import {
@@ -39,17 +40,37 @@ async function collect(
   plan: Plan,
   spec: BoardSpecV2,
   round: string,
-  queries: { newsQueries: string[]; webQueries: string[]; socialQueries?: string[] },
+  queries: { newsQueries: string[]; webQueries: string[]; socialQueries?: string[]; localQueries?: string[] },
   hasFacts: Record<string, number>,
-  opts: { scrapes: number; extractCap: number; partial: boolean },
+  opts: { scrapes: number; extractCap: number; partial: boolean; country?: string | null },
 ) {
   const t0 = Date.now();
-  const g = await ctx.step("gather", { round, ...queries }, (_i, use, signal) => gather({ ...queries, lookbackDays: plan.lookbackDays }, use, signal, { boardId: ctx.boardId }), {
-    key: round,
-    timeoutMs: 75_000,
-    retries: 1,
-  });
+  const country = opts.country ?? null;
+  const g = await ctx.step(
+    "gather",
+    {
+      round,
+      newsQueries: queries.newsQueries,
+      webQueries: queries.webQueries,
+      socialQueries: queries.socialQueries,
+      localQueries: queries.localQueries,
+      country,
+    },
+    (_i, use, signal) => gather({ ...queries, lookbackDays: plan.lookbackDays }, use, signal, { boardId: ctx.boardId, country }),
+    {
+      key: round,
+      timeoutMs: 75_000,
+      retries: 1,
+    },
+  );
   for (const f of g.failures) await ctx.event("error", f);
+  if (country && g.localFound > 0) {
+    await ctx.event("stage", `Local search from ${country}: ${g.localFound} results, ${g.localAdded} sources global search missed`, {
+      found: g.localFound,
+      added: g.localAdded,
+      calls: g.oxylabsCalls,
+    });
+  }
   const added = await ingest(ctx, g.docs);
   const tr = await triageRound(ctx, plan, round);
   hasFactsMap(tr.rows, hasFacts);
@@ -58,7 +79,7 @@ async function collect(
 
   // Pages being read are extracted after their full text arrives; everything else is extracted while they load.
   const reading = new Set(pickReadTargets(kept, opts.scrapes).map((s) => s.id));
-  const readP = readRound(ctx, round, kept, opts.scrapes);
+  const readP = readRound(ctx, round, kept, opts.scrapes, [], country);
   // Later rounds only extract what they added; the first round takes everything triaged (also old sources on a rebuild).
   const only = round === "r1" ? undefined : new Set(added.map((s) => s.id));
   const picked = await extractable(ctx, hasFacts, opts.extractCap, only);
@@ -143,7 +164,15 @@ export const buildGraph: GraphFn = async (ctx) => {
   await setBoardStatus(ctx, "gathering", "hot");
   await ctx.event("stage", "Reading the live web with Context.dev");
   const hasFacts: Record<string, number> = {};
-  await collect(ctx, plan, spec, "r1", plan, hasFacts, { scrapes: LIMITS.maxScrapes(), extractCap: LIMITS.maxExtract(), partial: true });
+  // The country comes from the geocoder, never from a model. Without it local search is skipped.
+  const placeName = plan.location?.name;
+  const country = placeName && oxylabsEnabled() ? await placeCountry(placeName).catch(() => null) : null;
+  await collect(ctx, plan, spec, "r1", plan, hasFacts, {
+    scrapes: LIMITS.maxScrapes(),
+    extractCap: LIMITS.maxExtract(),
+    partial: true,
+    country,
+  });
 
   await setBoardStatus(ctx, "composing", "hot");
   const facts = trustedFacts(await listFacts(ctx.boardId, { status: ["active"] }), await listSources(ctx.boardId, { includeDiscarded: true }));
