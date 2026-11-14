@@ -70,6 +70,21 @@ describe("contextdev cassettes", () => {
     await expect(searchWeb("never recorded", "last_week", 4)).rejects.toBeInstanceOf(CassetteMissError);
   });
 
+  it("caps the cache age of scraped pages and of the pages behind search highlights", async () => {
+    delete process.env.EVAL_RECORD;
+    delete process.env.EVAL_REPLAY;
+    const c = fakeClient();
+    __setContextClientForTest(c);
+    await searchWeb("q", "last_week", 3);
+    await scrapeMarkdown("https://gov.example/a");
+    await scrapeMarkdown("https://gov.example/b", undefined, { maxAgeMs: 0 });
+    const search = (c.web.search.mock.calls as unknown as [Record<string, any>][])[0][0];
+    expect(search.markdownOptions).toEqual({ maxAgeMs: 30 * 60_000 });
+    expect(search.markdownOptions.enabled).toBeUndefined();
+    const scrapes = (c.web.scrape.mock.calls as unknown as [Record<string, any>][]).map((x) => x[0].maxAgeMs);
+    expect(scrapes).toEqual([10 * 60_000, 0]);
+  });
+
   it("returns null when a scrape fails", async () => {
     delete process.env.EVAL_RECORD;
     delete process.env.EVAL_REPLAY;

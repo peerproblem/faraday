@@ -73,6 +73,15 @@ describe("applyMessage", () => {
     expect(ids.filter((id) => id === "s2")).toHaveLength(1);
   });
 
+  test("a refreshed source replaces the listed one in place", () => {
+    const s = start();
+    const old = s.board.sources[0];
+    const refreshed = { ...old, snippet: "Now 480 of 500 sites are up." };
+    const { s: next } = apply(s, { type: "sources", added: [refreshed], discarded: [] });
+    expect(next.board.sources.map((x) => x.id)).toEqual(s.board.sources.map((x) => x.id));
+    expect(next.board.sources[0].snippet).toBe("Now 480 of 500 sites are up.");
+  });
+
   test("events go first, without duplicates, capped at 200", () => {
     let s = start();
     for (let i = 0; i < 250; i++) s = applyMessage(s, { type: "event", event: { id: 1000 + i, ts: i, kind: "info", message: `e${i}`, data: null } }).state;

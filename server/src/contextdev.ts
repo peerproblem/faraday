@@ -64,6 +64,25 @@ async function taped<T>(method: string, args: unknown[], live: () => Promise<T>)
   return result;
 }
 
+const envMs = (name: string, fallback: number) => {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v >= 0 ? v : fallback;
+};
+
+/**
+ * How old cached page content may be. Context.dev defaults are far too old for a live board (scrape: 3 days; the page
+ * text behind search highlights: 365 days), and the search `freshness` filter only limits publish dates, not the cache.
+ * Reads after a monitor change pass 0 to fetch the page as it is now.
+ */
+export const CACHE_MAX_AGE_MS = {
+  get scrape() {
+    return envMs("CONTEXT_SCRAPE_MAX_AGE_MS", 10 * 60_000);
+  },
+  get searchContent() {
+    return envMs("CONTEXT_SEARCH_MAX_AGE_MS", 30 * 60_000);
+  },
+};
+
 const clip = (s: string | null | undefined, n: number) => (s ? (s.length > n ? `${s.slice(0, n)}…` : s) : null);
 
 export function hostOf(u: string): string | null {
@@ -101,7 +120,14 @@ export async function searchWeb(
 ): Promise<FoundDoc[]> {
   return taped("web.search", [query, freshness, numResults], async () => {
     const res = await ctx().web.search(
-      { query, numResults, freshness, highlightsOptions: { enabled: true, maxCharacters: 1500 } },
+      {
+        query,
+        numResults,
+        freshness,
+        highlightsOptions: { enabled: true, maxCharacters: 1500 },
+        // Highlights read each page with the markdownOptions settings; Markdown itself stays off.
+        markdownOptions: { maxAgeMs: CACHE_MAX_AGE_MS.searchContent },
+      },
       { signal },
     );
     return (res.results ?? []).map((r) => {
@@ -118,8 +144,12 @@ export async function searchWeb(
   });
 }
 
-/** Main content as Markdown, or null when the page cannot be read. */
-export async function scrapeMarkdown(url: string, signal?: AbortSignal): Promise<string | null> {
+/**
+ * Main content as Markdown, or null when the page cannot be read. `maxAgeMs` caps the age of a cached copy
+ * (default CACHE_MAX_AGE_MS.scrape; 0 fetches fresh). It is left out of the cassette key: replay returns the recording.
+ */
+export async function scrapeMarkdown(url: string, signal?: AbortSignal, opts: { maxAgeMs?: number } = {}): Promise<string | null> {
+  const maxAgeMs = opts.maxAgeMs ?? CACHE_MAX_AGE_MS.scrape;
   return taped("web.scrape", [url], async () => {
     try {
       const res = await ctx().web.scrape(
@@ -129,6 +159,7 @@ export async function scrapeMarkdown(url: string, signal?: AbortSignal): Promise
           markdownParams: { includeImages: false, includeLinks: true },
           sharedParams: { mainContentOnly: true, dismissCookies: true, dismissPopups: true },
           timeoutOpts: { milliseconds: 25_000, behavior: "fail" },
+          maxAgeMs,
         },
         { signal },
       );
@@ -141,12 +172,20 @@ export async function scrapeMarkdown(url: string, signal?: AbortSignal): Promise
   });
 }
 
+/**
+ * One detected change. `title` and `summary` are written by Context.dev's judge model (semantic detection): they describe
+ * the change for people and are never used as evidence for facts. `afterExcerpt` and `evidence[].after` are the raw page
+ * text after the change.
+ */
 export type MonitorChange = {
+  id: string;
   monitorId: string;
   detectedAt: string;
   title: string;
   summary: string | null;
   url: string;
   importance: "low" | "medium" | "high" | null;
-  evidence: FoundDoc[];
+  afterExcerpt: string | null;
+  /** `url` is absent for whole-target diffs: the evidence is then about the change's own url. */
+  evidence: { url: string | null; after: string }[];
 };

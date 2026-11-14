@@ -3,6 +3,7 @@ import { useTestDb } from "../test/db";
 import { all, run } from "../db/pool";
 import type { BoardData, BoardSpecV2, Plan } from "../spec";
 import {
+  ackMonitorChanges,
   addEvent,
   addMessage,
   addSources,
@@ -13,6 +14,7 @@ import {
   deleteBoard,
   deleteMonitorRow,
   discardSources,
+  forgetWebhookEvent,
   getBoard,
   getBoardView,
   getSourceTexts,
@@ -25,13 +27,17 @@ import {
   listSources,
   listV1BoardIds,
   markExtracted,
+  markMonitorsSynced,
   markPolled,
   monitorById,
   pruneOldData,
+  recordWebhookEvent,
+  refreshSources,
   saveBoardVersion,
   saveMonitor,
   savePlan,
   saveSourceText,
+  seenChangeIds,
   setMonitorSeen,
   setSchedule,
   setSourceTriage,
@@ -39,6 +45,7 @@ import {
   setVisibility,
   slugExists,
   touchViewed,
+  updateMonitorRow,
 } from "./boards";
 
 const { enabled } = useTestDb("repo_boards");
@@ -191,6 +198,70 @@ describe.skipIf(!enabled)("repo/boards", () => {
     expect(await monitorById("mon_1")).toMatchObject({ lastSeenChangeAt: "2026-11-14T10:00:00Z", webhookSecret: "sec", boardId: id });
     await deleteMonitorRow("mon_2");
     expect((await listMonitors(id)).length).toBe(1);
+  });
+
+  it("refreshes a known source when a monitor reports new text for its url", async () => {
+    const { id } = await createBoard("Refresh board here", null);
+    const [s1] = await addSources(id, [{ url: "https://status.example/incident", title: "Incident", publisher: "status.example", publishedAt: null, snippet: "300 of 500 sites are operational.", kind: "web" }]);
+    await setSourceTriage(id, [{ id: s1.id, relevance: 0.9, sourceType: "official" }]);
+    await saveSourceText(id, s1.id, "# Incident\n300 of 500 sites are operational.");
+    await markExtracted(id, [s1.id]);
+    const doc = { url: "https://status.example/incident#now", title: null, publisher: "status.example", publishedAt: "2026-11-14T10:00:00Z", snippet: "480 of 500 sites are operational.", kind: "monitor" as const, refresh: true };
+
+    // addSources still skips the url; refreshSources re-opens the existing source.
+    expect(await addSources(id, [doc])).toEqual([]);
+    const [r] = await refreshSources(id, [doc]);
+    expect(r).toMatchObject({ id: s1.id, title: "Incident", kind: "web", snippet: "480 of 500 sites are operational.", relevance: expect.closeTo(0.9, 2), sourceType: "official", publishedAt: "2026-11-14T10:00:00Z" });
+    // The stored page text predates the change and is dropped; the source is due for extraction again.
+    expect((await getSourceTexts(id, [s1.id])).size).toBe(0);
+    const [row] = await all<{ extracted_at: number | null; content_hash: string | null; refreshed_at: number | null }>(
+      `SELECT extracted_at, content_hash, refreshed_at FROM sources WHERE board_id = ? AND id = ?`,
+      [id, s1.id],
+    );
+    expect(row.extracted_at).toBeNull();
+    expect(row.content_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(row.refreshed_at).not.toBeNull();
+    // Same text again before extraction: still due. After extraction: skipped.
+    expect((await refreshSources(id, [doc])).map((x) => x.id)).toEqual([s1.id]);
+    await markExtracted(id, [s1.id]);
+    expect(await refreshSources(id, [doc])).toEqual([]);
+    // Docs without refresh, and unknown urls, are ignored.
+    expect(await refreshSources(id, [{ ...doc, refresh: undefined, snippet: "x" }, { ...doc, url: "https://other.example/" }])).toEqual([]);
+  });
+
+  it("puts a discarded source back up for triage when its page changes", async () => {
+    const { id } = await createBoard("Refresh discarded board", null);
+    const [s1] = await addSources(id, [{ url: "https://n.example/a", title: "A", publisher: null, publishedAt: null, snippet: "old", kind: "news" }]);
+    await setSourceTriage(id, [{ id: s1.id, relevance: 0.1, sourceType: "news" }]);
+    await discardSources(id, [s1.id]);
+    const [r] = await refreshSources(id, [{ url: s1.url, title: null, publisher: null, publishedAt: null, snippet: "new text", kind: "monitor", refresh: true }]);
+    expect(r).toMatchObject({ id: s1.id, relevance: null, sourceType: null, snippet: "new text" });
+    expect((await listSources(id)).map((s) => s.id)).toEqual([s1.id]);
+  });
+
+  it("checkpoints monitor changes only forwards and remembers their ids", async () => {
+    const { id } = await createBoard("Checkpoint board here", null);
+    await saveMonitor({ id: "mon_c", boardId: id, kind: "search", target: "q", webhookSecret: null, configHash: "h".repeat(64), scheduleMinutes: 10 });
+    expect(await monitorById("mon_c")).toMatchObject({ configHash: "h".repeat(64), scheduleMinutes: 10, remoteStatus: "active", lastSeenChangeAt: null });
+    await ackMonitorChanges([
+      { id: "chg_1", monitorId: "mon_c", detectedAt: "2026-11-14T11:00:00Z" },
+      { id: "chg_2", monitorId: "mon_c", detectedAt: "2026-11-14T12:00:00Z" },
+    ]);
+    expect((await monitorById("mon_c"))?.lastSeenChangeAt).toBe("2026-11-14T12:00:00Z");
+    await ackMonitorChanges([{ id: "chg_0", monitorId: "mon_c", detectedAt: "2026-11-14T09:00:00Z" }, { id: "chg_1", monitorId: "mon_c", detectedAt: "2026-11-14T11:00:00Z" }]);
+    expect((await monitorById("mon_c"))?.lastSeenChangeAt).toBe("2026-11-14T12:00:00Z");
+    expect([...(await seenChangeIds(["chg_0", "chg_1", "chg_2", "chg_9"]))].sort()).toEqual(["chg_0", "chg_1", "chg_2"]);
+    await updateMonitorRow("mon_c", { remoteStatus: "dead", lastError: "HTTP 503", checkedAt: 5, target: "q2" });
+    expect(await monitorById("mon_c")).toMatchObject({ remoteStatus: "dead", lastError: "HTTP 503", checkedAt: 5, target: "q2" });
+    await markMonitorsSynced(id, 123);
+    expect((await getBoard(id))?.monitorsSyncedAt).toBe(123);
+  });
+
+  it("stores each webhook event id once, and can forget it", async () => {
+    expect(await recordWebhookEvent({ eventId: "evt_x", monitorId: "mon_c", event: "change.detected" })).toBe(true);
+    expect(await recordWebhookEvent({ eventId: "evt_x", monitorId: "mon_c", event: "change.detected" })).toBe(false);
+    await forgetWebhookEvent("evt_x");
+    expect(await recordWebhookEvent({ eventId: "evt_x", monitorId: "mon_c", event: "change.detected" })).toBe(true);
   });
 
   it("reports v1 boards and returns null spec for them", async () => {

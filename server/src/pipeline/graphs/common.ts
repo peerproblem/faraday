@@ -6,6 +6,7 @@ import {
   getSourceTexts,
   listSources,
   markExtracted,
+  refreshSources,
   setSourceTriage,
   setStatus,
   type BoardRow,
@@ -52,6 +53,14 @@ export async function ingest(ctx: RunCtx, docs: FoundDoc[]): Promise<Source[]> {
   return added;
 }
 
+/** Re-opens known sources whose page a monitor saw change (docs with `refresh`). Emits them so clients replace them. */
+export async function refreshRound(ctx: RunCtx, docs: FoundDoc[]): Promise<Source[]> {
+  if (!docs.some((d) => d.refresh)) return [];
+  const refreshed = await refreshSources(ctx.boardId, docs);
+  if (refreshed.length) ctx.emit({ type: "sources", added: refreshed, discarded: [] });
+  return refreshed;
+}
+
 /** Triage every untriaged source of the board. `round` keeps resumed runs apart. */
 export async function triageRound(ctx: RunCtx, plan: Plan, round: string): Promise<TriageResult> {
   const targets = untriaged(await listSources(ctx.boardId));
@@ -71,14 +80,21 @@ export async function triageRound(ctx: RunCtx, plan: Plan, round: string): Promi
   return res;
 }
 
-/** Reads full pages for the best official and web sources. Optional: failures fall back to snippets. */
-export async function readRound(ctx: RunCtx, round: string, sources: Source[], max: number): Promise<string[]> {
-  const targets = pickReadTargets(sources, max);
+/**
+ * Reads full pages for the best official and web sources. Optional: failures fall back to snippets.
+ * `fresh`: ids to fetch without cache (pages a monitor saw change); they are read first.
+ */
+export async function readRound(ctx: RunCtx, round: string, sources: Source[], max: number, fresh: string[] = []): Promise<string[]> {
+  const freshIds = new Set(fresh);
+  const targets = [
+    ...pickReadTargets(sources.filter((s) => freshIds.has(s.id)), max),
+    ...pickReadTargets(sources.filter((s) => !freshIds.has(s.id)), max),
+  ].slice(0, Math.max(0, max));
   if (targets.length === 0) return [];
   return ctx.step(
     "read",
-    { round, ids: targets.map((s) => s.id) },
-    (_i, use, signal) => readSources(ctx.boardId, targets, use, signal),
+    { round, ids: targets.map((s) => s.id), fresh: targets.filter((s) => freshIds.has(s.id)).map((s) => s.id) },
+    (_i, use, signal) => readSources(ctx.boardId, targets, use, signal, freshIds),
     { key: round, timeoutMs: 45_000, optional: true, fallback: [] },
   );
 }

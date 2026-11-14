@@ -14,6 +14,8 @@ const boards = vi.hoisted(() => ({
   listBoards: vi.fn(),
   listEvents: vi.fn(),
   monitorById: vi.fn(),
+  recordWebhookEvent: vi.fn(async () => true),
+  forgetWebhookEvent: vi.fn(),
   setSchedule: vi.fn(),
   setVisibility: vi.fn(),
   slugExists: vi.fn(),
@@ -223,15 +225,51 @@ describe("owner actions", () => {
 });
 
 describe("webhook", () => {
+  const monitor = { id: "m1", boardId: "b1", kind: "search", target: "q", lastSeenChangeAt: null, webhookSecret: "whsec", remoteStatus: "active" };
+  // The envelope Context.dev sends: the monitor id is inside data.change.
+  const body = JSON.stringify({ event: "change.detected", id: "evt_1", created_at: "2026-11-14T10:00:00Z", data: { change: { id: "chg_1", monitor_id: "m1" } } });
+  const post = (app: ReturnType<typeof createApp>, raw: string, secret: string, headers: Record<string, string> = {}) =>
+    app.request("/api/webhooks/context", { method: "POST", body: raw, headers: { "x-context-signature": sign(raw, secret), ...headers } });
+
   it("queues a poll only for a correctly signed body", async () => {
     const app = createApp();
-    boards.monitorById.mockResolvedValue({ id: "m1", boardId: "b1", kind: "search", target: "q", lastSeenChangeAt: null, webhookSecret: "whsec" });
-    const body = JSON.stringify({ monitor_id: "m1" });
-    const bad = await app.request("/api/webhooks/context", { method: "POST", body, headers: { "x-context-signature": sign(body, "nope") } });
-    expect(bad.status).toBe(401);
-    const good = await app.request("/api/webhooks/context", { method: "POST", body, headers: { "x-context-signature": sign(body, "whsec") } });
+    boards.monitorById.mockResolvedValue(monitor);
+    expect((await post(app, body, "nope")).status).toBe(401);
+    const good = await post(app, body, "whsec", { "x-context-id": "evt_1", "x-context-event": "change.detected" });
     expect(good.status).toBe(200);
+    expect(boards.monitorById).toHaveBeenCalledWith("m1");
+    expect(boards.recordWebhookEvent).toHaveBeenCalledWith({ eventId: "evt_1", monitorId: "m1", event: "change.detected" });
     expect(jobs.enqueue).toHaveBeenCalledWith("poll", "b1", { reason: "webhook" });
+    app.dispose();
+  });
+
+  it("acknowledges a retried event without queueing again", async () => {
+    const app = createApp();
+    boards.monitorById.mockResolvedValue(monitor);
+    boards.recordWebhookEvent.mockResolvedValueOnce(false);
+    const res = await post(app, body, "whsec");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ duplicate: true });
+    expect(jobs.enqueue).not.toHaveBeenCalled();
+    app.dispose();
+  });
+
+  it("forgets the event id when the poll cannot be queued, so the retry is accepted", async () => {
+    const app = createApp();
+    boards.monitorById.mockResolvedValue(monitor);
+    jobs.enqueue.mockRejectedValueOnce(new Error("db down"));
+    expect((await post(app, body, "whsec")).status).toBe(500);
+    expect(boards.forgetWebhookEvent).toHaveBeenCalledWith("evt_1");
+    app.dispose();
+  });
+
+  it("rejects a header id that does not match the body and ignores other events", async () => {
+    const app = createApp();
+    boards.monitorById.mockResolvedValue(monitor);
+    expect((await post(app, body, "whsec", { "x-context-id": "evt_2" })).status).toBe(400);
+    const run = JSON.stringify({ event: "run.completed", id: "evt_3", data: { run: { monitor_id: "m1" }, change: null } });
+    expect(await (await post(app, run, "whsec")).json()).toMatchObject({ ignored: true });
+    expect(jobs.enqueue).not.toHaveBeenCalled();
     app.dispose();
   });
 });

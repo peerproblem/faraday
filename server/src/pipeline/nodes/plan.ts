@@ -96,6 +96,12 @@ export const planPatchSchema = z.object({
   newsQueries: z.array(z.string()).describe("Extra news queries needed for the change, empty if none"),
   webQueries: z.array(z.string()).describe("Extra web queries needed for the change, empty if none"),
   addQuestions: z.array(z.string()),
+  monitor: z
+    .object({ query: z.string(), instructions: z.string() })
+    .nullable()
+    .describe(
+      "A replacement for the plan's live monitor (search query and judge instructions) when the change shifts which new developments matter, e.g. new figures or lists to watch. Null to keep the current monitor",
+    ),
 });
 export type PlanPatch = z.infer<typeof planPatchSchema>;
 
@@ -135,6 +141,9 @@ export function applyPlanPatch(plan: Plan, patch: PlanPatch): { plan: Plan; newK
       ...patch.addWidgets,
     ],
   });
+  if (patch.monitor?.query.trim() && patch.monitor.instructions.trim()) {
+    next.monitor = { query: patch.monitor.query.trim(), instructions: patch.monitor.instructions.trim() };
+  }
   // normalizePlan caps list lengths; keep news/web query history longer than the cap for edits.
   next.newsQueries = [...new Set([...plan.newsQueries, ...patch.newsQueries])].slice(0, 12);
   next.webQueries = [...new Set([...plan.webQueries, ...patch.webQueries])].slice(0, 10);

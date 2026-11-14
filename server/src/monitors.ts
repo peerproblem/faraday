@@ -1,25 +1,69 @@
 // Context.dev monitor lifecycle for a board (guide P4-3). Uses repo/boards monitor rows.
+import { createHash } from "node:crypto";
 import { NotFoundError } from "context.dev";
-import { cassetteMode, ctx, hostOf, type MonitorChange } from "./contextdev";
-import { deleteMonitorRow, listMonitors, saveMonitor, setMonitorSeen, type FoundDoc } from "./repo/boards";
-import type { Plan } from "./spec";
+import { cassetteMode, ctx, hostOf, scrapeMarkdown, type MonitorChange } from "./contextdev";
+import {
+  ackMonitorChanges,
+  deleteMonitorRow,
+  listMonitors,
+  saveMonitor,
+  seenChangeIds,
+  updateMonitorRow,
+  type FoundDoc,
+  type MonitorRow,
+} from "./repo/boards";
+import type { BoardTier, Plan } from "./spec";
 
 const MAX_PAGE_MONITORS = 2;
+/** listChanges pages of 100 read per monitor and poll. More than this means a long outage: the newest are kept. */
+const MAX_CHANGE_PAGES = 10;
+/** The checkpoint is re-read with this overlap; change ids drop what was already processed. */
+const CHANGE_OVERLAP_MS = 10 * 60_000;
+/** How often a poll checks monitor health and settings (the edit graph and tier changes sync at once). */
+export const MONITOR_SYNC_MS = 30 * 60_000;
+/** Change pages without raw evidence that a poll fetches itself. */
+const MAX_CHANGE_SCRAPES = 4;
+const SNIPPET_CHARS = 8000;
 
-function webhook() {
-  const domain = process.env.FARADAY_DOMAIN;
-  return domain ? { url: `https://api.${domain}/api/webhooks/context`, events: ["change.detected" as const] } : null;
+/** How often Context.dev runs a board's monitors, by tier. Context.dev allows 10 minutes to 1 year. */
+export const MONITOR_SCHEDULE_MINUTES: Record<Exclude<BoardTier, "paused">, number> = {
+  hot: Number(process.env.MONITOR_HOT_MINUTES ?? 10),
+  warm: Number(process.env.MONITOR_WARM_MINUTES ?? 30),
+  cold: Number(process.env.MONITOR_COLD_MINUTES ?? 120),
+};
+
+const scheduleMinutes = (tier: BoardTier | undefined) =>
+  Math.max(10, MONITOR_SCHEDULE_MINUTES[tier && tier !== "paused" ? tier : "hot"] || 10);
+
+function schedule(minutes: number) {
+  return minutes % 60 === 0
+    ? { type: "interval" as const, frequency: minutes / 60, unit: "hours" as const }
+    : { type: "interval" as const, frequency: minutes, unit: "minutes" as const };
 }
 
-const common = () => {
-  const hook = webhook();
-  return {
-    ...(hook ? { webhook: hook } : {}),
-    change_detection: { type: "semantic" as const, confidence_threshold: 0.7 },
-    schedule: { type: "interval" as const, frequency: 10, unit: "minutes" as const },
-    tags: ["faraday"],
-  };
-};
+/** `retry: {}` turns on Context.dev's retry schedule (10 s up to 16 h); without it a failed delivery is retried once. */
+function webhook() {
+  const domain = process.env.FARADAY_DOMAIN;
+  return domain ? { url: `https://api.${domain}/api/webhooks/context`, events: ["change.detected" as const], retry: {} } : null;
+}
+
+const CHANGE_DETECTION = { type: "semantic" as const, confidence_threshold: 0.7 };
+
+type SearchTarget = { type: "search"; query: string; instructions: string };
+type PageTarget = { type: "page"; url: string; instructions: string };
+
+const searchTarget = (plan: Plan): SearchTarget => ({
+  type: "search",
+  query: plan.monitor.query.slice(0, 500),
+  instructions: plan.monitor.instructions.slice(0, 2000),
+});
+const pageTarget = (plan: Plan, url: string): PageTarget => ({ type: "page", url, instructions: plan.monitor.instructions.slice(0, 2000) });
+
+const sha = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex");
+/** Target half and webhook half, so a change to one does not resend the other (a new target resets the baseline). */
+export function configHash(target: SearchTarget | PageTarget, hook = webhook()): string {
+  return sha(target).slice(0, 32) + sha(hook).slice(0, 32);
+}
 
 export function monitorsDisabled() {
   return process.env.FARADAY_MONITORS === "off" || cassetteMode() !== "off";
@@ -38,19 +82,29 @@ function normalizeUrl(u: string): string | null {
 
 const isNotFound = (e: unknown) => e instanceof NotFoundError || (e as { status?: number })?.status === 404;
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+const live = (rows: MonitorRow[]) => rows.filter((m) => m.remoteStatus !== "dead");
+const label = (m: Pick<MonitorRow, "kind" | "target">) => (m.kind === "search" ? "the news search monitor" : `the monitor on ${hostOf(m.target) ?? m.target}`);
 
 /**
  * Makes sure the board has its search monitor and up to 2 page monitors on the given official URLs, within the
- * account allowance (hot boards first is the caller's job: pass allowPage=false for non-hot boards).
- * Attaches the webhook (https://api.<FARADAY_DOMAIN>/api/webhooks/context) and stores each monitor's secret.
+ * account allowance (hot boards first is the caller's job: pass allowPage=false for non-hot boards). A URL whose
+ * monitor was given up on ('dead') is not watched again. Attaches the webhook
+ * (https://api.<FARADAY_DOMAIN>/api/webhooks/context, with retries) and stores each monitor's secret.
  * Returns a short note for the run log.
  */
-export async function ensureBoardMonitors(boardId: string, plan: Plan, officialUrls: string[], opts?: { allowPage?: boolean }): Promise<string> {
+export async function ensureBoardMonitors(
+  boardId: string,
+  plan: Plan,
+  officialUrls: string[],
+  opts?: { allowPage?: boolean; tier?: BoardTier },
+): Promise<string> {
   if (monitorsDisabled()) return "monitors disabled";
   const existing = await listMonitors(boardId);
-  const needSearch = !existing.some((m) => m.kind === "search");
+  const active = live(existing);
+  const needSearch = !active.some((m) => m.kind === "search");
   const watched = new Set(existing.filter((m) => m.kind === "page").map((m) => m.target));
-  const pageSlots = opts?.allowPage === false ? 0 : Math.max(0, MAX_PAGE_MONITORS - watched.size);
+  const pageSlots = opts?.allowPage === false ? 0 : Math.max(0, MAX_PAGE_MONITORS - active.filter((m) => m.kind === "page").length);
   const pages: string[] = [];
   for (const raw of officialUrls) {
     const u = normalizeUrl(raw);
@@ -67,17 +121,25 @@ export async function ensureBoardMonitors(boardId: string, plan: Plan, officialU
   } catch (e) {
     return `monitor limits unavailable: ${errText(e)}`;
   }
+  const minutes = scheduleMinutes(opts?.tier);
+  const hook = webhook();
+  const common = { ...(hook ? { webhook: hook } : {}), change_detection: CHANGE_DETECTION, schedule: schedule(minutes), tags: ["faraday", `board:${boardId}`] };
   const notes: string[] = [];
   if (needSearch) {
     if (available <= 0) notes.push("monitor limit reached, news polling only");
     else {
       try {
-        const m = await ctx().monitors.create({
-          ...common(),
-          name: `faraday ${plan.title}`.slice(0, 100),
-          target: { type: "search", query: plan.monitor.query.slice(0, 500), instructions: plan.monitor.instructions.slice(0, 2000) },
+        const target = searchTarget(plan);
+        const m = await ctx().monitors.create({ ...common, name: `faraday ${plan.title}`.slice(0, 100), target });
+        await saveMonitor({
+          id: m.id,
+          boardId,
+          kind: "search",
+          target: plan.monitor.query,
+          webhookSecret: m.webhook?.secret ?? null,
+          configHash: configHash(target, hook),
+          scheduleMinutes: minutes,
         });
-        await saveMonitor({ id: m.id, boardId, kind: "search", target: plan.monitor.query, webhookSecret: m.webhook?.secret ?? null });
         available -= 1;
         notes.push(`search monitor ${m.id}`);
       } catch (e) {
@@ -91,12 +153,17 @@ export async function ensureBoardMonitors(boardId: string, plan: Plan, officialU
       continue;
     }
     try {
-      const m = await ctx().monitors.create({
-        ...common(),
-        name: `faraday ${plan.title} ${hostOf(url) ?? ""}`.trim().slice(0, 100),
-        target: { type: "page", url, instructions: plan.monitor.instructions.slice(0, 2000) },
+      const target = pageTarget(plan, url);
+      const m = await ctx().monitors.create({ ...common, name: `faraday ${plan.title} ${hostOf(url) ?? ""}`.trim().slice(0, 100), target });
+      await saveMonitor({
+        id: m.id,
+        boardId,
+        kind: "page",
+        target: url,
+        webhookSecret: m.webhook?.secret ?? null,
+        configHash: configHash(target, hook),
+        scheduleMinutes: minutes,
       });
-      await saveMonitor({ id: m.id, boardId, kind: "page", target: url, webhookSecret: m.webhook?.secret ?? null });
       available -= 1;
       notes.push(`page monitor on ${hostOf(url) ?? url}`);
     } catch (e) {
@@ -106,10 +173,138 @@ export async function ensureBoardMonitors(boardId: string, plan: Plan, officialU
   return notes.join("; ");
 }
 
+export type SyncResult = { notes: string[]; alerts: string[] };
+
+/** Why a monitor stopped, from its latest failed or skipped run. */
+async function stopReason(id: string): Promise<{ text: string | null; credits: boolean }> {
+  try {
+    const runs = await ctx().monitors.listRuns(id, { limit: 5 });
+    const bad = runs.data.find((r) => r.status === "failed" || r.status === "skipped");
+    if (!bad) return { text: null, credits: false };
+    return { text: bad.error?.message ?? bad.skip_reason ?? bad.status, credits: bad.skip_reason === "insufficient_credits" };
+  } catch {
+    return { text: null, credits: false };
+  }
+}
+
+/**
+ * Brings the board's existing monitors in line with the board, and checks their health. Never throws.
+ * - Target and instructions follow the plan (after an edit). The search monitor's target only changes when the plan's
+ *   query or instructions do, because a new target makes Context.dev take a new baseline.
+ * - The webhook gets the retry schedule; the run schedule follows the tier.
+ * - Health (at most every MONITOR_SYNC_MS unless `force`): Context.dev pauses or fails a monitor that keeps failing.
+ *   A failed page monitor is deleted and its URL not watched again, so the slot goes to another official page; the
+ *   search monitor is resumed once. Runs skipped for credits are reported and left alone.
+ * `alerts` are short notes for the board's event log.
+ */
+export async function syncBoardMonitors(boardId: string, plan: Plan, tier: BoardTier, opts: { force?: boolean; now?: number } = {}): Promise<SyncResult> {
+  const out: SyncResult = { notes: [], alerts: [] };
+  if (monitorsDisabled() || tier === "paused") return out;
+  const now = opts.now ?? Date.now();
+  let rows: MonitorRow[];
+  try {
+    rows = live(await listMonitors(boardId));
+  } catch (e) {
+    out.notes.push(`monitor list failed: ${errText(e)}`);
+    return out;
+  }
+  const hook = webhook();
+  const minutes = scheduleMinutes(tier);
+  for (const m of rows) {
+    try {
+      const target = m.kind === "search" ? searchTarget(plan) : pageTarget(plan, m.target);
+      const want = configHash(target, hook);
+      // Rows from before config hashes: same target if the stored query or url still matches.
+      const sameTarget = m.target === (target.type === "search" ? plan.monitor.query : target.url);
+      const have = m.configHash ?? (sameTarget ? want.slice(0, 32) : "");
+      const patch: Parameters<ReturnType<typeof ctx>["monitors"]["update"]>[1] = {};
+      if (have.slice(0, 32) !== want.slice(0, 32)) patch.target = target;
+      if (have.slice(32) !== want.slice(32) && hook) patch.webhook = hook;
+      if (m.scheduleMinutes !== minutes) patch.schedule = schedule(minutes);
+      let status: string | null = null;
+      let lastError: string | null | undefined;
+      if (Object.keys(patch).length) {
+        const res = await ctx().monitors.update(m.id, patch);
+        status = res.status;
+        lastError = res.last_error?.message ?? null;
+        await updateMonitorRow(m.id, {
+          configHash: want,
+          scheduleMinutes: minutes,
+          ...(target.type === "search" ? { target: plan.monitor.query } : {}),
+          ...(res.webhook?.secret ? { webhookSecret: res.webhook.secret } : {}),
+        });
+        out.notes.push(`updated ${label(m)} (${Object.keys(patch).join(", ")})`);
+      }
+      if (!opts.force && status === null && m.checkedAt !== null && now - m.checkedAt < MONITOR_SYNC_MS) continue;
+      if (status === null) {
+        const r = await ctx().monitors.retrieve(m.id);
+        status = r.status;
+        lastError = r.last_error?.message ?? null;
+        if (r.webhook_failure) out.notes.push(`webhook failing for ${label(m)}: ${r.webhook_failure.consecutive_failures} in a row`);
+      }
+      if (status === "active") {
+        await updateMonitorRow(m.id, { remoteStatus: "active", lastError: lastError ?? null, checkedAt: now });
+        continue;
+      }
+      const reason = await stopReason(m.id);
+      const why = reason.text ?? lastError ?? status;
+      const firstTime = m.remoteStatus !== status;
+      if (reason.credits) {
+        if (firstTime) out.alerts.push(`Context.dev credits ran out, so ${label(m)} is not running`);
+        await updateMonitorRow(m.id, { remoteStatus: status as MonitorRow["remoteStatus"], lastError: why, checkedAt: now });
+      } else if (m.kind === "page") {
+        await ctx().monitors.delete(m.id).catch((e) => {
+          if (!isNotFound(e)) throw e;
+        });
+        await updateMonitorRow(m.id, { remoteStatus: "dead", lastError: why, checkedAt: now });
+        out.alerts.push(`Stopped watching ${hostOf(m.target) ?? m.target}: the page kept failing (${clip(why, 160)})`);
+      } else if (firstTime && m.lastError !== why) {
+        // Resume once per distinct failure; the same failure again is left to the next check.
+        const res = await ctx().monitors.update(m.id, { status: "active" });
+        await updateMonitorRow(m.id, { remoteStatus: res.status, lastError: why, checkedAt: now });
+        out.alerts.push(`Restarted ${label(m)} after it stopped (${clip(why, 160)})`);
+      } else {
+        await updateMonitorRow(m.id, { lastError: why, checkedAt: now });
+        out.notes.push(`${label(m)} still ${status}: ${why}`);
+      }
+    } catch (e) {
+      if (isNotFound(e)) {
+        // Gone at Context.dev (deleted there, or never created): drop the row so ensureBoardMonitors recreates it.
+        await deleteMonitorRow(m.id).catch(() => {});
+        out.notes.push(`${label(m)} no longer exists`);
+      } else out.notes.push(`sync of ${label(m)} failed: ${errText(e)}`);
+    }
+  }
+  return out;
+}
+
+/** Sets the run schedule of the board's monitors for its tier. Never throws. */
+export async function setBoardMonitorSchedule(boardId: string, tier: BoardTier): Promise<number> {
+  if (monitorsDisabled() || tier === "paused") return 0;
+  const minutes = scheduleMinutes(tier);
+  let n = 0;
+  try {
+    for (const m of live(await listMonitors(boardId))) {
+      if (m.scheduleMinutes === minutes) continue;
+      try {
+        await ctx().monitors.update(m.id, { schedule: schedule(minutes) });
+        await updateMonitorRow(m.id, { scheduleMinutes: minutes });
+        n += 1;
+      } catch (e) {
+        if (isNotFound(e)) await deleteMonitorRow(m.id).catch(() => {});
+        else console.error("[faraday] monitor schedule update failed", m.id, errText(e));
+      }
+    }
+  } catch (e) {
+    console.error("[faraday] setBoardMonitorSchedule failed", boardId, errText(e));
+  }
+  return n;
+}
+
 /** Deletes the board's monitors at Context.dev and their rows. Never throws. */
 export async function removeBoardMonitors(boardId: string): Promise<number> {
   let removed = 0;
-  let rows: Awaited<ReturnType<typeof listMonitors>> = [];
+  let rows: MonitorRow[] = [];
   try {
     rows = await listMonitors(boardId);
   } catch (e) {
@@ -118,7 +313,7 @@ export async function removeBoardMonitors(boardId: string): Promise<number> {
   }
   for (const m of rows) {
     try {
-      if (!monitorsDisabled()) await ctx().monitors.delete(m.id);
+      if (!monitorsDisabled() && m.remoteStatus !== "dead") await ctx().monitors.delete(m.id);
     } catch (e) {
       if (!isNotFound(e)) {
         // Keep the row so a later cleanup can retry; the monitor still exists at Context.dev.
@@ -136,33 +331,44 @@ export async function removeBoardMonitors(boardId: string): Promise<number> {
   return removed;
 }
 
-/** New changes since each monitor's last seen change; advances last seen. */
+/**
+ * Changes not processed yet, newest first. Reads every page since each monitor's checkpoint (minus a small overlap),
+ * and skips change ids already processed. Does not move the checkpoint: call ackChanges once the changes are stored.
+ */
 export async function collectMonitorChanges(boardId: string, signal?: AbortSignal): Promise<{ changes: MonitorChange[]; calls: number }> {
   if (monitorsDisabled()) return { changes: [], calls: 0 };
   const changes: MonitorChange[] = [];
   let calls = 0;
-  for (const m of await listMonitors(boardId)) {
-    calls += 1;
+  for (const m of live(await listMonitors(boardId))) {
+    const from = m.lastSeenChangeAt ? Date.parse(m.lastSeenChangeAt) : m.createdAt;
+    const since = Number.isFinite(from) ? new Date(from - CHANGE_OVERLAP_MS).toISOString() : undefined;
     try {
-      const page = await ctx().monitors.listChanges(m.id, { limit: 20 }, { signal });
-      const fresh = page.data.filter((c) => !m.lastSeenChangeAt || c.detected_at > m.lastSeenChangeAt);
-      if (!fresh.length) continue;
-      const newest = fresh.reduce((a, c) => (c.detected_at > a ? c.detected_at : a), fresh[0].detected_at);
-      await setMonitorSeen(m.id, newest);
-      for (const c of fresh) {
-        const evidence: FoundDoc[] = [];
-        for (const ev of c.evidence ?? []) {
-          if (!ev.url) continue;
-          evidence.push({ url: ev.url, title: null, publisher: hostOf(ev.url), publishedAt: c.detected_at, snippet: ev.after || null, kind: "monitor" });
-        }
+      const got: Awaited<ReturnType<ReturnType<typeof ctx>["monitors"]["listChanges"]>>["data"] = [];
+      let cursor: string | undefined;
+      let pages = 0;
+      do {
+        calls += 1;
+        pages += 1;
+        const page = await ctx().monitors.listChanges(m.id, { limit: 100, ...(since ? { since } : {}), ...(cursor ? { cursor } : {}) }, { signal });
+        got.push(...page.data);
+        cursor = page.has_more && page.next_cursor ? page.next_cursor : undefined;
+      } while (cursor && pages < MAX_CHANGE_PAGES);
+      if (cursor) console.warn("[faraday] monitor changes truncated", m.id, got.length);
+      const seen = await seenChangeIds(got.map((c) => c.id));
+      const ids = new Set<string>();
+      for (const c of got) {
+        if (seen.has(c.id) || ids.has(c.id) || (since && c.detected_at < since)) continue;
+        ids.add(c.id);
         changes.push({
+          id: c.id,
           monitorId: m.id,
           detectedAt: c.detected_at,
           title: c.title,
-          summary: c.summary || c.after_text_excerpt || null,
+          summary: c.summary || null,
           url: c.url,
           importance: c.importance ?? null,
-          evidence,
+          afterExcerpt: c.after_text_excerpt?.trim() ? c.after_text_excerpt : null,
+          evidence: (c.evidence ?? []).filter((ev) => ev.after?.trim()).map((ev) => ({ url: ev.url || null, after: ev.after })),
         });
       }
     } catch (e) {
@@ -175,11 +381,17 @@ export async function collectMonitorChanges(boardId: string, signal?: AbortSigna
   return { changes, calls };
 }
 
+/** Marks changes as processed and moves the checkpoints. Call after their sources are stored. */
+export async function ackChanges(changes: Pick<MonitorChange, "id" | "monitorId" | "detectedAt">[]): Promise<void> {
+  if (!changes.length) return;
+  await ackMonitorChanges(changes.map((c) => ({ id: c.id, monitorId: c.monitorId, detectedAt: c.detectedAt })));
+}
+
 /** Asks Context.dev to run the board's monitors now. Never throws. */
 export async function runBoardMonitors(boardId: string): Promise<void> {
   if (monitorsDisabled()) return;
   try {
-    for (const m of await listMonitors(boardId)) {
+    for (const m of live(await listMonitors(boardId))) {
       await ctx().monitors.run(m.id).catch((e) => console.error("[faraday] monitor run failed", m.id, errText(e)));
     }
   } catch (e) {
@@ -187,10 +399,51 @@ export async function runBoardMonitors(boardId: string): Promise<void> {
   }
 }
 
-/** Turns a monitor change into source documents: the change itself, then its evidence pages. */
+/**
+ * Turns a monitor change into source documents, one per URL, carrying only raw page text: the evidence snapshots
+ * after the change (evidence without a url belongs to the change's url), else the change's after-text excerpt.
+ * The judge model's title and summary are left out, so a fact can never be verified against them. A URL with no raw
+ * text gets a null snippet (fetchChangeTexts fills it). Every doc has `refresh`, so a known URL is re-read.
+ */
 export function changeDocs(c: MonitorChange): FoundDoc[] {
-  return [
-    { url: c.url, title: c.title, publisher: hostOf(c.url), publishedAt: c.detectedAt, snippet: c.summary, kind: "monitor" },
-    ...c.evidence,
-  ];
+  const texts = new Map<string, string[]>();
+  const add = (url: string, text: string) => {
+    const list = texts.get(url) ?? [];
+    if (!list.includes(text)) list.push(text);
+    texts.set(url, list);
+  };
+  for (const ev of c.evidence) add(ev.url || c.url, ev.after.trim());
+  if (!texts.has(c.url) && c.afterExcerpt) add(c.url, c.afterExcerpt.trim());
+  const urls = texts.has(c.url) ? [...texts.keys()] : [c.url, ...texts.keys()];
+  return urls.map((url) => {
+    const t = texts.get(url) ?? [];
+    return {
+      url,
+      title: null,
+      publisher: hostOf(url),
+      publishedAt: c.detectedAt,
+      snippet: t.length ? clip(t.join("\n\n"), SNIPPET_CHARS) : null,
+      kind: "monitor" as const,
+      refresh: true,
+    };
+  });
+}
+
+/**
+ * Change docs with no raw text get the page as it is now (a fresh scrape), so triage and verification have the source's
+ * own words. At most MAX_CHANGE_SCRAPES per call; returns the docs and the number of scrapes.
+ */
+export async function fetchChangeTexts(docs: FoundDoc[], signal?: AbortSignal): Promise<{ docs: FoundDoc[]; calls: number }> {
+  let calls = 0;
+  const out: FoundDoc[] = [];
+  for (const d of docs) {
+    if (d.snippet || calls >= MAX_CHANGE_SCRAPES) {
+      out.push(d);
+      continue;
+    }
+    calls += 1;
+    const md = await scrapeMarkdown(d.url, signal, { maxAgeMs: 0 });
+    out.push(md ? { ...d, snippet: clip(md.trim(), SNIPPET_CHARS) } : d);
+  }
+  return { docs: out, calls };
 }

@@ -19,6 +19,8 @@ vi.mock("../../repo/boards", () => ({
   getBoard: vi.fn(),
   listSources: vi.fn(),
   addSources: vi.fn(),
+  refreshSources: vi.fn(async () => []),
+  markMonitorsSynced: vi.fn(),
   setSourceTriage: vi.fn(),
   discardSources: vi.fn(),
   markExtracted: vi.fn(),
@@ -46,6 +48,10 @@ vi.mock("../../contextdev", () => ({ searchNews: vi.fn(), searchWeb: vi.fn(), sc
 vi.mock("../../monitors", () => ({
   collectMonitorChanges: vi.fn(async () => ({ changes: [], calls: 0 })),
   ensureBoardMonitors: vi.fn(async () => "search monitor m1"),
+  syncBoardMonitors: vi.fn(async () => ({ notes: [], alerts: [] })),
+  ackChanges: vi.fn(),
+  fetchChangeTexts: vi.fn(async (docs: unknown[]) => ({ docs, calls: 0 })),
+  MONITOR_SYNC_MS: 30 * 60_000,
   changeDocs: vi.fn(() => []),
 }));
 vi.mock("../verify", () => ({
@@ -71,7 +77,7 @@ vi.mock("../assemble", () => ({
 const ai = await import("ai");
 const { decide } = await import("../../llm/decide");
 const boards = await import("../../repo/boards");
-const { searchNews, searchWeb } = await import("../../contextdev");
+const { scrapeMarkdown, searchNews, searchWeb } = await import("../../contextdev");
 const monitors = await import("../../monitors");
 const { buildGraph, updateGraph } = await import("./index");
 
@@ -127,6 +133,7 @@ const board = (over: Record<string, unknown> = {}) => ({
   lastViewedAt: null,
   lastChangedAt: null,
   runningJobId: 1,
+  monitorsSyncedAt: Date.now() - 60_000,
   createdAt: 0,
   updatedAt: 0,
   ...over,
@@ -260,6 +267,73 @@ describe("updateGraph", () => {
     expect(boards.markChanged).toHaveBeenCalled();
     const update = emitted.find((m) => m.type === "event" && m.event.kind === "update");
     expect(update).toBeTruthy();
+  });
+
+  it("refreshes a known page a monitor saw change, reads it without cache, re-extracts, then acknowledges the change", async () => {
+    const s1 = source("s1", { kind: "web", sourceType: "official", relevance: 0.9, snippet: "480 of 500 sites are operational." });
+    const change = {
+      id: "chg1",
+      monitorId: "m1",
+      detectedAt: "2026-11-14T10:00:00Z",
+      title: "Service restored",
+      summary: "All 500 sites are operational.",
+      url: s1.url,
+      importance: "high" as const,
+      afterExcerpt: null,
+      evidence: [{ url: null, after: "480 of 500 sites are operational." }],
+    };
+    vi.mocked(monitors.collectMonitorChanges).mockResolvedValueOnce({ changes: [change], calls: 1 });
+    vi.mocked(monitors.changeDocs).mockReturnValueOnce([
+      { url: s1.url, title: null, publisher: "x.com", publishedAt: change.detectedAt, snippet: s1.snippet, kind: "monitor", refresh: true },
+    ]);
+    vi.mocked(boards.refreshSources).mockResolvedValueOnce([s1]);
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    vi.mocked(boards.listSources).mockResolvedValue([s1]);
+    const order: string[] = [];
+    vi.mocked(monitors.ackChanges).mockImplementation((async () => void order.push("ack")) as never);
+    vi.mocked(boards.markPolled).mockImplementation((async () => void order.push("polled")) as never);
+    const { ctx, steps, emitted } = fakeCtx("poll", { reason: "webhook" });
+    await updateGraph(ctx);
+    expect(steps).toEqual(["collect", "read[u1]", "extract[u1-b0]", "merge[u1]"]);
+    expect(vi.mocked(scrapeMarkdown).mock.calls[0]).toEqual([s1.url, expect.anything(), { maxAgeMs: 0 }]);
+    expect(monitors.ackChanges).toHaveBeenCalledWith([expect.objectContaining({ id: "chg1", monitorId: "m1" })]);
+    expect(order).toEqual(["polled", "ack"]);
+    expect(emitted).toContainEqual({ type: "sources", added: [s1], discarded: [] });
+    // The judge's summary is shown as the change, not stored as a source.
+    const ev = emitted.find((m) => m.type === "event" && m.event.kind === "change");
+    expect(ev).toMatchObject({ event: { message: "Monitor: Service restored", data: { summary: "All 500 sites are operational." } } });
+  });
+
+  it("acknowledges collected changes when nothing new came of them", async () => {
+    const change = { id: "chg2", monitorId: "m1", detectedAt: "2026-11-14T10:00:00Z", title: "t", summary: null, url: "https://x.com/a", importance: null, afterExcerpt: null, evidence: [] };
+    vi.mocked(monitors.collectMonitorChanges).mockResolvedValueOnce({ changes: [change], calls: 1 });
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    const { ctx } = fakeCtx("poll", { reason: "schedule" });
+    await updateGraph(ctx);
+    expect(monitors.ackChanges).toHaveBeenCalledWith([expect.objectContaining({ id: "chg2" })]);
+  });
+
+  it("maintains monitors when the last sync is old: health and settings first, then gaps, alerts to the log", async () => {
+    vi.mocked(boards.getBoard).mockResolvedValue(board({ monitorsSyncedAt: Date.now() - 31 * 60_000 }) as never);
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    vi.mocked(boards.listSources).mockResolvedValue([]);
+    vi.mocked(monitors.syncBoardMonitors).mockResolvedValueOnce({ notes: [], alerts: ["Stopped watching gov.example: the page kept failing (HTTP 503)"] });
+    const { ctx, steps, emitted } = fakeCtx("poll", { reason: "schedule" });
+    await updateGraph(ctx);
+    expect(steps).toEqual(["collect", "watch"]);
+    expect(monitors.syncBoardMonitors).toHaveBeenCalledWith("b1", plan, "hot");
+    expect(monitors.ensureBoardMonitors).toHaveBeenCalledWith("b1", plan, [], { allowPage: true, tier: "hot" });
+    expect(boards.markMonitorsSynced).toHaveBeenCalledWith("b1");
+    expect(emitted).toContainEqual(expect.objectContaining({ type: "event", event: expect.objectContaining({ kind: "info", message: expect.stringContaining("Stopped watching") }) }));
+  });
+
+  it("does not touch monitors on a paused board's manual poll", async () => {
+    vi.mocked(boards.getBoard).mockResolvedValue(board({ tier: "paused", monitorsSyncedAt: null }) as never);
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    const { ctx, steps } = fakeCtx("poll", { reason: "manual" });
+    await updateGraph(ctx);
+    expect(steps).toEqual(["collect"]);
+    expect(monitors.ensureBoardMonitors).not.toHaveBeenCalled();
   });
 
   it("skips boards that are not live v2 boards", async () => {

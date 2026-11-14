@@ -209,6 +209,7 @@ describe("plan", () => {
       newsQueries: ["n-new"],
       webQueries: [],
       addQuestions: ["Where?"],
+      monitor: null,
     });
     expect(newKeys.metrics).toEqual(["missing"]);
     expect(next.tables).toHaveLength(0);

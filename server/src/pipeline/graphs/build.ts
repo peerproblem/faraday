@@ -1,6 +1,6 @@
 import type { GraphFn, RunCtx } from "../../graph/runner";
 import { ensureBoardMonitors } from "../../monitors";
-import { addMessage, listMessages, listSources, markPolled, saveBoardVersion, savePlan, setSchedule } from "../../repo/boards";
+import { addMessage, listMessages, listSources, markMonitorsSynced, markPolled, saveBoardVersion, savePlan, setSchedule } from "../../repo/boards";
 import { listFacts } from "../../repo/facts";
 import { enqueue } from "../../repo/jobs";
 import type { BoardSpecV2, Fact, Plan, StagedFact } from "../../spec";
@@ -211,7 +211,11 @@ export const buildGraph: GraphFn = async (ctx) => {
 
   const sources = await listSources(ctx.boardId);
   await ctx.event("stage", "Setting up live monitoring");
-  const note = await ctx.step("watch", { urls: officialUrls(sources) }, (i) => ensureBoardMonitors(ctx.boardId, plan, i.urls, { allowPage: true }), {
+  const note = await ctx.step("watch", { urls: officialUrls(sources) }, async (i) => {
+    const n = await ensureBoardMonitors(ctx.boardId, plan, i.urls, { allowPage: true, tier: "hot" });
+    await markMonitorsSynced(ctx.boardId);
+    return n;
+  }, {
     timeoutMs: 30_000,
     optional: true,
     deadlineExempt: true,

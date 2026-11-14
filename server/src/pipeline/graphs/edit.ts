@@ -1,7 +1,8 @@
 import type { GraphFn } from "../../graph/runner";
 import { decide } from "../../llm/decide";
 import { THRESHOLDS } from "../../llm/thresholds";
-import { addMessage, listMessages, listSources, saveBoardVersion, savePlan } from "../../repo/boards";
+import { ensureBoardMonitors, syncBoardMonitors } from "../../monitors";
+import { addMessage, listMessages, listMonitors, listSources, markMonitorsSynced, saveBoardVersion, savePlan } from "../../repo/boards";
 import { listFacts } from "../../repo/facts";
 import { specFromPlan, type HeaderOverrides } from "../assemble";
 import { assess, type Assessment } from "../nodes/assess";
@@ -9,7 +10,19 @@ import { gather } from "../nodes/gather";
 import { writeNarrative, type Narrative } from "../nodes/narrative";
 import { applyPlanPatch, makePlanPatch } from "../nodes/plan";
 import { LIMITS } from "../nodes/util";
-import { composeData, extractable, extractRound, hasFactsMap, ingest, loadBoard, mergeRound, readRound, setBoardStatus, triageRound } from "./common";
+import {
+  composeData,
+  extractable,
+  extractRound,
+  hasFactsMap,
+  ingest,
+  loadBoard,
+  mergeRound,
+  officialUrls,
+  readRound,
+  setBoardStatus,
+  triageRound,
+} from "./common";
 
 type Scope = "layout" | "data" | "narrative" | "all";
 
@@ -123,6 +136,24 @@ export const editGraph: GraphFn = async (ctx) => {
   ctx.emit({ type: "status", status: "live", tier });
   await addMessage(ctx.boardId, "assistant", patch.reply);
   await ctx.event("edit", patch.reply, { scope: route.scope, newKeys });
+
+  // The monitors watch for what the plan cares about: bring them in line with the edited plan, and use free page
+  // slots for official pages the edit found.
+  if (tier !== "paused" && (await listMonitors(ctx.boardId)).length > 0) {
+    const sources = await listSources(ctx.boardId);
+    const r = await ctx.step(
+      "watch",
+      { monitor: plan.monitor, n: sources.length },
+      async () => {
+        const sync = await syncBoardMonitors(ctx.boardId, plan, tier, { force: true });
+        const note = await ensureBoardMonitors(ctx.boardId, plan, officialUrls(sources), { allowPage: tier === "hot", tier });
+        await markMonitorsSynced(ctx.boardId);
+        return { note: [...sync.notes, note].filter(Boolean).join("; "), alerts: sync.alerts };
+      },
+      { timeoutMs: 45_000, optional: true, deadlineExempt: true, fallback: { note: "monitor sync failed", alerts: [] as string[] } },
+    );
+    for (const a of r.alerts) await ctx.event("info", a);
+  }
 };
 
 export const EDIT_LIMITS = { focusSources: 20, maxExtract: () => LIMITS.maxExtract() };

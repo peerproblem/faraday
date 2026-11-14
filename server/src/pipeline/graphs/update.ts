@@ -1,8 +1,17 @@
 import type { GraphFn } from "../../graph/runner";
-import { changeDocs, collectMonitorChanges, ensureBoardMonitors } from "../../monitors";
+import {
+  ackChanges,
+  changeDocs,
+  collectMonitorChanges,
+  ensureBoardMonitors,
+  fetchChangeTexts,
+  MONITOR_SYNC_MS,
+  syncBoardMonitors,
+  type SyncResult,
+} from "../../monitors";
 import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
 import { geocodeBoard, type GeocodeResult } from "../nodes/geocode";
-import { listMonitors, listSources, markChanged, markPolled, saveBoardVersion } from "../../repo/boards";
+import { listMonitors, listSources, markChanged, markMonitorsSynced, markPolled, saveBoardVersion } from "../../repo/boards";
 import { listFacts } from "../../repo/facts";
 import type { FactDiff } from "../../spec";
 import { diffData, type HeaderOverrides } from "../assemble";
@@ -11,7 +20,19 @@ import { dedupeDocs, rotateQueries } from "../nodes/gather";
 import { writeNarrative, type Narrative } from "../nodes/narrative";
 import { changeNote } from "../nodes/note";
 import { factLine, POLL_INTERVAL_MS } from "../nodes/util";
-import { composeData, extractable, extractRound, hasFactsMap, ingest, loadBoard, mergeRound, officialUrls, readRound, triageRound } from "./common";
+import {
+  composeData,
+  extractable,
+  extractRound,
+  hasFactsMap,
+  ingest,
+  loadBoard,
+  mergeRound,
+  officialUrls,
+  readRound,
+  refreshRound,
+  triageRound,
+} from "./common";
 
 type Reason = "schedule" | "manual" | "webhook" | "followup";
 
@@ -54,44 +75,76 @@ export const updateGraph: GraphFn = async (ctx) => {
       use.context(i.queries.length + i.webQueries.length);
       const m = await collectMonitorChanges(ctx.boardId, signal);
       use.context(m.calls);
+      // Monitor docs carry raw page text only; the judge model's summary goes to the change event, not to sources.
+      const filled = await fetchChangeTexts(dedupeDocs(m.changes.flatMap(changeDocs)), signal);
+      use.context(filled.calls);
       return {
-        docs: dedupeDocs([...m.changes.flatMap(changeDocs), ...news.flat()]),
-        changes: m.changes.map((c) => ({ title: c.title, summary: c.summary, url: c.url, importance: c.importance })),
+        docs: dedupeDocs([...filled.docs, ...news.flat()]),
+        changes: m.changes.map((c) => ({
+          id: c.id,
+          monitorId: c.monitorId,
+          detectedAt: c.detectedAt,
+          title: c.title,
+          summary: c.summary,
+          url: c.url,
+          importance: c.importance,
+        })),
         failures,
       };
     },
     { timeoutMs: 60_000, retries: 1 },
   );
   for (const f of collected.failures) await ctx.event("error", f);
-  for (const c of collected.changes) await ctx.event("change", `Monitor: ${c.title}`, c);
+  for (const { id: _id, monitorId: _m, detectedAt: _d, ...c } of collected.changes) await ctx.event("change", `Monitor: ${c.title}`, c);
 
+  // Known URLs a monitor saw change are refreshed first, so ingest only adds URLs the board does not have yet.
+  const refreshed = await refreshRound(ctx, collected.docs);
   const added = await ingest(ctx, collected.docs);
   const finish = async (message: string | null) => {
     await markPolled(ctx.boardId);
+    await ackChanges(collected.changes);
     if (message && reason !== "schedule") await ctx.event("info", message);
-    await maybeEnsureMonitors();
+    await maintainMonitors();
   };
-  const maybeEnsureMonitors = async () => {
-    if ((await listMonitors(ctx.boardId)).length > 0) return;
+  // Creates missing monitors, and at most every MONITOR_SYNC_MS checks health, settings and the tier's schedule.
+  const maintainMonitors = async () => {
+    if (board.tier === "paused") return;
+    const rows = await listMonitors(ctx.boardId);
+    const sinceSync = board.monitorsSyncedAt === null || board.monitorsSyncedAt === undefined ? Infinity : now - board.monitorsSyncedAt;
+    // No monitors yet (or all gone): retry creation every 5 minutes instead of waiting for the full interval.
+    if (sinceSync < MONITOR_SYNC_MS && (rows.length > 0 || sinceSync < 5 * 60_000)) return;
     const sources = await listSources(ctx.boardId);
-    await ctx.step("watch", { n: sources.length }, () => ensureBoardMonitors(ctx.boardId, plan, officialUrls(sources), { allowPage: board.tier === "hot" }), {
-      timeoutMs: 30_000,
-      optional: true,
-      fallback: "monitor setup failed",
-    });
+    const r = await ctx.step(
+      "watch",
+      { n: sources.length, monitors: rows.length },
+      async () => {
+        const sync: SyncResult = rows.length ? await syncBoardMonitors(ctx.boardId, plan, board.tier) : { notes: [], alerts: [] };
+        const note = await ensureBoardMonitors(ctx.boardId, plan, officialUrls(sources), { allowPage: board.tier === "hot", tier: board.tier });
+        await markMonitorsSynced(ctx.boardId);
+        return { note: [...sync.notes, note].filter(Boolean).join("; "), alerts: sync.alerts };
+      },
+      { timeoutMs: 45_000, optional: true, fallback: { note: "monitor setup failed", alerts: [] as string[] } },
+    );
+    for (const a of r.alerts) await ctx.event("info", a);
   };
-  if (added.length === 0) return finish("Checked the web: nothing new");
+  if (added.length === 0 && refreshed.length === 0) return finish("Checked the web: nothing new");
 
   const tr = await triageRound(ctx, plan, "u1");
-  if (tr.kept.length === 0) return finish(`Checked the web: ${added.length} new results, none about this crisis`);
+  const refreshedIds = new Set(refreshed.map((s) => s.id));
+  // Refreshed sources keep their triage unless they had been discarded (those are triaged again above).
+  const keptIds = new Set([...tr.kept, ...refreshed.filter((s) => (s.relevance ?? 0) > 0).map((s) => s.id)]);
+  const found = added.length + refreshed.length;
+  if (keptIds.size === 0) return finish(`Checked the web: ${found} new or changed results, none about this crisis`);
   const hasFacts = hasFactsMap(tr.rows);
-  const keptIds = new Set(tr.kept);
   const fresh = (await listSources(ctx.boardId)).filter((s) => keptIds.has(s.id));
-  await readRound(ctx, "u1", fresh.filter((s) => s.sourceType === "official"), 2);
+  // Pages a monitor saw change are read again without cache: the stored text predates the change.
+  const reread = fresh.filter((s) => refreshedIds.has(s.id) || s.kind === "monitor").map((s) => s.id);
+  const rereadSet = new Set(reread);
+  await readRound(ctx, "u1", fresh.filter((s) => s.sourceType === "official" || rereadSet.has(s.id)), Math.min(4, 2 + reread.length), reread);
   const picked = await extractable(ctx, hasFacts, 15, keptIds);
   const out = await extractRound(ctx, plan, "u1", picked);
   const diff = await mergeRound(ctx, plan, "u1", out);
-  if (emptyDiff(diff)) return finish(`Read ${tr.kept.length} new sources, nothing on the board changed`);
+  if (emptyDiff(diff)) return finish(`Read ${keptIds.size} new or changed sources, nothing on the board changed`);
 
   const facts = await listFacts(ctx.boardId, { status: ["active"] });
   const touched = new Set([...diff.added, ...diff.changed].map((d) => `${d.kind}:${d.key}`));
@@ -150,6 +203,7 @@ export const updateGraph: GraphFn = async (ctx) => {
   });
   await markChanged(ctx.boardId);
   await markPolled(ctx.boardId);
+  await ackChanges(collected.changes);
   await ctx.event("update", note, {
     importance: mat.importance,
     material: mat.material,
@@ -158,5 +212,5 @@ export const updateGraph: GraphFn = async (ctx) => {
     changed: diff.changed.length,
     silent: mat.importance === "low",
   });
-  await maybeEnsureMonitors();
+  await maintainMonitors();
 };

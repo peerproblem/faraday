@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { flushRemote, publish, setBusMode } from "./bus";
 import { closePool } from "./db/pool";
 import { runGraph, type GraphFn } from "./graph/runner";
-import { removeBoardMonitors } from "./monitors";
+import { removeBoardMonitors, setBoardMonitorSchedule } from "./monitors";
 import { buildGraph, editGraph, updateGraph } from "./pipeline/graphs";
 import {
   addEvent,
@@ -142,6 +142,8 @@ export async function scheduleOnce(now = Date.now()) {
       // Moving to a faster tier polls soon instead of waiting out the slower interval.
       const faster = RANK[tier] > RANK[b.tier];
       await setSchedule(b.id, faster ? { tier, nextPollAt: now } : { tier });
+      // Context.dev runs the board's monitors less often on cooler tiers. Never throws.
+      await setBoardMonitorSchedule(b.id, tier);
     }
   }
   const due = await listDueBoards(now, 200);

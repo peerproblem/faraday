@@ -47,7 +47,9 @@ export function applyMessage(s: BoardState, msg: StreamMsg): Applied {
     case "sources": {
       const gone = new Set(msg.discarded);
       const seen = new Set<string>();
-      const sources = [...b.sources, ...msg.added].filter((x) => {
+      // An id that is already listed was refreshed (its page changed): the new copy replaces it in place.
+      const latest = new Map(msg.added.map((x) => [x.id, x]));
+      const sources = [...b.sources.map((x) => latest.get(x.id) ?? x), ...msg.added].filter((x) => {
         if (gone.has(x.id) || seen.has(x.id)) return false;
         seen.add(x.id);
         return true;

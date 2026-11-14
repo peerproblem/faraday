@@ -19,7 +19,9 @@ import {
   getBoardView,
   listBoards,
   listEvents,
+  forgetWebhookEvent,
   monitorById,
+  recordWebhookEvent,
   setSchedule,
   setVisibility,
   slugExists,
@@ -422,23 +424,47 @@ export function createApp(opts: AppOptions = {}) {
     return c.json({ ok: true });
   });
 
+  // Context.dev monitor webhook. Body: { event, id, created_at, data: { change } } for change.detected (run.completed has
+  // data.run and data.change). `id` (also X-Context-Id) is stable across retries and replays: it is the dedupe key.
   app.post("/api/webhooks/context", async (c) => {
     const raw = await c.req.text();
-    let payload: { monitor_id?: string; data?: { monitor_id?: string } } = {};
+    type Body = {
+      id?: string;
+      event?: string;
+      monitor_id?: string;
+      data?: { monitor_id?: string; change?: { monitor_id?: string } | null; run?: { monitor_id?: string } | null };
+    };
+    let payload: Body = {};
     try {
-      payload = JSON.parse(raw);
+      payload = JSON.parse(raw) ?? {};
     } catch {
       return c.json({ error: "bad json" }, 400);
     }
-    const monitorId = payload.monitor_id ?? payload.data?.monitor_id;
+    const monitorId = payload.data?.change?.monitor_id ?? payload.data?.run?.monitor_id ?? payload.data?.monitor_id ?? payload.monitor_id;
     const monitor = monitorId ? await monitorById(monitorId) : undefined;
-    if (!monitor) return c.json({ ok: true, ignored: true });
+    if (!monitor || monitor.remoteStatus === "dead") return c.json({ ok: true, ignored: true });
     // Each monitor has its own signing secret, issued when the webhook was attached.
     if (!monitor.webhookSecret || !verifySignature(raw, c.req.header("x-context-signature"), monitor.webhookSecret)) {
       return c.json({ error: "bad signature" }, 401);
     }
-    await enqueue("poll", monitor.boardId, { reason: "webhook" });
-    log("info", "webhook queued a poll", { boardId: monitor.boardId, monitorId });
+    const headerId = c.req.header("x-context-id");
+    if (headerId && payload.id && headerId !== payload.id) return c.json({ error: "event id mismatch" }, 400);
+    const eventId = payload.id ?? headerId ?? null;
+    const event = payload.event ?? c.req.header("x-context-event") ?? "change.detected";
+    // Only change.detected is subscribed; anything else is acknowledged so it is not retried.
+    if (event !== "change.detected") return c.json({ ok: true, ignored: true });
+    if (eventId && !(await recordWebhookEvent({ eventId, monitorId: monitor.id, event }))) {
+      log("info", "webhook duplicate", { boardId: monitor.boardId, monitorId, eventId });
+      return c.json({ ok: true, duplicate: true });
+    }
+    try {
+      await enqueue("poll", monitor.boardId, { reason: "webhook" });
+    } catch (e) {
+      // Not queued: forget the id so Context.dev's retry is not taken for a duplicate.
+      if (eventId) await forgetWebhookEvent(eventId).catch(() => {});
+      throw e;
+    }
+    log("info", "webhook queued a poll", { boardId: monitor.boardId, monitorId, eventId });
     return c.json({ ok: true });
   });
 

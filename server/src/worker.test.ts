@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./pipeline/graphs", () => ({ buildGraph: async () => {}, editGraph: async () => {}, updateGraph: async () => {} }));
-vi.mock("./monitors", () => ({ removeBoardMonitors: async () => 0 }));
+vi.mock("./monitors", () => ({ removeBoardMonitors: async () => 0, setBoardMonitorSchedule: async () => 0 }));
 vi.mock("./bus", () => ({ publish: () => {}, setBusMode: () => {}, flushRemote: async () => {} }));
 
 import { computeTier } from "./worker";
