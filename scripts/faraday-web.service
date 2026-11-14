@@ -1,6 +1,6 @@
 [Unit]
-Description=Faraday web (serves published boards at <slug>.faraday.watch)
-After=network-online.target faraday-engine.service
+Description=Faraday web (serves published boards at <slug>.faraday.watch) on 127.0.0.1:3000
+After=network-online.target faraday-api.service
 Wants=network-online.target
 
 [Service]
@@ -10,11 +10,23 @@ WorkingDirectory=/opt/faraday/app/client
 ExecStart=/usr/bin/npx next start -H 127.0.0.1 -p 3000
 Restart=always
 RestartSec=3
+TimeoutStopSec=15
 Environment=NODE_ENV=production
+MemoryHigh=1300M
+MemoryMax=1500M
+CPUQuota=150%
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
 ReadWritePaths=/opt/faraday
 
 [Install]

@@ -1,8 +1,9 @@
 # Web server on the Vultr box.
-#   api.faraday.watch      -> engine (127.0.0.1:4000)
-#   <slug>.faraday.watch   -> board hosting (127.0.0.1:3000), one certificate per board,
+#   api.faraday.watch      -> faraday-api (127.0.0.1:4000)
+#   <slug>.faraday.watch   -> faraday-web (127.0.0.1:3000), one certificate per board,
 #                             issued on first visit and only for boards that exist.
-# faraday.watch and www stay on Vercel.
+# faraday.watch and www stay on Vercel. A wildcard certificate needs DNS-01 on Vercel DNS, which is not set up,
+# so certificates are issued on demand and the api's /internal/tls decides which names get one.
 {
 	on_demand_tls {
 		ask http://127.0.0.1:4000/internal/tls
@@ -24,8 +25,19 @@ api.faraday.watch {
 		on_demand
 	}
 	import security
+	request_body {
+		max_size 1MB
+	}
 	@internal path /internal/*
 	respond @internal 404
+	# Compress JSON only. Server-Sent Events (text/event-stream) must reach the browser unbuffered.
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type application/json*
+		}
+	}
 	reverse_proxy 127.0.0.1:4000 {
 		flush_interval -1
 	}

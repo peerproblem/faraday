@@ -94,13 +94,15 @@ skip-name-resolve
 character-set-server = utf8mb4
 collation-server = utf8mb4_unicode_ci
 local-infile = 0
+innodb_buffer_pool_size = 1G
 X
 systemctl restart mariadb
 mariadb -e "DELETE FROM mysql.global_priv WHERE User=''; DROP DATABASE IF EXISTS test; DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'; FLUSH PRIVILEGES;"
 
 # App user and DB
 id faraday >/dev/null 2>&1 || useradd --system --create-home --home-dir /opt/faraday --shell /usr/sbin/nologin faraday
-mkdir -p /opt/faraday/app
+mkdir -p /opt/faraday/shared /opt/faraday/releases /opt/faraday/backups
+chmod 750 /opt/faraday/backups
 chown -R faraday:faraday /opt/faraday
 if [ ! -f /opt/faraday/db.pass ]; then
   openssl rand -hex 24 > /opt/faraday/db.pass
@@ -109,6 +111,7 @@ fi
 P=$(cat /opt/faraday/db.pass)
 mariadb -e "CREATE DATABASE IF NOT EXISTS faraday CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS 'faraday'@'127.0.0.1' IDENTIFIED BY '$P'; ALTER USER 'faraday'@'127.0.0.1' IDENTIFIED BY '$P'; GRANT ALL PRIVILEGES ON faraday.* TO 'faraday'@'127.0.0.1'; DROP USER IF EXISTS 'faraday'@'localhost'; FLUSH PRIVILEGES;"
 
-# Services and web server config ship with the app (scripts/deploy.sh installs them).
+# Releases live in /opt/faraday/releases, /opt/faraday/app links to the live one, and the production env goes in
+# /opt/faraday/shared/.env. Services, the backup timer and the Caddyfile ship with the app (scripts/deploy.sh installs them).
 node -v; caddy version; mariadb --version; fail2ban-client status; ufw status verbose
 echo PROVISION_DONE

@@ -1,0 +1,36 @@
+[Unit]
+Description=Faraday api (HTTP, SSE, webhooks) on 127.0.0.1:4000
+After=network-online.target mariadb.service
+Wants=network-online.target
+Requires=mariadb.service
+
+[Service]
+User=faraday
+Group=faraday
+# /opt/faraday/app is a symlink to the current release; systemd resolves it at start.
+WorkingDirectory=/opt/faraday/app/server
+ExecStart=/usr/bin/npm run start:api
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+Environment=NODE_ENV=production
+Environment=FARADAY_SKIP_MIGRATE=1
+MemoryHigh=640M
+MemoryMax=768M
+CPUQuota=100%
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/faraday
+
+[Install]
+WantedBy=multi-user.target

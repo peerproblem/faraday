@@ -1,0 +1,38 @@
+[Unit]
+Description=Faraday worker (build, edit and update graphs, scheduler)
+After=network-online.target mariadb.service faraday-api.service
+Wants=network-online.target faraday-api.service
+Requires=mariadb.service
+
+[Service]
+User=faraday
+Group=faraday
+WorkingDirectory=/opt/faraday/app/server
+ExecStart=/usr/bin/npm run start:worker
+Restart=always
+RestartSec=5
+# The worker stops claiming on SIGTERM and lets running steps finish for up to 30s.
+KillSignal=SIGTERM
+TimeoutStopSec=40
+Nice=5
+Environment=NODE_ENV=production
+Environment=FARADAY_SKIP_MIGRATE=1
+MemoryHigh=1700M
+MemoryMax=2G
+CPUQuota=200%
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/faraday
+
+[Install]
+WantedBy=multi-user.target
