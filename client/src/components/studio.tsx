@@ -230,6 +230,9 @@ function PanelSection({ title, children }: { title: string; children: ReactNode 
   );
 }
 
+/** The engine's limit for one edit instruction. */
+const MAX_INSTRUCTION = 1000;
+
 function ProgramPanel({ board, canEdit, building }: { board: BoardView; canEdit: boolean; building: boolean }) {
   const [instruction, setInstruction] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -272,7 +275,7 @@ function ProgramPanel({ board, canEdit, building }: { board: BoardView; canEdit:
           }}
         >
           <Field label="Edit the program" error={error ?? undefined}>
-            <Textarea value={instruction} onValueChange={setInstruction} minRows={2} maxRows={8} placeholder="Add a table of road closures. Focus on the north of the city." />
+            <Textarea value={instruction} onValueChange={(v) => setInstruction(v.slice(0, MAX_INSTRUCTION))} minRows={2} maxRows={8} placeholder="Add a table of road closures. Focus on the north of the city." />
           </Field>
           <Button
             type="submit"
@@ -310,6 +313,9 @@ function PlanList({ title, items }: { title: string; items?: string[] }) {
     </PanelSection>
   );
 }
+
+/** How often Context.dev runs a board's monitors, by tier (MONITOR_*_MINUTES defaults on the engine). */
+const monitorEvery: Record<BoardTier, string | null> = { hot: "10 min", warm: "30 min", cold: "2 h", paused: null };
 
 function PlanPanel({ board }: { board: BoardView }) {
   const plan = board.plan!;
@@ -363,7 +369,7 @@ function PlanPanel({ board }: { board: BoardView }) {
       <PlanList title="Questions the board answers" items={plan.questions.map((q) => q.text)} />
       <PlanList title="News queries" items={plan.newsQueries} />
       <PlanList title="Web queries" items={plan.webQueries} />
-      <PanelSection title="Search monitor (every 10 min)">
+      <PanelSection title={`Search monitor${monitorEvery[board.tier] ? ` (every ${monitorEvery[board.tier]})` : " (paused)"}`}>
         <Text size="sm" tone="subtle" className="font-mono">
           {plan.monitor.query}
         </Text>

@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 // The admin console for one topic. Everyone else uses the shared board and their own dashboard.
 export default async function StudioPage({ params }: PageProps<"/studio/[id]">) {
   const { id } = await params;
-  if (!(await getAdminSession((await headers()).get("cookie")))) {
+  const cookie = (await headers()).get("cookie");
+  if (!(await getAdminSession(cookie))) {
     return (
       <PageIntro
         eyebrow="/studio"
@@ -23,7 +24,7 @@ export default async function StudioPage({ params }: PageProps<"/studio/[id]">) 
       />
     );
   }
-  const [board, run] = await Promise.all([getBoard(id), getLatestRun(id)]);
+  const [board, run] = await Promise.all([getBoard(id, cookie), getLatestRun(id, cookie)]);
   if (!board) notFound();
   return <Studio initial={board} initialRun={run} canEdit />;
 }

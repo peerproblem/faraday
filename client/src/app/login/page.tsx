@@ -3,11 +3,12 @@ import { auth, demoLoginEnabled, googleEnabled, signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Caption, Heading, Text } from "@/components/ui/typography";
+import { safeNext } from "@/lib/safe-next";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const session = await auth();
   const sp = await searchParams;
-  const next = typeof sp.next === "string" && sp.next.startsWith("/") ? sp.next : "/";
+  const next = safeNext(sp.next);
   if (session?.user) redirect(next);
   return (
     <div className="mx-auto max-w-md pt-8 sm:pt-16">

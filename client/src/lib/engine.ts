@@ -100,13 +100,15 @@ export async function getAdminOverview(cookie: string | null): Promise<{ discove
   }
 }
 
-export const getBoard = (id: string) => get<BoardView>(`/api/boards/${encodeURIComponent(id)}`);
+/** Pass the request cookie to get the admin fields (plan, messages, owner); without an admin session they are empty. */
+export const getBoard = (id: string, cookie?: string | null) => get<BoardView>(`/api/boards/${encodeURIComponent(id)}`, { cookie });
 
 export const getBoardBySlug = (slug: string) => get<BoardView>(`/api/boards/by-slug/${encodeURIComponent(slug)}`);
 
-export async function getLatestRun(id: string): Promise<RunView | null> {
+/** Admins only: the engine answers 403 without an admin session, so pass the request cookie. */
+export async function getLatestRun(id: string, cookie?: string | null): Promise<RunView | null> {
   try {
-    return await get<RunView>(`/api/boards/${encodeURIComponent(id)}/runs/latest`);
+    return await get<RunView>(`/api/boards/${encodeURIComponent(id)}/runs/latest`, { cookie });
   } catch {
     return null;
   }

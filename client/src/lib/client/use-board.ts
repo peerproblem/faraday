@@ -56,7 +56,8 @@ export function useBoard(initial: BoardView, opts?: { live?: boolean }) {
       setState(r.state);
       if (r.refetch) void refetch();
       if (msg.type === "event") {
-        if (msg.event.kind === "update") toast("Board updated", { description: msg.event.message });
+        // The engine marks low-importance updates silent: they go in the change log without a toast.
+        if (msg.event.kind === "update" && msg.event.data?.silent !== true) toast("Board updated", { description: msg.event.message });
         if (msg.event.kind === "change") toast("New development detected", { description: msg.event.message });
       }
     };

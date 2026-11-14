@@ -50,12 +50,19 @@ export function useLayout(boardId: string, initial: PersonalViewState | null) {
     setSaving(false);
   }, [boardId, show]);
 
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  // Leaving the page (or this dashboard) inside the debounce window still saves the last change.
+  useEffect(() => {
+    const flushPending = () => {
+      if (!timer.current) return;
+      clearTimeout(timer.current);
+      void flush();
+    };
+    window.addEventListener("pagehide", flushPending);
+    return () => {
+      window.removeEventListener("pagehide", flushPending);
+      flushPending();
+    };
+  }, [flush]);
 
   /** Shows a layout the person made and saves it shortly after. */
   const change = useCallback(
