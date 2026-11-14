@@ -4,10 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
-    "start": "tsx --env-file-if-exists=../.env src/index.ts",
+    "dev": "bash ../scripts/dev-engine.sh",
+    "start:api": "tsx --env-file-if-exists=../.env src/api.ts",
+    "start:worker": "tsx --env-file-if-exists=../.env src/worker.ts",
     "typecheck": "tsc --noEmit",
-    "smoke": "tsx --env-file-if-exists=../.env src/smoke.ts"
+    "test": "node --env-file-if-exists=../.env node_modules/vitest/vitest.mjs run",
+    "eval": "tsx --env-file-if-exists=../.env src/eval/run.ts",
+    "smoke": "tsx --env-file-if-exists=../.env src/scripts/smoke.ts",
+    "smoke:decide": "tsx --env-file-if-exists=../.env src/scripts/smoke-decide.ts",
+    "migrate": "tsx --env-file-if-exists=../.env src/scripts/migrate.ts",
+    "rebuild-v1": "tsx --env-file-if-exists=../.env src/scripts/rebuild-v1.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.121",
@@ -24,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.12"
   }
 }

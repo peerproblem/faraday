@@ -1,0 +1,162 @@
+import type { GraphFn } from "../../graph/runner";
+import { changeDocs, collectMonitorChanges, ensureBoardMonitors } from "../../monitors";
+import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
+import { geocodeBoard, type GeocodeResult } from "../nodes/geocode";
+import { listMonitors, listSources, markChanged, markPolled, saveBoardVersion } from "../../repo/boards";
+import { listFacts } from "../../repo/facts";
+import type { FactDiff } from "../../spec";
+import { diffData, type HeaderOverrides } from "../assemble";
+import { assess, materiality, type Assessment, type Materiality } from "../nodes/assess";
+import { dedupeDocs, rotateQueries } from "../nodes/gather";
+import { writeNarrative, type Narrative } from "../nodes/narrative";
+import { changeNote } from "../nodes/note";
+import { factLine, POLL_INTERVAL_MS } from "../nodes/util";
+import { composeData, extractable, extractRound, hasFactsMap, ingest, loadBoard, mergeRound, officialUrls, readRound, triageRound } from "./common";
+
+type Reason = "schedule" | "manual" | "webhook" | "followup";
+
+export const emptyDiff = (d: FactDiff) => d.added.length === 0 && d.changed.length === 0;
+
+export const updateGraph: GraphFn = async (ctx) => {
+  const payload = (ctx.job.payload ?? {}) as { reason?: Reason; newsQueries?: string[]; webQueries?: string[] };
+  const reason = (payload.reason ?? "schedule") as Reason;
+  const board = await loadBoard(ctx);
+  if (!board.plan || !board.spec || board.specVersion !== 2 || board.status !== "live") return;
+  if (board.tier === "paused" && reason === "schedule") return;
+  const plan = board.plan;
+  const now = Date.now();
+  // A follow-up (queued by the build for questions it could not answer) searches its own queries over the plan's window.
+  const followup = reason === "followup";
+  const since = followup ? now - plan.lookbackDays * 86_400_000 : (board.lastPolledAt ?? now - 86_400_000) - 60 * 60_000;
+  const queries = followup ? (payload.newsQueries ?? []).slice(0, 3) : rotateQueries(plan.newsQueries, now, POLL_INTERVAL_MS.hot);
+  const webQueries = followup ? (payload.webQueries ?? []).slice(0, 3) : [];
+  const freshness = plan.lookbackDays <= 1 ? "last_24_hours" : plan.lookbackDays <= 7 ? "last_week" : "last_month";
+
+  const collected = await ctx.step(
+    "collect",
+    { queries, webQueries, since },
+    async (i, use, signal) => {
+      const failures: string[] = [];
+      const news = await Promise.all([
+        ...i.queries.map((q) =>
+          searchNews(q, i.since, 10, signal).catch((e) => {
+            failures.push(`News poll failed: ${(e as Error).message}`);
+            return [] as FoundDoc[];
+          }),
+        ),
+        ...i.webQueries.map((q) =>
+          searchWeb(q, freshness, 6, signal).catch((e) => {
+            failures.push(`Web search failed: ${(e as Error).message}`);
+            return [] as FoundDoc[];
+          }),
+        ),
+      ]);
+      use.context(i.queries.length + i.webQueries.length);
+      const m = await collectMonitorChanges(ctx.boardId, signal);
+      use.context(m.calls);
+      return {
+        docs: dedupeDocs([...m.changes.flatMap(changeDocs), ...news.flat()]),
+        changes: m.changes.map((c) => ({ title: c.title, summary: c.summary, url: c.url, importance: c.importance })),
+        failures,
+      };
+    },
+    { timeoutMs: 60_000, retries: 1 },
+  );
+  for (const f of collected.failures) await ctx.event("error", f);
+  for (const c of collected.changes) await ctx.event("change", `Monitor: ${c.title}`, c);
+
+  const added = await ingest(ctx, collected.docs);
+  const finish = async (message: string | null) => {
+    await markPolled(ctx.boardId);
+    if (message && reason !== "schedule") await ctx.event("info", message);
+    await maybeEnsureMonitors();
+  };
+  const maybeEnsureMonitors = async () => {
+    if ((await listMonitors(ctx.boardId)).length > 0) return;
+    const sources = await listSources(ctx.boardId);
+    await ctx.step("watch", { n: sources.length }, () => ensureBoardMonitors(ctx.boardId, plan, officialUrls(sources), { allowPage: board.tier === "hot" }), {
+      timeoutMs: 30_000,
+      optional: true,
+      fallback: "monitor setup failed",
+    });
+  };
+  if (added.length === 0) return finish("Checked the web: nothing new");
+
+  const tr = await triageRound(ctx, plan, "u1");
+  if (tr.kept.length === 0) return finish(`Checked the web: ${added.length} new results, none about this crisis`);
+  const hasFacts = hasFactsMap(tr.rows);
+  const keptIds = new Set(tr.kept);
+  const fresh = (await listSources(ctx.boardId)).filter((s) => keptIds.has(s.id));
+  await readRound(ctx, "u1", fresh.filter((s) => s.sourceType === "official"), 2);
+  const picked = await extractable(ctx, hasFacts, 15, keptIds);
+  const out = await extractRound(ctx, plan, "u1", picked);
+  const diff = await mergeRound(ctx, plan, "u1", out);
+  if (emptyDiff(diff)) return finish(`Read ${tr.kept.length} new sources, nothing on the board changed`);
+
+  const facts = await listFacts(ctx.boardId, { status: ["active"] });
+  const touched = new Set([...diff.added, ...diff.changed].map((d) => `${d.kind}:${d.key}`));
+  const lines = facts.filter((f) => touched.has(`${f.kind}:${f.key}`)).map(factLine);
+  const mat = await ctx.step("materiality", { diff }, (i, use, signal) => materiality(board.data?.header ?? null, i.diff, lines, use, signal), {
+    timeoutMs: 20_000,
+    optional: true,
+    fallback: { material: true, probability: 1, importance: "medium" } as Materiality,
+  });
+
+  const [narrative, assessment, note] = await Promise.all([
+    mat.material
+      ? ctx.step("narrative", { n: facts.length, diff }, (_i, use, signal) => writeNarrative(plan, facts, use, signal), {
+          timeoutMs: 60_000,
+          optional: true,
+          fallback: null as Narrative | null,
+        })
+      : Promise.resolve(null),
+    mat.material
+      ? ctx.step("assess", { n: facts.length, diff }, (_i, use, signal) => assess(plan, facts, use, signal), {
+          timeoutMs: 20_000,
+          optional: true,
+          fallback: null as Assessment | null,
+        })
+      : Promise.resolve(null),
+    ctx.step("note", { diff }, (i, use, signal) => changeNote(plan, i.diff, lines, use, signal), {
+      timeoutMs: 20_000,
+      optional: true,
+      fallback: "New information arrived",
+    }),
+  ]);
+  const overrides: HeaderOverrides = {
+    ...(narrative ? { headline: narrative.headline, narrative: narrative.sentences } : {}),
+    ...(assessment ? { assessment } : {}),
+  };
+  // New places need coordinates before they can go on the map, and a board whose location lookup failed at build
+  // time gets another try. Coordinates are written to the facts, so they are re-read below.
+  if (diff.added.some((d) => d.kind === "place") || (plan.location && !board.data?.header.location)) {
+    const geo = await ctx.step("geocode", { n: facts.length }, (_i, _use, signal) => geocodeBoard(plan, facts, signal), {
+      timeoutMs: 30_000,
+      optional: true,
+      fallback: { location: null, placed: 0, missed: 0 } as GeocodeResult,
+    });
+    if (geo.location) overrides.location = geo.location;
+  }
+  const { spec, data } = await composeData(ctx, plan, board.spec, board.data, overrides);
+  const changed = diffData(board.data, data);
+  const version = await saveBoardVersion(ctx.boardId, { spec, data, changeNote: note });
+  if (JSON.stringify(spec) !== JSON.stringify(board.spec)) ctx.emit({ type: "spec", version, spec });
+  ctx.emit({
+    type: "data",
+    version,
+    ...(changed.header ? { header: data.header } : {}),
+    widgets: Object.fromEntries(changed.widgets.filter((id) => id in data.widgets).map((id) => [id, data.widgets[id]])),
+    ...(changed.hidden ? { hidden: data.hidden } : {}),
+  });
+  await markChanged(ctx.boardId);
+  await markPolled(ctx.boardId);
+  await ctx.event("update", note, {
+    importance: mat.importance,
+    material: mat.material,
+    sources: out.sourceIds,
+    added: diff.added.length,
+    changed: diff.changed.length,
+    silent: mat.importance === "low",
+  });
+  await maybeEnsureMonitors();
+};

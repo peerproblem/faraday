@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { one, run } from "./db";
+import { one, run } from "./db/pool";
 
 export async function upsertUser(u: { email: string; name: string | null; image: string | null }): Promise<string> {
   const existing = await one<{ id: string }>(`SELECT id FROM users WHERE email = ?`, [u.email]);
