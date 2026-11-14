@@ -7,10 +7,13 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/skeleton";
 import { Caption, Heading, Text } from "@/components/ui/typography";
 import { boardUrl } from "@/lib/config";
+import { TopicSourceLine } from "@/components/sources/source-mark";
+import type { TopicSources } from "@/lib/source-brand";
 import { crisisTypes, type BoardCard, type PersonalViewCard } from "@/lib/spec";
 
+
 /** The top ranked topic, drawn large on the home page. The page's Display is its h1, so this title is a Heading. */
-export function TopicHero({ topic }: { topic: BoardCard }) {
+export function TopicHero({ topic, sources }: { topic: BoardCard; sources?: TopicSources }) {
   const title = topic.title ?? "Untitled topic";
   return (
     <Card href={boardUrl(topic.slug)} aria-label={title} padding="lg" radius="xl" className="gap-5">
@@ -30,11 +33,14 @@ export function TopicHero({ topic }: { topic: BoardCard }) {
           {topic.headline}
         </Text>
       ) : null}
-      {typeof topic.severity === "number" ? (
-        <div className="w-56 max-w-full">
-          <SeverityMeter value={topic.severity} />
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+        {typeof topic.severity === "number" ? (
+          <div className="w-56 max-w-full">
+            <SeverityMeter value={topic.severity} />
+          </div>
+        ) : null}
+        <TopicSourceLine sources={sources} max={7} />
+      </div>
     </Card>
   );
 }

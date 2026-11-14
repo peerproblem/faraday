@@ -46,7 +46,7 @@ export function StatusGridWidget({ data, sources, tier, building }: WidgetProps<
               ) : null}
               <div className="mt-auto flex flex-wrap items-center gap-2">
                 <AsOf t={x.asOf} tier={tier} />
-                <SourceChips ids={x.sources} sources={sources} />
+                <SourceChips ids={x.sources} sources={sources} evidence={x.evidence} />
               </div>
             </Card>
           </li>

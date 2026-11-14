@@ -1,9 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import { Ago } from "@/components/ago";
+import { SourceMark } from "@/components/sources/source-mark";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "@/components/ui/link";
 import { Caption, Text } from "@/components/ui/typography";
+import { useArrivals } from "@/lib/client/use-arrivals";
 import type { Source } from "@/lib/spec";
+import { excerptOf, sourceLabel } from "@/lib/source-brand";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
 
@@ -27,24 +32,41 @@ export function feedItems(sources: Source[], limit = 15): Source[] {
 export function FeedWidget({ allSources, building, filter }: WidgetProps<"feed">) {
   const types = filter?.sourceTypes?.length ? new Set(filter.sourceTypes) : null;
   const news = feedItems(types ? allSources.filter((s) => s.sourceType !== null && types.has(s.sourceType)) : allSources);
+  // Coverage that came in over the stream while the board was open is marked and settles into the list.
+  const arrived = useArrivals(useMemo(() => allSources.map((s) => s.id), [allSources]));
   if (!news.length) return <Empty building={building} title="No coverage yet" description="News and monitored pages appear here as they are read." />;
   return (
     <ul className="divide-y divide-hairline">
-      {news.map((s) => (
-        <li key={s.id} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
-          <Text size="sm">
-            <Link href={s.url} target="_blank" rel="noreferrer">
-              {s.title ?? s.url}
-            </Link>
-          </Text>
-          <Text as="div" size="sm" tone="muted" className="flex flex-wrap items-baseline gap-x-2">
-            <Caption>{s.id}</Caption>
-            <span>{s.publisher ?? "web"}</span>
-            <span>{s.publishedAt ? <Ago t={s.publishedAt} /> : "date unknown"}</span>
-            {s.kind === "monitor" ? <span>via monitor</span> : null}
-          </Text>
-        </li>
-      ))}
+      {news.map((s) => {
+        const excerpt = excerptOf(s);
+        const fresh = arrived.has(s.id);
+        return (
+          <li key={s.id} className={`flex gap-3 py-3 first:pt-0 last:pb-0 ${fresh ? "fd-source-enter" : ""}`}>
+            <SourceMark source={s} size="sm" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <Text as="div" size="sm" tone="muted" className="flex flex-wrap items-baseline gap-x-2">
+                <span className="font-medium text-foreground">{sourceLabel(s)}</span>
+                <span>{s.publishedAt ? <Ago t={s.publishedAt} /> : "date unknown"}</span>
+                {s.kind === "monitor" ? <span>via monitor</span> : null}
+                {fresh ? <Badge variant="accent">New</Badge> : null}
+                <Caption className="ml-auto">{s.id}</Caption>
+              </Text>
+              <Text size="sm">
+                <Link href={s.url} target="_blank" rel="noreferrer">
+                  {s.title ?? s.url}
+                </Link>
+              </Text>
+              {excerpt ? (
+                <blockquote className="fd-excerpt" cite={s.url}>
+                  <Text size="sm" tone="subtle" className="line-clamp-3">
+                    {excerpt}
+                  </Text>
+                </blockquote>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { fixtureNames, getFixture } from "../../../../../e2e/fixtures";
+import { withSamplePosts } from "../../../../../e2e/fixtures/social-sample";
 import { LiveBoard } from "@/components/board/live-board";
 import { PersonalBoard } from "@/components/personal/personal-board";
 import { Studio } from "@/components/studio";
@@ -12,9 +13,11 @@ export const dynamic = "force-dynamic";
 export default async function FixturePage({ params, searchParams }: PageProps<"/dev/fixtures/[name]">) {
   if (process.env.NODE_ENV === "production") notFound();
   const { name } = await params;
-  const { view } = await searchParams;
+  const { view, social } = await searchParams;
   const fx = getFixture(name);
   if (!fx) notFound();
+  // ?social=1 adds made-up posts from X, Reddit and others, to see how social sources are drawn.
+  if (social) fx.board = withSamplePosts(fx.board);
   return (
     <div className="pt-6">
       {view === "studio" ? (
@@ -37,7 +40,10 @@ export default async function FixturePage({ params, searchParams }: PageProps<"/
       ) : (
         <LiveBoard initial={fx.board} live={false} />
       )}
-      <Caption className="mt-6 block text-center">Fixture boards: {fixtureNames.join(", ")}</Caption>
+      <Caption className="mt-6 block text-center">
+        Fixture boards: {fixtureNames.join(", ")}
+        {social ? ". The social posts on this page are made up." : null}
+      </Caption>
     </div>
   );
 }

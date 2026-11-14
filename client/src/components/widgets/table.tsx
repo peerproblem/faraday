@@ -115,7 +115,7 @@ export function TableWidget({ widget, data, sources, tier, building, filter }: W
             ...Object.fromEntries(data.columns.map((c) => [c.key, <Cell key={c.key} kind={c.kind} value={r.cells[c.key] ?? ""} />])),
             __source: (
               <span className="flex flex-wrap items-center gap-1.5">
-                <SourceChips ids={r.sources} sources={sources} />
+                <SourceChips ids={r.sources} sources={sources} evidence={r.evidence} />
                 <AsOf t={r.asOf} tier={tier} prefix="" />
               </span>
             ),

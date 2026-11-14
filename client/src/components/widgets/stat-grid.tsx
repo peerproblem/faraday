@@ -67,7 +67,7 @@ export function StatGridWidget({ data, sources, tier, building, filter }: Widget
               ) : null}
               <div className="mt-auto flex flex-wrap items-center gap-2">
                 <AsOf t={k.asOf} tier={tier} />
-                <SourceChips ids={k.sources} sources={sources} />
+                <SourceChips ids={k.sources} sources={sources} evidence={k.evidence} />
               </div>
             </Card>
           </li>

@@ -1,0 +1,3324 @@
+{
+ "board": {
+  "id": "ff5w6w58p6cr",
+  "slug": "spain-holds-first-general-strike-nofpd",
+  "prompt": "Spain holds first general strike in 14 years over housing: strike turnout and protests by city, transport and public service disruption, union and tenant demands, government response.",
+  "title": "Spain Housing General Strike",
+  "status": "live",
+  "tier": "hot",
+  "visibility": "public",
+  "specVersion": 2,
+  "spec": {
+   "version": 2,
+   "widgets": [
+    {
+     "id": "w1",
+     "key": "narrative",
+     "type": "narrative",
+     "title": "Situation Overview",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w2",
+     "key": "stat-grid",
+     "type": "stat-grid",
+     "title": "Key Figures",
+     "span": "full",
+     "bind": null,
+     "metrics": [
+      "strike-turnout",
+      "protest-attendance",
+      "trains-cancelled",
+      "flights-cancelled",
+      "cities-with-protests",
+      "arrests-incidents"
+     ]
+    },
+    {
+     "id": "w3",
+     "key": "trend:protest-attendance",
+     "type": "trend",
+     "title": "Protest Attendance Over Time",
+     "span": "half",
+     "bind": "protest-attendance",
+     "metrics": []
+    },
+    {
+     "id": "trend-strike-turnout",
+     "type": "trend",
+     "title": "Strike Turnout over time",
+     "span": "half",
+     "bind": "strike-turnout",
+     "metrics": []
+    },
+    {
+     "id": "trend-flights-cancelled",
+     "type": "trend",
+     "title": "Flights Cancelled over time",
+     "span": "half",
+     "bind": "flights-cancelled",
+     "metrics": []
+    },
+    {
+     "id": "trend-arrests-incidents",
+     "type": "trend",
+     "title": "Arrests & Incidents over time",
+     "span": "half",
+     "bind": "arrests-incidents",
+     "metrics": []
+    },
+    {
+     "id": "w4",
+     "key": "timeline",
+     "type": "timeline",
+     "title": "Latest Developments",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w5",
+     "key": "map",
+     "type": "map",
+     "title": "Strike & Protest Map",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w6",
+     "key": "table:city-protests",
+     "type": "table",
+     "title": "Turnout & Protests by City",
+     "span": "full",
+     "bind": "city-protests",
+     "metrics": []
+    },
+    {
+     "id": "w7",
+     "key": "table:transport-disruptions",
+     "type": "table",
+     "title": "Transport & Public Service Disruptions",
+     "span": "full",
+     "bind": "transport-disruptions",
+     "metrics": []
+    },
+    {
+     "id": "w8",
+     "key": "table:demands-response",
+     "type": "table",
+     "title": "Demands & Government Response",
+     "span": "full",
+     "bind": "demands-response",
+     "metrics": []
+    },
+    {
+     "id": "w9",
+     "key": "alert-list",
+     "type": "alert-list",
+     "title": "Official Advisories & Minimum Services",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w10",
+     "key": "link-list",
+     "type": "link-list",
+     "title": "Official Portals & Service Status",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w11",
+     "key": "feed",
+     "type": "feed",
+     "title": "Live Updates",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w12",
+     "key": "changelog",
+     "type": "changelog",
+     "title": "Board Changelog",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w13",
+     "key": "sources",
+     "type": "sources",
+     "title": "Sources",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    }
+   ]
+  },
+  "data": {
+   "header": {
+    "title": "Spain Housing General Strike",
+    "subtitle": "Nationwide general strike and housing protests across Spanish cities",
+    "crisisType": "other",
+    "accent": "red",
+    "headline": {
+     "text": "Following Spain's November 11 general strike over the housing crisis, at least 115 people have been arrested and snap national elections are set for November 29.",
+     "sources": [
+      "s1",
+      "s2",
+      "s53"
+     ]
+    },
+    "status": "recovering",
+    "statusP": {
+     "contained": 0.14589220432731126,
+     "ongoing": 0.13184486378530547,
+     "developing": 0.10418195865305832,
+     "recovering": 0.44928535218717053,
+     "resolved": 0.16879562104715443
+    },
+    "severity": 2.822774253004935,
+    "severityP": {
+     "1": 0.030971227628911115,
+     "2": 0.2920231402486396,
+     "3": 0.5171780318859988,
+     "4": 0.14291535196150362,
+     "5": 0.016912248274946844
+    },
+    "location": {
+     "name": "Spain",
+     "lat": 39.3260685,
+     "lon": -4.8379791,
+     "zoom": 6
+    },
+    "asOf": "2026-11-12T10:28:12.000Z",
+    "language": "en"
+   },
+   "widgets": {
+    "w1": {
+     "sentences": [
+      {
+       "text": "Unions and housing groups held a 24-hour general strike on November 11—Spain's first in 14 years—to demand lower housing costs and higher wages after Parliament rejected two housing bills.",
+       "sources": [
+        "s5",
+        "s8",
+        "s21",
+        "s24",
+        "s33",
+        "s40",
+        "s82",
+        "s115",
+        "s127",
+        "s26",
+        "s67"
+       ]
+      },
+      {
+       "text": "Assessments of participation conflict sharply: unions called the stoppage massive and estimated four million demonstrators nationwide, while employers called it a failure with workplace turnout under 5%.",
+       "sources": [
+        "s22",
+        "s27",
+        "s61",
+        "s65",
+        "s67"
+       ]
+      },
+      {
+       "text": "The strike halted industrial plants, blocked major roads, cancelled over 280 flights and 111 long-distance trains, and severely disrupted public transit, though storms forced rally cancellations in Cádiz, Huelva, Córdoba, and Sevilla.",
+       "sources": [
+        "s23",
+        "s53",
+        "s61",
+        "s65",
+        "s127"
+       ]
+      },
+      {
+       "text": "Evening marches drew tens of thousands in Barcelona and 120,000 in Madrid, ending in clashes with police that left 20 protesters injured; arrest counts ranged from 74 to at least 115 nationwide.",
+       "sources": [
+        "s2",
+        "s4",
+        "s7",
+        "s61",
+        "s26",
+        "s65",
+        "s27"
+       ]
+      },
+      {
+       "text": "Unions have announced legal complaints over the police operations, while Spain prepares for snap general elections triggered by the housing crisis and strike on November 29.",
+       "sources": [
+        "s1",
+        "s27",
+        "s65"
+       ]
+      }
+     ]
+    },
+    "w2": {
+     "items": [
+      {
+       "key": "strike-turnout",
+       "label": "Strike Turnout",
+       "valueText": "< 5%",
+       "valueNum": 5,
+       "unit": "%",
+       "delta": "-75 since Nov 11",
+       "deltaNum": -75,
+       "tone": "info",
+       "conflict": null,
+       "history": [
+        {
+         "t": "2026-11-11T00:00:00.000Z",
+         "v": 65
+        },
+        {
+         "t": "2026-11-11T12:26:00.000Z",
+         "v": 6.8
+        },
+        {
+         "t": "2026-11-11T20:00:00.000Z",
+         "v": 60
+        },
+        {
+         "t": "2026-11-11T22:03:00.767Z",
+         "v": 80
+        },
+        {
+         "t": "2026-11-12T08:51:00.000Z",
+         "v": 5
+        }
+       ],
+       "sources": [
+        "s61",
+        "s65",
+        "s67"
+       ],
+       "asOf": "2026-11-12T09:51:00+01:00"
+      },
+      {
+       "key": "protest-attendance",
+       "label": "Total Protesters",
+       "valueText": "unas 120.000",
+       "valueNum": 120000,
+       "unit": "people",
+       "delta": "-3,880,000 since Nov 11",
+       "deltaNum": -3880000,
+       "tone": "info",
+       "conflict": null,
+       "history": [
+        {
+         "t": "2026-11-11T00:00:00.000Z",
+         "v": 3000000
+        },
+        {
+         "t": "2026-11-11T21:03:45.531Z",
+         "v": 4000000
+        },
+        {
+         "t": "2026-11-12T08:51:00.000Z",
+         "v": 120000
+        }
+       ],
+       "sources": [
+        "s31",
+        "s53",
+        "s61"
+       ],
+       "asOf": "2026-11-12T09:51:00+01:00"
+      },
+      {
+       "key": "trains-cancelled",
+       "label": "Trains Cancelled",
+       "valueText": "111",
+       "valueNum": 111,
+       "unit": "trains",
+       "delta": null,
+       "deltaNum": null,
+       "tone": "info",
+       "conflict": null,
+       "history": [],
+       "sources": [
+        "s127"
+       ],
+       "asOf": null
+      },
+      {
+       "key": "flights-cancelled",
+       "label": "Flights Cancelled",
+       "valueText": "> 280",
+       "valueNum": 280,
+       "unit": "flights",
+       "delta": "-52 since Nov 11",
+       "deltaNum": -52,
+       "tone": "info",
+       "conflict": null,
+       "history": [
+        {
+         "t": "2026-11-11T07:30:00.000Z",
+         "v": 202
+        },
+        {
+         "t": "2026-11-11T16:06:09.820Z",
+         "v": 234
+        },
+        {
+         "t": "2026-11-11T22:03:00.767Z",
+         "v": 332
+        },
+        {
+         "t": "2026-11-12T08:51:00.000Z",
+         "v": 280
+        }
+       ],
+       "sources": [
+        "s61"
+       ],
+       "asOf": "2026-11-12T09:51:00+01:00"
+      },
+      {
+       "key": "arrests-incidents",
+       "label": "Arrests & Incidents",
+       "valueText": "at least 115",
+       "valueNum": 115,
+       "unit": "count",
+       "delta": "+45 since 07:12 UTC",
+       "deltaNum": 45,
+       "tone": "info",
+       "conflict": [
+        {
+         "valueText": "74",
+         "sources": [
+          "s61"
+         ]
+        }
+       ],
+       "history": [
+        {
+         "t": "2026-11-11T21:03:45.531Z",
+         "v": 40
+        },
+        {
+         "t": "2026-11-12T07:12:31.000Z",
+         "v": 70
+        },
+        {
+         "t": "2026-11-12T08:51:00.000Z",
+         "v": 74
+        },
+        {
+         "t": "2026-11-12T10:28:12.000Z",
+         "v": 115
+        }
+       ],
+       "sources": [
+        "s2"
+       ],
+       "asOf": "2026-11-12T10:28:12.000Z"
+      }
+     ]
+    },
+    "w3": {
+     "metric": "protest-attendance",
+     "label": "Total Protesters",
+     "unit": "people",
+     "points": [
+      {
+       "t": "2026-11-11T00:00:00.000Z",
+       "v": 3000000,
+       "sources": [
+        "s2"
+       ]
+      },
+      {
+       "t": "2026-11-11T21:03:45.531Z",
+       "v": 4000000,
+       "sources": [
+        "s27"
+       ]
+      },
+      {
+       "t": "2026-11-12T08:51:00.000Z",
+       "v": 120000,
+       "sources": [
+        "s31",
+        "s53",
+        "s61"
+       ]
+      }
+     ]
+    },
+    "trend-strike-turnout": {
+     "metric": "strike-turnout",
+     "label": "Strike Turnout",
+     "unit": "%",
+     "points": [
+      {
+       "t": "2026-11-11T00:00:00.000Z",
+       "v": 65,
+       "sources": [
+        "s73"
+       ]
+      },
+      {
+       "t": "2026-11-11T12:26:00.000Z",
+       "v": 6.8,
+       "sources": [
+        "s44"
+       ]
+      },
+      {
+       "t": "2026-11-11T20:00:00.000Z",
+       "v": 60,
+       "sources": [
+        "s32"
+       ]
+      },
+      {
+       "t": "2026-11-11T22:03:00.767Z",
+       "v": 80,
+       "sources": [
+        "s65"
+       ]
+      },
+      {
+       "t": "2026-11-12T08:51:00.000Z",
+       "v": 5,
+       "sources": [
+        "s61",
+        "s65",
+        "s67"
+       ]
+      }
+     ]
+    },
+    "trend-flights-cancelled": {
+     "metric": "flights-cancelled",
+     "label": "Flights Cancelled",
+     "unit": "flights",
+     "points": [
+      {
+       "t": "2026-11-11T07:30:00.000Z",
+       "v": 202,
+       "sources": [
+        "s40"
+       ]
+      },
+      {
+       "t": "2026-11-11T16:06:09.820Z",
+       "v": 234,
+       "sources": [
+        "s23"
+       ]
+      },
+      {
+       "t": "2026-11-11T22:03:00.767Z",
+       "v": 332,
+       "sources": [
+        "s65"
+       ]
+      },
+      {
+       "t": "2026-11-12T08:51:00.000Z",
+       "v": 280,
+       "sources": [
+        "s61"
+       ]
+      }
+     ]
+    },
+    "trend-arrests-incidents": {
+     "metric": "arrests-incidents",
+     "label": "Arrests & Incidents",
+     "unit": "count",
+     "points": [
+      {
+       "t": "2026-11-11T21:03:45.531Z",
+       "v": 40,
+       "sources": [
+        "s27"
+       ]
+      },
+      {
+       "t": "2026-11-12T07:12:31.000Z",
+       "v": 70,
+       "sources": [
+        "s8"
+       ]
+      },
+      {
+       "t": "2026-11-12T08:51:00.000Z",
+       "v": 74,
+       "sources": [
+        "s61"
+       ]
+      },
+      {
+       "t": "2026-11-12T10:28:12.000Z",
+       "v": 115,
+       "sources": [
+        "s2"
+       ]
+      }
+     ]
+    },
+    "w4": {
+     "items": [
+      {
+       "id": "e288",
+       "at": "2026-11-11T22:03:00.767Z",
+       "title": "Industrial plants and port terminal halted",
+       "detail": "The strike halted Seat in Martorell, Ebro in Barcelona's Zona Franca, the Algeciras port container terminal, and according to unions, Navantia in Ferrol and Acerinox in Cádiz.",
+       "importance": "medium",
+       "sources": [
+        "s65"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "e256",
+       "at": "2026-11-11T22:03:00.767Z",
+       "title": "Disturbances reported after rallies in Barcelona and Madrid",
+       "detail": "Significant disturbances broke out at the end of protest gatherings in cities such as Barcelona and Madrid.",
+       "importance": "high",
+       "sources": [
+        "s62"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "e239",
+       "at": "2026-11-11T21:27:07.000Z",
+       "title": "Thousands mobilize in first general strike in 14 years",
+       "detail": "Thousands of people mobilized across Spain during the first general strike in 14 years, protesting the housing crisis and low wages.",
+       "importance": "high",
+       "sources": [
+        "s37"
+       ],
+       "asOf": "2026-11-11T21:27:07.000Z"
+      },
+      {
+       "id": "e228",
+       "at": "2026-11-11T21:03:45.531Z",
+       "title": "20 protesters injured in police operation",
+       "detail": "Unions announced a criminal complaint after a police operation involving tear gas and batons left 20 protesters injured.",
+       "importance": "high",
+       "sources": [
+        "s27"
+       ],
+       "asOf": "2026-11-11T21:03:45.531Z"
+      },
+      {
+       "id": "e223",
+       "at": "2026-11-11T20:46:00.000Z",
+       "title": "Clashes erupt in Barcelona",
+       "detail": "Protesters clashed with police in Barcelona during the general strike, with dozens arrested amid the unrest.",
+       "importance": "high",
+       "sources": [
+        "s26",
+        "s61",
+        "s65"
+       ],
+       "asOf": "2026-11-11T20:46:00.000Z"
+      },
+      {
+       "id": "e197",
+       "at": "2026-11-11T20:03:28.000Z",
+       "title": "Tens of thousands march in Barcelona and Madrid",
+       "detail": "The general strike culminated in large marches in downtown Barcelona and Madrid, alongside gatherings in other Spanish cities.",
+       "importance": "high",
+       "sources": [
+        "s5"
+       ],
+       "asOf": "2026-11-11T20:03:28.000Z"
+      },
+      {
+       "id": "e196",
+       "at": "2026-11-11T20:03:28.000Z",
+       "title": "First general strike in 14 years begins across Spain",
+       "detail": "Millions of Spanish workers went on strike on Wednesday, shutting down businesses and disrupting public transportation over housing costs.",
+       "importance": "high",
+       "sources": [
+        "s5",
+        "s8",
+        "s21",
+        "s24",
+        "s33",
+        "s40",
+        "s82",
+        "s115",
+        "s127"
+       ],
+       "asOf": "2026-11-11T20:03:28.000Z"
+      },
+      {
+       "id": "e259",
+       "at": "2026-11-11T17:30:00+01:00",
+       "title": "Barcelona strike march",
+       "detail": "A strike march in Barcelona is scheduled for 5:30pm starting at Jardinets de Gràcia.",
+       "importance": "medium",
+       "sources": [
+        "s71",
+        "s120"
+       ],
+       "asOf": "2026-11-11T17:30:00+01:00"
+      },
+      {
+       "id": "e216",
+       "at": "2026-11-11T16:06:09.820Z",
+       "title": "Rallies cancelled in Cadiz and Huelva due to Storm Charles",
+       "detail": "Organizers cancelled demonstrations in Cadiz and Huelva because of Storm Charles.",
+       "importance": "medium",
+       "sources": [
+        "s23"
+       ],
+       "asOf": "2026-11-11T16:06:09.820Z"
+      },
+      {
+       "id": "e206",
+       "at": "2026-11-11T15:58:09.000Z",
+       "title": "Weather alerts issued in 14 regions",
+       "detail": "Heavy rain and strong winds affected demonstrations across Spain, with weather alerts issued in 14 regions.",
+       "importance": "medium",
+       "sources": [
+        "s13"
+       ],
+       "asOf": "2026-11-11T15:58:09.000Z"
+      },
+      {
+       "id": "e263",
+       "at": "2026-11-11T13:26:00+01:00",
+       "title": "50 roadblocks across Catalonia",
+       "detail": "Picket lines set up 50 roadblocks in Catalonia, blocking access to Barcelona, the AP-7 to Girona, and the port of Tarragona.",
+       "importance": "medium",
+       "sources": [
+        "s44"
+       ],
+       "asOf": "2026-11-11T13:26:00+01:00"
+      },
+      {
+       "id": "e235",
+       "at": "2026-11-11T09:52:36.481Z",
+       "title": "Roadblocks and police clashes reported",
+       "detail": "The general strike caused roadblocks, clashes with police, and protests against the housing crisis and rising cost of living.",
+       "importance": "high",
+       "sources": [
+        "s35",
+        "s72"
+       ],
+       "asOf": "2026-11-11T09:52:36.481Z"
+      },
+      {
+       "id": "e189",
+       "at": "2026-11-11T09:11:21.794Z",
+       "title": "Snap elections scheduled for November 29",
+       "detail": "The housing crisis and general strike have triggered snap elections in Spain set for November 29.",
+       "importance": "high",
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-11T09:11:21.794Z"
+      },
+      {
+       "id": "e262",
+       "at": "2026-11-11T09:30:00+01:00",
+       "title": "Barcelona public transport standstill",
+       "detail": "Barcelona's metro and TMB bus fleet halted service from 09:30 to 16:30 after the first minimum-service period ended.",
+       "importance": "high",
+       "sources": [
+        "s44"
+       ],
+       "asOf": "2026-11-11T09:30:00+01:00"
+      },
+      {
+       "id": "e236",
+       "at": "2026-11-11T06:58:25.000Z",
+       "title": "Tensions reported at Mercamadrid as strike begins",
+       "detail": "UGT union leader Pepe Álvarez reported that police were preventing workers from exercising their right to strike at Mercamadrid.",
+       "importance": "medium",
+       "sources": [
+        "s36"
+       ],
+       "asOf": "2026-11-11T06:58:25.000Z"
+      },
+      {
+       "id": "e289",
+       "at": "2026-11-11",
+       "title": "First general strike in 14 years concludes with mass protests",
+       "detail": "Spain's first general strike in 14 years ended on Wednesday with massive demonstrations across the country following uneven workplace participation.",
+       "importance": "high",
+       "sources": [
+        "s67"
+       ],
+       "asOf": "2026-11-11"
+      },
+      {
+       "id": "e251",
+       "at": "2026-11-11T00:00:00Z",
+       "title": "General strike causes transport paralyses and road blockades",
+       "detail": "The November 11 general strike led to massive public transport paralyses and road blockades by workers during protests in Madrid, Barcelona, and other cities.",
+       "importance": "high",
+       "sources": [
+        "s53"
+       ],
+       "asOf": "2026-11-11T00:00:00Z"
+      },
+      {
+       "id": "e192",
+       "at": "2026-11-11",
+       "title": "Riot police disperse protesters in Madrid",
+       "detail": "Riot police used foam bullets, tear gas, and pepper spray to disperse protesters around Plaza de España in Madrid.",
+       "importance": "high",
+       "sources": [
+        "s2",
+        "s4",
+        "s7",
+        "s61"
+       ],
+       "asOf": "2026-11-11"
+      },
+      {
+       "id": "e330",
+       "at": null,
+       "title": "Madrid deploys 2,700 police and 80% minimum transport services",
+       "detail": "Madrid faces the general strike with 80% minimum services in transport and 2,700 police officers deployed.",
+       "importance": "medium",
+       "sources": [
+        "s115"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "e322",
+       "at": null,
+       "title": "Picket at Alquiler Seguro headquarters in Madrid",
+       "detail": "The Madrid Tenants' Union held a picket at Alquiler Seguro's headquarters on Avenida de América 18 hours before the general strike began.",
+       "importance": "medium",
+       "sources": [
+        "s82"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "e320",
+       "at": null,
+       "title": "Large demonstration in Zaragoza",
+       "detail": "Sindicato de Inquilinas spokespersons Alicia and Sofía read the final manifesto at a large demonstration in Zaragoza.",
+       "importance": "high",
+       "sources": [
+        "s81"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "e315",
+       "at": null,
+       "title": "Madrid High Court suspends minimum services",
+       "detail": "The TSJM suspended minimum services set by the Community of Madrid for justice, education, and transport (except Metro), deeming them excessive.",
+       "importance": "high",
+       "sources": [
+        "s75"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "e258",
+       "at": null,
+       "title": "Ground staff shortages drive flight cancellations",
+       "detail": "Flight cancellations are primarily caused by shortages of ground staff for security, baggage, and fueling rather than flight crews.",
+       "importance": "medium",
+       "sources": [
+        "s69"
+       ],
+       "asOf": null
+      }
+     ]
+    },
+    "w5": {
+     "center": {
+      "name": "Spain",
+      "lat": 39.3260685,
+      "lon": -4.8379791,
+      "zoom": 6
+     },
+     "points": [
+      {
+       "id": "p193",
+       "name": "Plaza de España, Madrid",
+       "lat": 40.423449,
+       "lon": -3.7108809,
+       "kind": "incident",
+       "note": "Riot police dispersed protesters with foam bullets, tear gas, and pepper spray.",
+       "sources": [
+        "s2"
+       ],
+       "asOf": "2026-11-11"
+      },
+      {
+       "id": "p201",
+       "name": "Gran Via, Madrid",
+       "lat": 40.4220401,
+       "lon": -3.7087133,
+       "kind": "impact",
+       "note": "Main avenue blocked by protesters during the general strike.",
+       "sources": [
+        "s7"
+       ],
+       "asOf": "2026-11-11T21:43:08.000Z"
+      },
+      {
+       "id": "p224",
+       "name": "Barcelona",
+       "lat": 41.3825802,
+       "lon": 2.177073,
+       "kind": "incident",
+       "note": "Clashes between protesters and police; dozens arrested.",
+       "sources": [
+        "s26"
+       ],
+       "asOf": "2026-11-11T20:46:00.000Z"
+      },
+      {
+       "id": "p237",
+       "name": "Mercamadrid",
+       "lat": 40.3603834,
+       "lon": -3.6627854,
+       "kind": "incident",
+       "note": "Tensions reported between police and strikers at the start of the 24-hour strike.",
+       "sources": [
+        "s36"
+       ],
+       "asOf": "2026-11-11T06:58:25.000Z"
+      },
+      {
+       "id": "p240",
+       "name": "Madrid",
+       "lat": 40.416782,
+       "lon": -3.703507,
+       "kind": "impact",
+       "note": "Site of protests during the general strike.",
+       "sources": [
+        "s37"
+       ],
+       "asOf": "2026-11-11T21:27:07.000Z"
+      },
+      {
+       "id": "p318",
+       "name": "Gran Vía",
+       "lat": 40.4207326,
+       "lon": -3.7066569,
+       "kind": "impact",
+       "note": "Hundreds of protesters gathered chanting 'hoy paramos toda la ciudad'",
+       "sources": [
+        "s80"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "p565",
+       "name": "Jardinets de Gràcia, Barcelona",
+       "lat": 41.3971448,
+       "lon": 2.1585862,
+       "kind": "origin",
+       "note": "Meeting and starting point for the November 11 general strike demonstration at 17:30.",
+       "sources": [
+        "s120"
+       ],
+       "asOf": "2026-11-11T17:30:00Z"
+      }
+     ]
+    },
+    "w6": {
+     "columns": [
+      {
+       "key": "city",
+       "label": "City",
+       "kind": "text"
+      },
+      {
+       "key": "attendance",
+       "label": "Attendance",
+       "kind": "number"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      },
+      {
+       "key": "key-disruptions",
+       "label": "Key Disruptions",
+       "kind": "text"
+      }
+     ],
+     "rows": [
+      {
+       "id": "r275",
+       "cells": {
+        "city": "Barcelona",
+        "attendance": "Tens of thousands",
+        "status": "Clashes at end of protests",
+        "key-disruptions": "Broken shop windows, pyrotechnics at Mossos, 10h transport halt"
+       },
+       "sources": [
+        "s61"
+       ],
+       "asOf": "2026-11-12T09:51:00+01:00"
+      },
+      {
+       "id": "r274",
+       "cells": {
+        "city": "Madrid",
+        "attendance": "120,000 (Government Delegation)",
+        "status": "Police charges at 21:00",
+        "key-disruptions": "Gran Vía cut off in morning, shop closures, roadblocks"
+       },
+       "sources": [
+        "s61"
+       ],
+       "asOf": "2026-11-12T09:51:00+01:00"
+      },
+      {
+       "id": "r284",
+       "cells": {
+        "city": "Cádiz, Huelva, Córdoba, Sevilla",
+        "attendance": "Suspended",
+        "status": "Suspended due to bad weather",
+        "key-disruptions": "Marches cancelled"
+       },
+       "sources": [
+        "s65"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "r283",
+       "cells": {
+        "city": "Zaragoza",
+        "attendance": "20,000–60,000 (Sindicato de Inquilinas/CGT/CNT/OSTA) + 5,000 (UGT/CCOO)",
+        "status": "Held",
+        "key-disruptions": "Two separate marches"
+       },
+       "sources": [
+        "s65"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "r282",
+       "cells": {
+        "city": "A Coruña",
+        "attendance": "Over 45,000 (City Council)",
+        "status": "Held",
+        "key-disruptions": "Multiple demonstrations"
+       },
+       "sources": [
+        "s65"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "r257",
+       "cells": {
+        "city": "Comunitat Valenciana",
+        "attendance": "Not specified",
+        "status": "Mostly peaceful, no major incidents",
+        "key-disruptions": "None reported by Government Delegation"
+       },
+       "sources": [
+        "s62"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      }
+     ]
+    },
+    "w7": {
+     "columns": [
+      {
+       "key": "service",
+       "label": "Service",
+       "kind": "text"
+      },
+      {
+       "key": "operator",
+       "label": "Operator",
+       "kind": "text"
+      },
+      {
+       "key": "minimum-service",
+       "label": "Minimum Service",
+       "kind": "text"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      }
+     ],
+     "rows": [
+      {
+       "id": "r211",
+       "cells": {
+        "service": "Metro",
+        "operator": "Madrid Metro",
+        "minimum-service": "93% of trains ran in early morning",
+        "status": "Operating (passenger numbers down ~50%)"
+       },
+       "sources": [
+        "s22"
+       ],
+       "asOf": "2026-11-12T04:05:13.000Z"
+      },
+      {
+       "id": "r215",
+       "cells": {
+        "service": "Trains",
+        "operator": "National rail",
+        "minimum-service": "50% to 75% of normal service",
+        "status": "Reduced capacity"
+       },
+       "sources": [
+        "s23"
+       ],
+       "asOf": "2026-11-11T16:06:09.820Z"
+      },
+      {
+       "id": "r205",
+       "cells": {
+        "service": "Flights",
+        "operator": "AENA",
+        "minimum-service": "Around 5% of flights cancelled",
+        "status": "Disrupted"
+       },
+       "sources": [
+        "s13"
+       ],
+       "asOf": "2026-11-11T15:58:09.000Z"
+      },
+      {
+       "id": "r204",
+       "cells": {
+        "service": "Madrid Metro",
+        "operator": "Madrid Metro",
+        "minimum-service": "50% of normal service",
+        "status": "Reduced"
+       },
+       "sources": [
+        "s13"
+       ],
+       "asOf": "2026-11-11T15:58:09.000Z"
+      },
+      {
+       "id": "r203",
+       "cells": {
+        "service": "Barcelona Metro",
+        "operator": "Barcelona Metro",
+        "minimum-service": "Peak commuting hours only",
+        "status": "Disrupted"
+       },
+       "sources": [
+        "s13"
+       ],
+       "asOf": "2026-11-11T15:58:09.000Z"
+      },
+      {
+       "id": "r265",
+       "cells": {
+        "service": "High-speed & long-distance rail (AVE)",
+        "operator": "Renfe",
+        "minimum-service": "73% (65% medium-distance)",
+        "status": "24% cancelled"
+       },
+       "sources": [
+        "s44"
+       ],
+       "asOf": "2026-11-11T13:26:00+01:00"
+      },
+      {
+       "id": "r264",
+       "cells": {
+        "service": "Commuter rail (Cercanías / Rodalies)",
+        "operator": "Renfe",
+        "minimum-service": "75% peak / 50% off-peak",
+        "status": "20% of trains cancelled; uneven impact"
+       },
+       "sources": [
+        "s44"
+       ],
+       "asOf": "2026-11-11T13:26:00+01:00"
+      },
+      {
+       "id": "r210",
+       "cells": {
+        "service": "Metros, local buses and commuter trains",
+        "operator": "Public transit operators",
+        "minimum-service": "Minimum skeleton schedules",
+        "status": "Reduced service"
+       },
+       "sources": [
+        "s19"
+       ],
+       "asOf": "2026-11-11T10:48:00.000Z"
+      },
+      {
+       "id": "r209",
+       "cells": {
+        "service": "Island flights",
+        "operator": "Airlines / Spanish authorities",
+        "minimum-service": "78%",
+        "status": "Minimum service levels set"
+       },
+       "sources": [
+        "s19"
+       ],
+       "asOf": "2026-11-11T10:48:00.000Z"
+      },
+      {
+       "id": "r208",
+       "cells": {
+        "service": "International flights",
+        "operator": "Airlines / Spanish authorities",
+        "minimum-service": "57%",
+        "status": "Minimum service levels set"
+       },
+       "sources": [
+        "s19"
+       ],
+       "asOf": "2026-11-11T10:48:00.000Z"
+      },
+      {
+       "id": "r207",
+       "cells": {
+        "service": "Short domestic flights (Madrid)",
+        "operator": "Airlines / Spanish authorities",
+        "minimum-service": "32%",
+        "status": "Significant cuts"
+       },
+       "sources": [
+        "s19"
+       ],
+       "asOf": "2026-11-11T10:48:00.000Z"
+      },
+      {
+       "id": "r266",
+       "cells": {
+        "service": "Air travel",
+        "operator": "Aena",
+        "minimum-service": "18% to 85% by route",
+        "status": "234 flights (5.2%) cancelled by 10:00; El Prat at 11%"
+       },
+       "sources": [
+        "s44"
+       ],
+       "asOf": "2026-11-11T10:00:00+01:00"
+      },
+      {
+       "id": "r309",
+       "cells": {
+        "service": "Healthcare (Madrid)",
+        "operator": "Comunidad de Madrid",
+        "minimum-service": "Weekend/holiday staffing + scheduled shifts (up to 100% in some services)",
+        "status": "Disrupted (5.42%–35% turnout reported)"
+       },
+       "sources": [
+        "s73"
+       ],
+       "asOf": "2026-11-11"
+      },
+      {
+       "id": "r270",
+       "cells": {
+        "service": "Mercancías (Freight)",
+        "operator": "Renfe",
+        "minimum-service": "26% of scheduled service",
+        "status": "Minimum services decreed"
+       },
+       "sources": [
+        "s49"
+       ],
+       "asOf": "2026-11-09T00:00:00Z"
+      },
+      {
+       "id": "r269",
+       "cells": {
+        "service": "Alta Velocidad / Larga Distancia",
+        "operator": "Renfe",
+        "minimum-service": "73% of usual service",
+        "status": "15.7% cancelled"
+       },
+       "sources": [
+        "s49"
+       ],
+       "asOf": "2026-11-09T00:00:00Z"
+      },
+      {
+       "id": "r268",
+       "cells": {
+        "service": "Media Distancia",
+        "operator": "Renfe",
+        "minimum-service": "65% average",
+        "status": "Minimum services decreed"
+       },
+       "sources": [
+        "s49"
+       ],
+       "asOf": "2026-11-09T00:00:00Z"
+      },
+      {
+       "id": "r267",
+       "cells": {
+        "service": "Cercanías",
+        "operator": "Renfe",
+        "minimum-service": "75% peak hours (06:00-09:00, 13:30-15:30, 18:30-20:30), 50% rest of day",
+        "status": "10.5% cancelled overall (22.4% Madrid, 28% Rodalies)"
+       },
+       "sources": [
+        "s49"
+       ],
+       "asOf": "2026-11-09T00:00:00Z"
+      },
+      {
+       "id": "r747",
+       "cells": {
+        "service": "Madrid Suburban (Cercanías)",
+        "operator": "General State Administration",
+        "minimum-service": "75%",
+        "status": "Minimum services"
+       },
+       "sources": [
+        "s127"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r746",
+       "cells": {
+        "service": "Rail Freight",
+        "operator": "All",
+        "minimum-service": "26%",
+        "status": "Minimum services"
+       },
+       "sources": [
+        "s127"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r745",
+       "cells": {
+        "service": "Conventional Medium Distance & High-Speed",
+        "operator": "Renfe",
+        "minimum-service": "65%",
+        "status": "Minimum services"
+       },
+       "sources": [
+        "s127"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r744",
+       "cells": {
+        "service": "High Speed & Long Distance",
+        "operator": "Ouigo",
+        "minimum-service": "69.23%",
+        "status": "Minimum services"
+       },
+       "sources": [
+        "s127"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r328",
+       "cells": {
+        "service": "Metro de Madrid",
+        "operator": "Metro de Madrid",
+        "minimum-service": "Above minimum services",
+        "status": "Operating at 93% during rush hour; passenger volume down 51%"
+       },
+       "sources": [
+        "s115"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r316",
+       "cells": {
+        "service": "Justice, Education, and Transport (except Metro)",
+        "operator": "Community of Madrid",
+        "minimum-service": "Replaced with Nov 14, 2012 conditions (Metro exempted)",
+        "status": "Minimum services suspended by TSJM"
+       },
+       "sources": [
+        "s75"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r314",
+       "cells": {
+        "service": "Centros de Continuidad Asistencial (Madrid)",
+        "operator": "Madrid Regional Health Service",
+        "minimum-service": "100% of planned doctors, nurses, and orderlies",
+        "status": "Minimum services active"
+       },
+       "sources": [
+        "s74"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r313",
+       "cells": {
+        "service": "Madrid Health Centers (4+ family doctors)",
+        "operator": "Madrid Regional Health Service",
+        "minimum-service": "2 family doctors, 1 pediatrician, 2 nurses, 1 admin assistant per shift",
+        "status": "Minimum services active"
+       },
+       "sources": [
+        "s74"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r312",
+       "cells": {
+        "service": "Summa 112 (Emergency Medical Services)",
+        "operator": "Madrid Regional Health Service",
+        "minimum-service": "100% of scheduled care staff",
+        "status": "Minimum services active"
+       },
+       "sources": [
+        "s74"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r255",
+       "cells": {
+        "service": "Freight trains",
+        "operator": "Ministry of Transport",
+        "minimum-service": "20%",
+        "status": "Minimum services established"
+       },
+       "sources": [
+        "s60"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r254",
+       "cells": {
+        "service": "Public transport, essential mobility & waste collection",
+        "operator": "Various",
+        "minimum-service": "Basic functioning",
+        "status": "Minimum services active"
+       },
+       "sources": [
+        "s56"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r250",
+       "cells": {
+        "service": "Barcelona buses",
+        "operator": "Barcelona bus operators",
+        "minimum-service": "06:30–09:30 and 16:30–21:00 only",
+        "status": "No guaranteed service outside bands"
+       },
+       "sources": [
+        "s41"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r249",
+       "cells": {
+        "service": "High-speed rail",
+        "operator": "Ouigo",
+        "minimum-service": "18 of 26 trains",
+        "status": "Minimum services set"
+       },
+       "sources": [
+        "s41"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r247",
+       "cells": {
+        "service": "Cercanías commuter rail",
+        "operator": "Renfe",
+        "minimum-service": "75% peak, 50% off-peak",
+        "status": "Minimum services set"
+       },
+       "sources": [
+        "s41"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r246",
+       "cells": {
+        "service": "Media Distancia rail",
+        "operator": "Renfe",
+        "minimum-service": "65%",
+        "status": "Minimum services set"
+       },
+       "sources": [
+        "s41"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r245",
+       "cells": {
+        "service": "AVE and long-distance rail",
+        "operator": "Renfe",
+        "minimum-service": "73%",
+        "status": "Minimum services set"
+       },
+       "sources": [
+        "s41"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r244",
+       "cells": {
+        "service": "Iberia group flights",
+        "operator": "Iberia, Iberia Express, Air Nostrum",
+        "minimum-service": "Free changes or refunds offered",
+        "status": "444 cancelled flights reported (unconfirmed)"
+       },
+       "sources": [
+        "s40"
+       ],
+       "asOf": null
+      }
+     ]
+    },
+    "w8": {
+     "columns": [
+      {
+       "key": "actor",
+       "label": "Actor",
+       "kind": "text"
+      },
+      {
+       "key": "position",
+       "label": "Position / Action",
+       "kind": "text"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      }
+     ],
+     "rows": [
+      {
+       "id": "r277",
+       "cells": {
+        "actor": "Employers (CEOE)",
+        "position": "Called strike a 'failure' with average turnout under 5%",
+        "status": "Opposed"
+       },
+       "sources": [
+        "s61"
+       ],
+       "asOf": "2026-11-12T09:51:00+01:00"
+      },
+      {
+       "id": "r276",
+       "cells": {
+        "actor": "Unions (CCOO, UGT, etc.)",
+        "position": "Called 24h strike for housing access and wage increases; called it 'very successful'",
+        "status": "Strike held on 11-N"
+       },
+       "sources": [
+        "s61"
+       ],
+       "asOf": "2026-11-12T09:51:00+01:00"
+      },
+      {
+       "id": "r213",
+       "cells": {
+        "actor": "CEOE (Business leaders)",
+        "position": "Called the strike \"a failure\", stating activity went ahead normally in most sectors",
+        "status": "Employer assessment"
+       },
+       "sources": [
+        "s22"
+       ],
+       "asOf": "2026-11-12T04:05:13.000Z"
+      },
+      {
+       "id": "r212",
+       "cells": {
+        "actor": "UGT (Pepe Alvarez)",
+        "position": "Called participation \"massive\" and a \"huge success\", noting \"total\" stoppage in some regions",
+        "status": "Union assessment"
+       },
+       "sources": [
+        "s22"
+       ],
+       "asOf": "2026-11-12T04:05:13.000Z"
+      },
+      {
+       "id": "r287",
+       "cells": {
+        "actor": "Spanish Government",
+        "position": "Remained silent with no official agenda on strike day",
+        "status": "No comment"
+       },
+       "sources": [
+        "s65"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "r286",
+       "cells": {
+        "actor": "CEOE",
+        "position": "Called the strike a failure with less than 5% turnout; reported access incidents at industrial parks",
+        "status": "Responded"
+       },
+       "sources": [
+        "s65"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "r285",
+       "cells": {
+        "actor": "CCOO and UGT",
+        "position": "Called the strike for decent housing and wages; called turnout a success and announced legal action over police charges",
+        "status": "Active"
+       },
+       "sources": [
+        "s65"
+       ],
+       "asOf": "2026-11-11T22:03:00.767Z"
+      },
+      {
+       "id": "r241",
+       "cells": {
+        "actor": "Strike organizers",
+        "position": "Criticize state, regional, and local administrations for lack of effective measures",
+        "status": "Protesting"
+       },
+       "sources": [
+        "s37"
+       ],
+       "asOf": "2026-11-11T21:27:07.000Z"
+      },
+      {
+       "id": "r225",
+       "cells": {
+        "actor": "Housing activists and unions (CC.OO, UGT)",
+        "position": "Demand government intervention to curb real estate speculation, protect renters, and raise wages",
+        "status": "24-hour general strike held"
+       },
+       "sources": [
+        "s26"
+       ],
+       "asOf": "2026-11-11T20:46:00.000Z"
+      },
+      {
+       "id": "r219",
+       "cells": {
+        "actor": "Vox (Santiago Abascal)",
+        "position": "Said the walkout should not be legal and accused unions of siding with the government",
+        "status": "Opposed"
+       },
+       "sources": [
+        "s23"
+       ],
+       "asOf": "2026-11-11T16:06:09.820Z"
+      },
+      {
+       "id": "r218",
+       "cells": {
+        "actor": "Popular Party (Alberto Nunez Feijoo)",
+        "position": "Called the strike the most profound historic mistake by unions since democracy began",
+        "status": "Opposed"
+       },
+       "sources": [
+        "s23"
+       ],
+       "asOf": "2026-11-11T16:06:09.820Z"
+      },
+      {
+       "id": "r217",
+       "cells": {
+        "actor": "Governing coalition",
+        "position": "Encouraged participation, linking protesters' demands to housing and social policies",
+        "status": "Supportive"
+       },
+       "sources": [
+        "s23"
+       ],
+       "asOf": "2026-11-11T16:06:09.820Z"
+      },
+      {
+       "id": "r222",
+       "cells": {
+        "actor": "Labor Minister Yolanda Díaz",
+        "position": "Supports the protest; member of junior coalition partner with strong ties to unions",
+        "status": "Supportive"
+       },
+       "sources": [
+        "s24"
+       ],
+       "asOf": "2026-11-11T07:45:56.640Z"
+      },
+      {
+       "id": "r221",
+       "cells": {
+        "actor": "Main union umbrella groups",
+        "position": "Called national strike after two government-sponsored housing bills were rejected in Parliament in early October",
+        "status": "Striking"
+       },
+       "sources": [
+        "s24"
+       ],
+       "asOf": "2026-11-11T07:45:56.640Z"
+      },
+      {
+       "id": "r238",
+       "cells": {
+        "actor": "Unions & Workers (UGT)",
+        "position": "Demand wage improvements and measures to address the housing crisis",
+        "status": "24-hour general strike"
+       },
+       "sources": [
+        "s36"
+       ],
+       "asOf": "2026-11-11T06:58:25.000Z"
+      },
+      {
+       "id": "r234",
+       "cells": {
+        "actor": "Council of Ministers",
+        "position": "Encouraged the work stoppages",
+        "status": "Snap election set for Nov 29"
+       },
+       "sources": [
+        "s33"
+       ],
+       "asOf": "2026-11-11T06:45:36.000Z"
+      },
+      {
+       "id": "r310",
+       "cells": {
+        "actor": "CC OO (Madrid)",
+        "position": "Criticized minimum services as abusive and limiting the right to strike; protested living and working conditions of healthcare workers.",
+        "status": "Active"
+       },
+       "sources": [
+        "s73"
+       ],
+       "asOf": "2026-11-11"
+      },
+      {
+       "id": "r294",
+       "cells": {
+        "actor": "CEOE (Employers' association)",
+        "position": "Called the strike a failure with historic low turnout (<5%)",
+        "status": "Reported access incidents at industrial parks and major cities"
+       },
+       "sources": [
+        "s67"
+       ],
+       "asOf": "2026-11-11"
+      },
+      {
+       "id": "r253",
+       "cells": {
+        "actor": "CCOO, UGT & Sindicato de Inquilinas",
+        "position": "Organised general strike demanding wage increases to offset rising housing and living costs",
+        "status": "Strike held on Nov 11"
+       },
+       "sources": [
+        "s53"
+       ],
+       "asOf": "2026-11-11T00:00:00Z"
+      },
+      {
+       "id": "r325",
+       "cells": {
+        "actor": "Sindicato de Inquilinas",
+        "position": "Demands housing payments (rent or mortgage) not exceed 30% of workers' income, indefinite leases, and an end to evictions",
+        "status": "Demands issued"
+       },
+       "sources": [
+        "s84"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r324",
+       "cells": {
+        "actor": "CCOO, UGT, CGT, CNT & housing unions",
+        "position": "Demand rent limits, expanded public housing, higher wages, and recovery of purchasing power",
+        "status": "24-hour general strike on Nov 11"
+       },
+       "sources": [
+        "s83"
+       ],
+       "asOf": null
+      },
+      {
+       "id": "r311",
+       "cells": {
+        "actor": "Madrid Regional Government",
+        "position": "Calls the general strike \"political and illegal\" and sets minimum services",
+        "status": "Minimum services established"
+       },
+       "sources": [
+        "s74"
+       ],
+       "asOf": null
+      }
+     ]
+    },
+    "w11": {},
+    "w12": {},
+    "w13": {}
+   },
+   "hidden": [
+    "w9",
+    "w10"
+   ],
+   "generatedAt": 1794694238755
+  },
+  "version": 5,
+  "sources": [
+   {
+    "id": "s1",
+    "url": "https://dw.com/en/spain-housing-crisis-prompts-general-strike-mass-nighttime-protests/a-79915208",
+    "title": "Spain: Housing crisis prompts first general strike in 14 years, before hundreds of thousands join protest",
+    "publisher": "DW",
+    "kind": "news",
+    "publishedAt": "2026-11-11T09:11:21.794Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Hundreds of thousands of citizens have hit the streets to protest Spain's housing crisis after millions of union workers staged a general strike. The crisis has triggered snap elections to take place on November 29.\nCopy link Prefer DW on Google An estimated 120,000 marchers took to the streets of the Spanish capital Madrid on Wednesday evening after millions walked off the job earlierImage: Juan Carlos Lucas/ZUMA/IMAGO Authorities in Spain say that despite pouring rain, some 120,000 citizens took to the streets of the capital Madrid on Wednesday evening after millions of striking workers brought Europe's fourth-largest economy to a standstill under the motto \"Salaries. Housing. Prices\" in the country's first general strike in 14 years earlier in the day. The massive turnout came in response to housing shortages and unbearably high rents. City officials in Barcelona said 55,000 people attended evening marches there as they walked behind a huge banner reading \"Live. Not just survive.\" Housing activists in the city said the turnout was far larger, claiming that 400,000 had hit the streets. As has been the case in other demonstrations across the EU of late, peaceful protests later gav…",
+    "relevance": 0.961438,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s2",
+    "url": "https://independent.co.uk/news/world/europe/spain-housing-protests-madrid-barcelona-b3083749.html",
+    "title": "More than 3 million take to the streets in Spain as housing protests turns ugly",
+    "publisher": "The Independent",
+    "kind": "news",
+    "publishedAt": "2026-11-12T10:28:12.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "At least 115 people arrested nationwide\nSwipe for next article More than 3 million take to the streets in Spain as housing protests turns ugly At least 115 people arrested nationwide - Copy link - Bookmark - Comments Go to comments Bookmark popover Removed from bookmarks Close popover open image in gallery People launch fireworks as protesters clash with riot police during a demonstration on November 11, 2026 in Barcelona, Spain (Getty) More than 3 million took to the streets of Spain on Wednesday as part of a mostly peaceful general strike protesting against a growing housing crisis, unions said, though 115 people were arrested, mainly during evening clashes in Barcelona and Madrid. Workers endured stormy weather to set ⁠up picket lines, with large marches in Madrid, Barcelona and other cities across Spain less than three weeks before a snap general election. In the evening, clashes between police and some protesters erupted in Barcelona. Tensions also rose in Madrid, when riot police used foam bullets, tear gas and pepper spray to disperse protesters around the central Plaza de España. Police forces reported at least 115 arrests nationwide from incidents linked to the general str…",
+    "relevance": 0.960179,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s3",
+    "url": "https://moneycontrol.com/world/millions-strike-across-spain-over-housing-crisis-as-protests-turn-violent-in-barcelona-article-14077845.html",
+    "title": "Millions strike across Spain over housing crisis as protests turn violent in Barcelona- Moneycontrol.com",
+    "publisher": "Moneycontrol",
+    "kind": "news",
+    "publishedAt": "2026-11-12T04:59:45.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Millions across Spain protested soaring rents and unaffordable housing in the country's first general strike in 14 years, disrupting public services and triggering clashes with police ahead of the November 29 election.\n1. Spain housing crisis sparks nationwide strike as protesters clash with police Millions of people across Spain joined the country's first general strike in 14 years on Wednesday, protesting against rising rents, unaffordable housing and the increasing cost of living. The 24-hour nationwide walkout disrupted public transport, schools and other essential services, while demonstrations in Barcelona turned violent. The strike was initially called by tenants' associations before receiving support from major trade unions, including UGT and CCOO. Organisers estimated that around four million people participated by midday, although turnout varied across the country. Participation was particularly strong in coastal regions such as Catalonia and Andalucía, where housing costs have risen sharply. In Barcelona, protesters blocked major roads, including the AP-7 motorway, and disrupted public transport. Some demonstrators set fire to rubbish bins, smashed shop windows and clash…",
+    "relevance": 0.964138,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s4",
+    "url": "https://local10.com/business/2026/11/11/housing-protests-fill-barcelona-and-madrid-as-spains-workers-strike-ahead-of-election",
+    "title": "Housing protests fill Barcelona and Madrid as Spain’s workers strike ahead of election",
+    "publisher": "Local 10 News (WPLG)",
+    "kind": "news",
+    "publishedAt": "2026-11-11T18:54:51.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "BARCELONA, Spain (AP) — Millions of Spanish workers shut down businesses and public transportation across the eurozone's fourth largest economy on Wednesday before thousands took to the streets of major cities in a nationwide protest over soaring rents and real estate prices.\nHousing protests fill Barcelona and Madrid as Spain’s workers strike ahead of election ExpandAutoplay Image 1 of 5 Protestors march during a nationwide general strike in Barcelona, Spain, Wednesday, Nov. 11, 2026. (AP Photo/Emilio Morenatti) (Copyright 2026 The Associated Press. All rights reserved) (Emilio Morenatti/AP Photo/Emilio Morenatti) Protestors march under heavy rain during a nationwide general strike in Madrid, Spain, Wednesday, Nov. 11, 2026. (AP Photo/Francisco Seco) (Copyright 2026 The Associated Press. All rights reserved) (Francisco Seco/AP Photo/Francisco Seco) Police spray pepper spray at protesters during a nationwide general strike over the country's housing crisis in Madrid, Spain, Wednesday, Nov. 11, 2026. (AP Photo/Francisco Seco) (Copyright 2026 The Associated Press. All rights reserved) (Francisco Seco/AP Photo/Francisco Seco) Protestors hold up key rings in Madrid's Gran Via main aven…",
+    "relevance": 0.951909,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s5",
+    "url": "https://whec.com/ap-top-news/housing-protests-sweep-madrid-and-barcelona-after-spains-workers-strike-with-clashes-erupting",
+    "title": "Housing protests sweep Madrid and Barcelona after Spain’s workers' strike, with clashes erupting",
+    "publisher": "WHEC News10NBC",
+    "kind": "news",
+    "publishedAt": "2026-11-11T20:03:28.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Millions of Spanish workers have shut down businesses and disrupted transportation in a protest over housing costs. The strike on Wednesday was the first general strike in Spain in 14 years. The strike culminated in huge marches of tens of thousands of workers and average citizens marching in downtown Barcelona and Madrid, along with gatherings in other cities. Unions reported significant work stoppages across key sectors. The protest highlights Spain's housing crisis with activists demanding government action. The strike is seen as a pivotal moment before the national election later this month.",
+    "relevance": 0.953509,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s6",
+    "url": "https://whec.com/ap-top-news/housing-protests-fill-barcelona-and-madrid-as-spains-workers-strike-ahead-of-election",
+    "title": "Housing protests fill Barcelona and Madrid as Spain’s workers strike ahead of election",
+    "publisher": "WHEC News10NBC",
+    "kind": "news",
+    "publishedAt": "2026-11-11T20:03:28.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Millions of Spanish workers have shut down businesses and disrupted transportation in a protest over housing costs. The strike on Wednesday was the first general strike in Spain in 14 years. The strike culminated in huge marches of tens of thousands of workers and average citizens marching in downtown Barcelona and Madrid, along with gatherings in other cities. Unions reported significant work stoppages across key sectors. The protest highlights Spain's housing crisis with activists demanding government action. The strike is seen as a pivotal moment before the national election later this month.",
+    "relevance": 0.938194,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s7",
+    "url": "https://local10.com/business/2026/11/11/housing-protests-sweep-madrid-and-barcelona-after-spains-workers-strike-with-clashes-erupting",
+    "title": "Housing protests sweep Madrid and Barcelona after Spain’s workers' strike, with clashes erupting",
+    "publisher": "Local 10 News (WPLG)",
+    "kind": "news",
+    "publishedAt": "2026-11-11T21:43:08.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "BARCELONA, Spain (AP) — Millions of Spanish workers shut down businesses and public transportation across the eurozone's fourth largest economy on Wednesday before thousands took to the streets of major cities in a nationwide protest over soaring rents and real estate prices.\nHousing protests sweep Madrid and Barcelona after Spain’s workers' strike, with clashes erupting ExpandAutoplay Image 1 of 5 Protestors block Madrid's Gran Via main avenue during a nationwide general strike in Spain, Wednesday, Nov. 11, 2026. (AP Photo/Francisco Seco) (Copyright 2026 The Associated Press. All rights reserved) (Francisco Seco/AP Photo/Francisco Seco) A person sleeping in the street watches police use teargas during clashes after riots erupted following a protest during a nationwide general strike in Madrid, Spain, Wednesday, Nov. 11, 2026. (AP Photo/Francisco Seco) (Copyright 2026 The Associated Press. All rights reserved) (Francisco Seco/AP Photo/Francisco Seco) A protestor carrying a child holds a sign with the worths \"Stop evictions\" during a nationwide general strike in Barcelona, Spain, Wednesday, Nov. 11, 2026. (AP Photo/Emilio Morenatti) (Copyright 2026 The Associated Press. All rights r…",
+    "relevance": 0.959225,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s8",
+    "url": "https://yahoo.com/news/politics/articles/spain-grinds-halt-first-general-071231177.html",
+    "title": "Spain grinds to a halt in first general strike in 14 years",
+    "publisher": "Yahoo News",
+    "kind": "news",
+    "publishedAt": "2026-11-12T07:12:31.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Riot police clashed with masked protesters in Madrid and Barcelona, leaving more than 70 people arrested, as unions and employers gave opposing verdicts on the walkout.\nEuronews Spain grinds to a halt in first general strike in 14 years Riot police clashed with masked protesters in Madrid and Barcelona, leaving more than 70 people arrested, as unions and employers gave opposing verdicts on the walkout. Cristian Caraballo Thu, November 12, 2026 at 2:12 AM EST 3 min read Add Yahoo as a preferred source to see more of our stories on Google. Add Yahoo on Google Spain grinds to a halt in first general strike in 14 years Hundreds of thousands of people took to the streets across Spain on Wednesday in the country's first general strike in 14 years, called in protest at the housing crisis and low wages. Even heavy rain did not stop the demonstrations. In the capital, Madrid, protesters braved the weather with chants, dancing and keys held aloft. The 24-hour stoppage began at midnight under the slogan \"Wages, housing and prices\". It was backed by Spain's two largest trade unions, Comisiones Obreras (CCOO) and the General Union of Workers (UGT), along with the smaller CGT and CNT unions and …",
+    "relevance": 0.948138,
+    "sourceType": "aggregator",
+    "via": "contextdev"
+   },
+   {
+    "id": "s9",
+    "url": "https://bbc.com/news/videos/cwj0587gde88o",
+    "title": "Spain general strike: Thousands gather in Madrid to protest",
+    "publisher": "BBC News",
+    "kind": "news",
+    "publishedAt": "2026-11-11T16:12:12.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Thousands are protesting across Spain over housing and the high cost of living.",
+    "relevance": 0.932778,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s10",
+    "url": "https://latimes.com/world-nation/story/2026-11-11/housing-protests-fill-barcelona-madrid-as-spains-workers-strike-ahead-of-election",
+    "title": "Housing protests fill Barcelona and Madrid as Spain’s workers strike ahead of election",
+    "publisher": "Los Angeles Times",
+    "kind": "news",
+    "publishedAt": "2026-11-11T22:25:56.378Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Housing activists hope the massive show of force will lead to more regulations to protect tenants and crack down on real estate speculation, while Spain's left-wing government is seeking to mobilize voters ahead of a national election later this month with polls against it.\nProtesters march Wednesday in Barcelona, Spain, during a nationwide general strike. (Emilio Morenatti / Associated Press) By Joseph Wilson and Teresa Medrano Nov. 11, 2026 2:25 PM PT - 8 min Click here to listen to this article - Share via Close extra sharing options",
+    "relevance": 0.962955,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s11",
+    "url": "https://independent.co.uk/travel/news-and-advice/spain-general-strike-trains-flights-b3082364.html",
+    "title": "Spain goes on general strike this week. Here’s what it means for flights and holidays",
+    "publisher": "The Independent",
+    "kind": "news",
+    "publishedAt": "2026-11-10T14:36:29.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Will my flight be cancelled due to the general strike in Spain? Here is what you need to know\nWhile no specific walkouts have been confirmed, past general strikes in Spain have involved airport ground staff, air traffic controllers and airline cabin crews. Lufthansa Group said: “The strike is expected to have an impact on the Lufthansa Group airlines’ flight schedule to and from Spain. Flight cancellations and delays must be expected. We ask passengers to check the status of their flight before setting out on their journey.” Customers affected by a flight cancellation on Lufthansa, Swiss, Austrian, Brussels, Eurowings and Discover airlines can rebook once free of charge or have their ticket refunded. CCOO said representatives from aircraft company Airbus and hotel chain Ilunion were present at the joint assembly that called the strike. The local publication also warned of severe disruptions on trains, including the Renfe and high-speed AVE lines, metros and local buses. Major cities such as Madrid and Barcelona could see large demonstrations, which could block streets and impact traffic. The UK government’s general travel advice for Spain states that demonstrations, political gathe…",
+    "relevance": 0.868964,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s12",
+    "url": "https://bloomberg.com/news/articles/2026-11-10/spain-train-walkout-sparks-chaos-ahead-of-general-strike",
+    "title": "Spain Train Walkout Sparks Chaos Ahead of General Strike",
+    "publisher": "Bloomberg",
+    "kind": "news",
+    "publishedAt": "2026-11-10T09:09:16.204Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "A rail drivers’ strike is disrupting traffic across Spain’s biggest cities as the country braces for a general walkout on Wednesday.\nIndustries Transportation Spain Train Walkout Sparks Chaos Ahead of General Strike Gift this article Add us on Google Contact us:\\ \\ Provide news feedback or report an error Confidential tip?\\ \\ Send a tip to our reporters Site feedback:\\ \\ Take our Survey By Thomas Gualtieri and Fabiola De Moura November 10, 2026 at 4:09 AM EST Save Translate Takeaways by Bloomberg AISubscribe A rail drivers’ strike is disrupting traffic across Spain’s biggest cities as the country braces for a general walkout on Wednesday. The Semaf union called industrial action at state-owned train operator Renfe to demand better safety measures. The strike, announced before an October crash that killed 69 people, isn’t complying with minimum-service requirements, according to Renfe. Before it's here, it's on the Bloomberg Terminal\\ \\ LEARN MORE",
+    "relevance": 0.626733,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s13",
+    "url": "https://cnbctv18.com/photos/world/spain-first-general-strike-14-years-workers-protest-housing-crisis-shops-transport-disrupted-20031876.htm",
+    "title": "Spain witnesses first general strike in 14 years as workers protest housing crisis | In Pics - CNBC TV18",
+    "publisher": "CNBC-TV18",
+    "kind": "news",
+    "publishedAt": "2026-11-11T15:58:09.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Millions of workers in Spain joined a general strike on November 11 over rising rents and housing costs. Here's a look at the protests and disruptions.\n6/10 Public transport and flights affected across Spain | Public transport services were disrupted in major Spanish cities. Barcelona's metro operated only during peak commuting hours, while Madrid's metro reduced services by 50% for much of the day. According to airport operator AENA, around 5% of flights scheduled for November 11 were cancelled across the country. (Image: AP) 7/10 Unions claim strike participation exceeded expectations | The two major trade unions described the strike as a success despite uneven participation across regions. CCOO Secretary General Unai Sordo said the turnout had exceeded expectations. The unions also pointed to a 10% decline in electricity demand as an indication of the disruption caused by the walkout. (Image: AP) 8/10 Protests face bad weather and police action | Heavy rain and strong winds affected demonstrations across Spain, with weather alerts issued in 14 regions. There were also reports of clashes between police and protesters. According to CCOO, police used pepper spray against pickets at…",
+    "relevance": 0.95861,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s14",
+    "url": "https://aa.com.tr/en/europe/train-drivers-strike-disrupts-rail-services-across-spain-amid-safety-concerns/4118723",
+    "title": "Train drivers’ strike disrupts rail services across Spain amid safety concerns",
+    "publisher": "Anadolu Agency",
+    "kind": "news",
+    "publishedAt": "2026-11-10T14:15:27.850Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Walkout follows deadly rail crashes, comes day before nationwide general strike over housing, low wages | Anadolu\nEurope Train drivers’ strike disrupts rail services across Spain amid safety concerns Walkout follows deadly rail crashes, comes day before nationwide general strike over housing, low wages Alyssa Mcmurtry 10 November 2026•Update: 10 November 2026 OVIEDO, Spain A train drivers’ strike disrupted rail services across Spain on Tuesday as drivers demanded that the government fulfill safety commitments made after a series of deadly rail crashes. Madrid’s Cercanias commuter network suspended services on six lines, with only occasional trains running on two others. In Catalonia, the Rodalies network said none of its lines was operating as scheduled. The strike also forced cancellations on the Madrid-Barcelona high-speed line and services linking Madrid and Valladolid. State rail operator Renfe offered passengers free ticket changes or cancellations but warned that few seats were available for rebooking. Train drivers’ union Semaf called this week’s strikes a day after the Oct. 28 train crash near Urda, in Toledo province, which killed 69 people. Drivers had already scheduled a…",
+    "relevance": 0.775034,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s16",
+    "url": "https://independent.co.uk/news/spain-b3083289.html",
+    "title": "Photos of Spain’s general strike over housing costs",
+    "publisher": "The Independent",
+    "kind": "news",
+    "publishedAt": "2026-11-11T15:43:58.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Workers across Spain shut businesses and disrupted transportation Wednesday in the country’s first general strike in 14 years, demanding action on housing costs ahead of a national election later this month.",
+    "relevance": 0.936576,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s17",
+    "url": "https://sfgate.com/news/article/photos-of-spain-s-general-strike-over-housing-22525192.php",
+    "title": "Photos of Spain’s general strike over housing costs",
+    "publisher": "SFGATE",
+    "kind": "news",
+    "publishedAt": "2026-11-11T15:49:24.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Workers across Spain shut businesses and disrupted transportation Wednesday in the country’s first general strike in 14 years, demanding action on housing costs ahead of a national election later...",
+    "relevance": 0.946779,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s19",
+    "url": "https://express.co.uk/travel/articles/2264993/spain-travel-chaos-warning-november-11",
+    "title": "Brits heading to Spain issued Thursday November 11 travel chaos warning",
+    "publisher": "Daily Express",
+    "kind": "news",
+    "publishedAt": "2026-11-11T10:48:00.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "More than 4,500 union branches and works councils have publicly endorsed the walkout, which will affect air, rail and hospitality services.\nMore than 4,500 union branches and works councils have publicly endorsed the walkout, which will affect air, rail and hospitality services (Image: Getty) Britons travelling to Spain this week have been warned they will face chaotic scenes as the country braces for several major disruptions, led by a 24-hour nationwide general strike on Wednesday (November 11). This coincides with ongoing high-speed rail disruptions and digital border queues. Spain’s major unions have called a 24-hour general strike across all sectors - including aviation, public transport and hospitality - over housing costs and working conditions. Spanish authorities have set minimum service levels that still allow significant cuts, particularly to short domestic routes (where only 32% of flights at Madrid are guaranteed to operate) compared to international flights (57%) and island routes (78%). Ground handling and air traffic control absences may also cause airport delays. Metros, local buses and commuter trains will operate on minimum skeleton schedules. Museums, shops, res…",
+    "relevance": 0.909205,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s20",
+    "url": "https://hindustantimes.com/world-news/spain-protests-shops-on-fire-businesses-shut-police-clash-first-general-strike-14-years-housing-crisis-barcelona-madrid-videos-101794450668712.html",
+    "title": "Shops set on fire, businesses shut as Spain witnesses first general strike in 14 years",
+    "publisher": "Hindustan Times",
+    "kind": "news",
+    "publishedAt": "2026-11-12T03:19:15.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Businesses and public transportation were disrupted as workers joined the nationwide action to protest soaring rents and property prices across Spain. | World News\nShops set on fire, businesses shut as Spain witnesses first general strike in 14 years Businesses and public transportation were disrupted as workers joined the nationwide action to protest soaring rents and property prices across Spain. Updated on: Nov 12, 2026, 08:49:27 IST Edited by Karishma Ayaldasani Prefer HTon Google Share via Businesses and public transportation were disrupted as workers joined the nationwide action to protest soaring rents and property prices across Spain. | World News",
+    "relevance": 0.917148,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s21",
+    "url": "https://npr.org/2026/11/11/nx-s1-6037314/spain-general-strike",
+    "title": "Spain's first general strike in 14 years demands solutions to housing crisis",
+    "publisher": "NPR",
+    "kind": "news",
+    "publishedAt": "2026-11-11T00:00:00.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Less than three weeks before a national election that could catapult the far right to power, Spain's workers are striking on Wednesday to demand that the government remedy the nation's housing crisis.\nSpain's general strike demands solutions to housing crisis Less than three weeks before a national election that could catapult the far right to power, Spain's workers are striking on Wednesday to demand that the government remedy the nation's housing crisis. Europe Spain's first general strike in 14 years demands solutions to housing crisis November 11, 20264:54 AM ET By The Associated Press A woman walks through Atocha train station during a nationwide general strike over the country's housing crisis in Madrid, Spain, Wednesday, Nov. 11, 2026. Francisco Seco/AP hide caption toggle caption i Francisco Seco/AP BARCELONA, Spain — Less than three weeks before a national election that could catapult the far right to power, millions of Spain's workers are striking on Wednesday to demand that the government remedy the nation's housing crisis. The general strike — Spain's first in 14 years — is causing delays in the public transport system and slowing down factories across the eurozone's fo…",
+    "relevance": 0.961087,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s22",
+    "url": "https://thehindu.com/news/international/protesters-clash-with-police-in-spain-after-huge-housing-cost-rallies/article71692238.ece",
+    "title": "Protesters clash with police in Spain after huge housing cost rallies",
+    "publisher": "The Hindu",
+    "kind": "news",
+    "publishedAt": "2026-11-12T04:05:13.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Mass protests across Spain demand affordable housing as nationwide strikes test public support before a snap election.\nIn contrast, Madrid's metro said 93% of its trains ran in the early morning, although passenger numbers were down by around half. UGT union leader Pepe Alvarez told public broadcaster RTVE that the participation was \"massive\", with a \"total\" stoppage in some regions making the strike \"a huge success\". But his union acknowledged participation was \"uneven\", with large mobilisation in the car manufacturing, petrochemicals and meat sectors and in coastal regions. Thousands in Spain's capital protest increasing housing costs The CEOE organisation, which represents business leaders, called the strike \"a failure\", adding in a statement that activity had gone ahead normally in most sectors. Electricity demand had fallen by around five percent, \"significantly lower\" than in previous strikes, the CEOE said. ‘New cycle’ The main UGT and CCOO unions called the strike following a wave of nationwide protests over access to housing. Valeria Racu, spokeswoman for the Madrid Tenants' Union which has been at the forefront of protests for weeks, vowed to \"put an end to the housing bu…",
+    "relevance": 0.949379,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s23",
+    "url": "https://aa.com.tr/en/world/tensions-rise-as-spain-holds-1st-general-strike-in-14-years-over-housing-costs/4120709",
+    "title": "Tensions rise as Spain holds 1st general strike in 14 years over housing costs",
+    "publisher": "Anadolu Agency",
+    "kind": "news",
+    "publishedAt": "2026-11-11T16:06:09.820Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Police, protesters clash as governing parties back walkout, opposition accuses unions of campaigning for Sanchez ahead of Nov. 29 election | Anadolu\nTransport services operated at reduced capacity, with trains running at 50% to 75% of normal service levels, 234 flights canceled and public transportation curtailed. Large demonstrations are expected late Wednesday, although Storm Charles forced organizers to cancel rallies in Cadiz and Huelva. Election confrontation The strike comes weeks before Spain's Nov. 29 election, with the governing coalition supporting the walkout and right-wing opposition leaders accusing unions of campaigning for Prime Minister Pedro Sanchez. The government and its parliamentary allies have encouraged participation, linking the protesters' demands to their housing and social policies. Popular Party leader Alberto Nunez Feijoo described the strike as \"the most profound historic mistake by unions since democracy began in our country,\" speaking to broadcaster Cuatro on Tuesday. Far-right Vox leader Santiago Abascal said the walkout \"should not be legal\" and accused unions of siding with Sanchez's government against the opposition. He warned that his party woul…",
+    "relevance": 0.964982,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s24",
+    "url": "https://bloomberg.com/news/articles/2026-11-11/spain-s-main-unions-hold-nationwide-strike-ahead-over-housing",
+    "title": "Spain’s Main Unions Hold Nationwide Strike Over Housing Costs",
+    "publisher": "Bloomberg",
+    "kind": "news",
+    "publishedAt": "2026-11-11T07:45:56.640Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "A national strike is expected to cause widespread disruption across Spain on Wednesday, as unions demand for more affordable housing.\nPolitics Spain’s Main Unions Hold Nationwide Strike Over Housing Costs Workers on strike at Puerta de Atocha train station in Madrid, on Nov. 11.Photographer: Pablo Blazquez Dominguez/Getty Images Gift this article Add us on Google Contact us:\\ \\ Provide news feedback or report an error Confidential tip?\\ \\ Send a tip to our reporters Site feedback:\\ \\ Take our Survey By Thomas Gualtieri November 11, 2026 at 2:45 AM EST Save Translate A national strike is expected to cause widespread disruption across Spain on Wednesday, as unions demand for more affordable housing. The strike was called by the country’s two main union umbrella groups after two government-sponsored housing bills were rejected in Parliament in early October. The protest has broad support from administration officials, including Labor Minister Yolanda Díaz, a member of the junior coalition partner who has strong ties to unions. Before it's here, it's on the Bloomberg Terminal\\ \\ LEARN MORE",
+    "relevance": 0.961963,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s25",
+    "url": "https://newsradio1290wtks.iheart.com/content/2026-11-11-clashes-erupt-in-spain-amid-general-strike",
+    "title": "Clashes Erupt In Spain Amid General Strike | WTKS",
+    "publisher": "iHeart",
+    "kind": "news",
+    "publishedAt": "2026-11-11T20:46:00.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Protesters clashed with police in Barcelona during Spain's first general strike in 14 years, driven by rising housing costs. The strike, involving millions nationwide, comes ahead of a snap election. Dozens were arrested amid the unrest.\nDespite the bad weather, with storms Charles and Bruna bringing strong winds and heavy rain, tens of thousands participated in marches across Spain. The strike was seen as a success by unions, with high participation reported in sectors like automotive and ports, although business owners' groups claimed it had limited impact. The strike's slogan, \"Salaries. Housing. Prices,\" reflects the deep frustration over housing costs, which have become a central issue in the upcoming election. Housing activists and unions are demanding government intervention to curb real estate speculation and provide more protections for renters. --- Sponsored Content Sponsored Content",
+    "relevance": 0.865234,
+    "sourceType": "aggregator",
+    "via": "contextdev"
+   },
+   {
+    "id": "s26",
+    "url": "https://newsradio710.iheart.com/content/2026-11-11-clashes-erupt-in-spain-amid-general-strike",
+    "title": "Clashes Erupt In Spain Amid General Strike | NewsRadio710",
+    "publisher": "iHeart",
+    "kind": "news",
+    "publishedAt": "2026-11-11T20:46:00.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Protesters clashed with police in Barcelona during Spain's first general strike in 14 years, driven by rising housing costs. The strike, involving millions nationwide, comes ahead of a snap election. Dozens were arrested amid the unrest.\nDespite the bad weather, with storms Charles and Bruna bringing strong winds and heavy rain, tens of thousands participated in marches across Spain. The strike was seen as a success by unions, with high participation reported in sectors like automotive and ports, although business owners' groups claimed it had limited impact. The strike's slogan, \"Salaries. Housing. Prices,\" reflects the deep frustration over housing costs, which have become a central issue in the upcoming election. Housing activists and unions are demanding government intervention to curb real estate speculation and provide more protections for renters. --- Sponsored Content Sponsored Content",
+    "relevance": 0.915165,
+    "sourceType": "aggregator",
+    "via": "contextdev"
+   },
+   {
+    "id": "s27",
+    "url": "https://cnn.com/2026/11/11/europe/spain-strike-housing-latam-intl",
+    "title": "Millions of Spaniards stage first general strike in 14 years as anger rages over housing | CNN",
+    "publisher": "CNN",
+    "kind": "news",
+    "publishedAt": "2026-11-11T21:03:45.531Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Four million Spanish workers took part in a general strike on Wednesday, unions said, enduring stormy weather to set up picket lines in a protest against the country’s housing affordability crisis less than three weeks before a snap general election.\nSpain’s fast-growing hospitality and finance industries are less unionised than the public and industrial sectors. Police had reported 40 arrests by midday from 476 incidents linked to the general strike, including blockades of offices and industrial estates and burning of rubbish containers. Unions said they would file a criminal complaint against what they described as a “disproportionate” response during a police operation involving tear gas and batons that left 20 protesters injured. The strike follows weeks of demonstrations provoked by the eviction and subsequent death of an 87-year-old woman in Madrid. Those protests, along with parliament’s rejection last month of government decrees aimed at curbing evictions and limiting rent pressures, prompted Sanchez to call the snap election. Facebook Tweet Email Link Threads Link Copied!",
+    "relevance": 0.965527,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s28",
+    "url": "https://wbhpam.iheart.com/content/2026-11-11-clashes-erupt-in-spain-amid-general-strike",
+    "title": "Clashes Erupt In Spain Amid General Strike | WBHP",
+    "publisher": "iHeart",
+    "kind": "news",
+    "publishedAt": "2026-11-11T20:46:00.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Protesters clashed with police in Barcelona during Spain's first general strike in 14 years, driven by rising housing costs. The strike, involving millions nationwide, comes ahead of a snap election. Dozens were arrested amid the unrest.\nDespite the bad weather, with storms Charles and Bruna bringing strong winds and heavy rain, tens of thousands participated in marches across Spain. The strike was seen as a success by unions, with high participation reported in sectors like automotive and ports, although business owners' groups claimed it had limited impact. The strike's slogan, \"Salaries. Housing. Prices,\" reflects the deep frustration over housing costs, which have become a central issue in the upcoming election. Housing activists and unions are demanding government intervention to curb real estate speculation and provide more protections for renters. --- Sponsored Content Sponsored Content",
+    "relevance": 0.811956,
+    "sourceType": "aggregator",
+    "via": "contextdev"
+   },
+   {
+    "id": "s29",
+    "url": "https://700wlw.iheart.com/content/2026-11-11-clashes-erupt-in-spain-amid-general-strike",
+    "title": "Clashes Erupt In Spain Amid General Strike | 700WLW",
+    "publisher": "iHeart",
+    "kind": "news",
+    "publishedAt": "2026-11-11T20:46:00.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "Protesters clashed with police in Barcelona during Spain's first general strike in 14 years, driven by rising housing costs. The strike, involving millions nationwide, comes ahead of a snap election. Dozens were arrested amid the unrest.\nDespite the bad weather, with storms Charles and Bruna bringing strong winds and heavy rain, tens of thousands participated in marches across Spain. The strike was seen as a success by unions, with high participation reported in sectors like automotive and ports, although business owners' groups claimed it had limited impact. The strike's slogan, \"Salaries. Housing. Prices,\" reflects the deep frustration over housing costs, which have become a central issue in the upcoming election. Housing activists and unions are demanding government intervention to curb real estate speculation and provide more protections for renters. --- Sponsored Content Sponsored Content",
+    "relevance": 0.800142,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s30",
+    "url": "https://bbc.com/mundo/articles/ckx28e5lj300o",
+    "title": "In pictures: dozens arrested in Spain's first general strike in 14 years",
+    "publisher": "BBC News",
+    "kind": "news",
+    "publishedAt": "2026-11-11T16:59:13.503Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.933258,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s31",
+    "url": "https://dw.com/es/espa%C3%B1a-vive-huelga-general-y-protestas-por-la-vivienda-antes-de-elecciones/a-79924314",
+    "title": "Spain experiences general strike and housing protests ahead of elections",
+    "publisher": "DW",
+    "kind": "news",
+    "publishedAt": "2026-11-11T20:50:55.974Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.953961,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s32",
+    "url": "https://es.euronews.com/2026/11/12/fuerza-en-la-calle-pero-seguimiento-escaso-en-el-trabajo-la-huelga-general-del-11n",
+    "title": "Spain's 11N general strike in figures: an uneven outcome",
+    "publisher": "Euronews",
+    "kind": "news",
+    "publishedAt": "2026-11-12T08:31:52.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.933735,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s33",
+    "url": "https://es.euronews.com/2026/11/11/la-huelga-general-arranca-en-espana-en-protesta-por-la-crisis-de-la-vivienda-y-los-bajos-s",
+    "title": "Live: 11N general strike in Spain, latest updates",
+    "publisher": "Euronews",
+    "kind": "news",
+    "publishedAt": "2026-11-11T06:45:36.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.96886,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s34",
+    "url": "https://es.euronews.com/2026/11/11/la-huelga-general-de-espana-del-11-de-noviembre-en-imagenes",
+    "title": "Spain's general strike, in pictures",
+    "publisher": "Euronews",
+    "kind": "news",
+    "publishedAt": "2026-11-11T09:53:59.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.967604,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s35",
+    "url": "https://dw.com/es/espa%C3%B1a-se-paraliza-huelga-general-por-vivienda-y-salarios/a-79916308",
+    "title": "Thousands of workers take to the streets in Spain's first general strike in 14 years",
+    "publisher": "DW",
+    "kind": "news",
+    "publishedAt": "2026-11-11T09:52:36.481Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.969321,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s36",
+    "url": "https://es.euronews.com/2026/11/11/la-huelga-general-arranca-en-espana-en-protesta-por-la-crisis-de-la-vivienda",
+    "title": "General strike begins: minimum services and disputes at Mercamadrid",
+    "publisher": "Euronews",
+    "kind": "news",
+    "publishedAt": "2026-11-11T06:58:25.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.968104,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s37",
+    "url": "https://es.euronews.com/2026/11/11/la-huelga-general-por-la-vivienda-los-salarios-saca-miles-de-personas-a-la-calle-espana",
+    "title": "Spain experiences its first general strike in 14 years with massive protests",
+    "publisher": "Euronews",
+    "kind": "news",
+    "publishedAt": "2026-11-11T21:27:07.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.977438,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s38",
+    "url": "https://apnews.com/article/espana-huelga-general-madrid-barcelona-vivienda-8ed80f29a74b076ce2c3ea87bc82d053",
+    "title": "Spain's first general strike in 14 years exposes social and political clashes",
+    "publisher": "Associated Press",
+    "kind": "news",
+    "publishedAt": "2026-11-11T05:32:52.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.979259,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s39",
+    "url": "https://abc17news.com/cnn-spanish/2026/11/11/protestas-en-espana-terminan-con-disturbios-y-enfrentamientos-entre-policias-y-manifestantes",
+    "title": "Protests in Spain end with riots and clashes between police and demonstrators",
+    "publisher": "ABC17 News",
+    "kind": "news",
+    "publishedAt": "2026-11-11T22:00:28.000Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.932017,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s40",
+    "url": "https://www.traveltourister.com/news/spain-general-strike-november-11-2026-live-results-flights-cancelled-trains-renfe-iberia-ryanair/",
+    "title": "Spain Strike Today: Flight & Renfe Train Disruption November 11",
+    "publisher": "traveltourister.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": "[Spain General Strike Live (Nov 11): 202 Flights Cancelled by 8:30am — About 4.4% of Today’s Schedule — Renfe Running Minimum Services, Madrid Metro at 79%, Iberia Offering Free Changes]\n\n**Updated:** Wednesday, November 11, 2026 — first update 08:46 Madrid time\n**Strike:** 24 hours from 00:00 to 23:59 — Spain’s first general strike backed by both CCOO and UGT since November 14, 2012\n**Flights (Aena, 08:30):** 202 operations cancelled out of 4,529 scheduled, about 4.4%\n**Iberia group:** A consumer-rights guide citing Iberia reports 444 cancelled flights (270 Iberia, 64 Iberia Express, 110 Air Nostrum) affecting 45,641 passengers; treat it as a reported figure until Iberia confirms\n**Free changes:** Iberia, Iberia Express and Air Nostrum let passengers move flights from November 11 to any date up to November 26, or take a refund, even if the flight isn’t cancelled\n**Renfe (minimum services):** Cercanías 75% at peak and 50% otherwise; Media Distancia 65%; AVE and long-distance 73%\n**Madrid Metro:** 79% of trains running at 7:00am, above the minimum of 80% at peak times\n**Other airlines:** Vueling, Air Europa and Ryanair had posted no strike notices as of Tuesday morning\n**Tomorrow:** Renfe drivers hold partial stoppages on Thursday, November 12\n**Rail strike on Nov 17:** Reported as planned for Adif and Renfe staff, but not formally called as of last check",
+    "relevance": 0.822802,
+    "sourceType": "aggregator",
+    "via": "contextdev"
+   },
+   {
+    "id": "s41",
+    "url": "https://striketracker.app/strikes-in-spain/spain-general-strike-11-nov-2026",
+    "title": "Spain: general strike on Wednesday 11 November 2026 (CCOO and UGT) — Barcelona transport runs only 06:30–09:30 and 16:30–21:00; Madrid metro and Cercanías near minimum-service levels; few flights canc — Strike Tracker",
+    "publisher": "striketracker.app",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": "[Spain: general strike of Wednesday 11 November 2026 (CCOO and UGT) — Barcelona transport stopped outside two bands; 7% of flights cancelled > Updates]\n\nThe Ministry of Transport has set the rail minimum services for 11 November: Renfe runs 73 per cent of AVE and long-distance trains, 65 per cent of Media Distancia and Cercanías at 75 per cent in peak hours and 50 per cent the rest of the day; Iryo runs 32 of 44 trains and Ouigo 18 of 26. Between 18 and 85 per cent of flights are protected depending on the airport and route, with only 18–37 per cent on short domestic routes. In Barcelona buses have no guaranteed service outside the 06:30–09:30 and 16:30–21:00 bands.\n\n…\n\nThe Ministry of Transport has set the minimum services for air travel on 11 November: 90 per cent of passengers protected on flights to and from the islands, Ceuta and Melilla, 65 per cent on international flights and long domestic routes, 40 per cent on short domestic routes, with the exact figure set per airport (Madrid-Barajas 78, 57 and 32 per cent). Emergency and public-service flights are fully protected. The ministry's order for Renfe and Adif is still pending.",
+    "relevance": 0.835933,
+    "sourceType": "aggregator",
+    "via": "contextdev"
+   },
+   {
+    "id": "s44",
+    "url": "https://www.surinenglish.com/spain/public-transport-feeling-20261111000500-nt.html",
+    "title": "Spain's public transport feels the general strike's impact: fewer passengers mas well as cancelled trains and flights | Sur in English",
+    "publisher": "surinenglish.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": "[Spain's public transport feels the general strike's impact: fewer passengers mas well as cancelled trains and flights > Transport in Barcelona has come to a standstill until this afternoon, although minimum services are being maintained in most areas > 5.2% of flights are not taking off]\n\nThe Ministry of Transport has set minimum service levels of between 18% and 85% for flights scheduled during the strike, which vary depending on the type of route and the airports of departure and arrival.\n\nConsequently, for domestic flights to or from non-mainland territories, a minimum service level of between 56% and 85% of scheduled operations has been set for each airport. Furthermore, minimum services for routes to the Canary Islands range from 56% to 74%, depending on the airport; in the Balearic Islands, between 68% and 75%; in Ceuta, 80%; and in Melilla, 59%\n\n…\n\n[Spain's public transport feels the general strike's impact: fewer passengers mas well as cancelled trains and flights > Transport in Barcelona has come to a standstill until this afternoon, although minimum services are being maintained in most areas > A quarter of AVE trains have been suspended]\n\nThe disruption is also affecting the national rail network, where minimum services are guaranteeing 65% of medium-distance trains and 73% of high-speed and long-distance services. Renfe has put the participation rate in the strike at 6.8%, with 24% of AVE and long-distance services cancelled.",
+    "relevance": 0.933762,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s47",
+    "url": "https://www.transportes.gob.es/carreteras/nuestra-red/servicios-minimos",
+    "title": "Minimum services | Ministry of Transport and Sustainable Mobility",
+    "publisher": "transportes.gob.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.736392,
+    "sourceType": "official",
+    "via": "contextdev"
+   },
+   {
+    "id": "s49",
+    "url": "https://grupo.renfe.com/es/es/sala-de-prensa/noticias/2026/11/establecidos-los-servicios-minimos-para-la-huelga-general-convocada-el-11n",
+    "title": "Minimum services established for the 11N general strike",
+    "publisher": "grupo.renfe.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.854699,
+    "sourceType": "official",
+    "via": "contextdev"
+   },
+   {
+    "id": "s50",
+    "url": "https://www.infobae.com/espana/2026/11/10/huelga-general-11-de-noviembre-estos-son-los-servicios-minimos-de-transporte/",
+    "title": "November 11 general strike: these are the minimum transport services",
+    "publisher": "infobae.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.606376,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s51",
+    "url": "https://es.wikipedia.org/wiki/Huelga_general_en_Espa%C3%B1a_del_11_de_noviembre_de_2026",
+    "title": "November 11, 2026 general strike in Spain - Wikipedia",
+    "publisher": "es.wikipedia.org",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.790675,
+    "sourceType": "other",
+    "via": "contextdev"
+   },
+   {
+    "id": "s52",
+    "url": "https://www.politicargentina.com/notas/202611/77123-espana-la-crisis-de-vivienda-desata-la-primera-huelga-general-en-14-anos.html",
+    "title": "Spain: housing crisis sparks first general strike in 14 years",
+    "publisher": "politicargentina.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.776561,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s53",
+    "url": "https://mx.headtopics.com/news/huelga-general-en-espana-ccoo-ugt-e-inquilinas-movilizan-89784687",
+    "title": "General strike in Spain: CCOO, UGT, and Tenants mobilize thousands over housing and wages",
+    "publisher": "mx.headtopics.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.796575,
+    "sourceType": "aggregator",
+    "via": "contextdev"
+   },
+   {
+    "id": "s54",
+    "url": "https://www.publico.es/sociedad/guia-huelga-general-11-noviembre-servicios-minimos-colegios-transporte-salarios.html",
+    "title": "Guide to the November 11 general strike: minimum services in schools, transport, and wages",
+    "publisher": "publico.es",
+    "kind": "web",
+    "publishedAt": "2026-11-10T22:03:00.096Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.872944,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s55",
+    "url": "https://www.elmundo.es/como/2026/11/10/6af30083fc6c834b768b4596.html",
+    "title": "November 11 general strike: these are the minimum services in transport, health, and security",
+    "publisher": "elmundo.es",
+    "kind": "web",
+    "publishedAt": "2026-11-10T22:03:00.096Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.951428,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s56",
+    "url": "https://www.elconfidencial.com/espana/2026-10-21/huelga-general-servicios-minimos-colegios-transporte_4449591/",
+    "title": "11-N general strike: minimum services and what happens with...",
+    "publisher": "elconfidencial.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.917054,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s57",
+    "url": "https://www.rtve.es/noticias/20261110/huelga-general-11n-servicios-minimos-transportes-sanidad-seguridad/17306918.shtml",
+    "title": "General strike minimum services - RTVE.es",
+    "publisher": "rtve.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.641215,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s58",
+    "url": "https://www.infobae.com/espana/2026/11/11/estos-son-los-servicios-minimos-por-la-huelga-general-del-11-n-asi-operaran-los-trenes-autobuses-metros-y-aviones/",
+    "title": "These are the minimum services for the 11-N general strike",
+    "publisher": "infobae.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.719419,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s59",
+    "url": "https://cadenaser.com/nacional/2026/11/10/guia-laboral-del-11n-que-pasa-con-tu-sueldo-los-servicios-minimos-y-como-justificar-retrasos-en-el-transporte-cadena-ser/",
+    "title": "11N labor guide: what happens to your salary, minimum services, and transport delays",
+    "publisher": "cadenaser.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.798926,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s60",
+    "url": "https://elpais.com/economia/2026-11-09/estos-son-los-servicios-minimos-de-transporte-y-otras-areas-para-la-huelga-general-del-11-de-noviembre.html",
+    "title": "These are the minimum services for transport and other areas for the general strike",
+    "publisher": "elpais.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.784017,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s61",
+    "url": "https://elpais.com/espana/2026-11-11/ultima-hora-de-la-huelga-general-y-la-actualidad-politica-en-directo.html",
+    "title": "11-N general strike: Clashes in Barcelona raise arrests to 74 during general strike",
+    "publisher": "elpais.com",
+    "kind": "web",
+    "publishedAt": "2026-11-12T22:03:00.767Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.953147,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s62",
+    "url": "https://www.lavanguardia.com/vida/20261111/11681344/huelga-general-espana-11n-movilizaciones-sindicatos-manifestaciones-ultima-hora-hoy-en-directo.html",
+    "title": "11-N general strike: Follow the latest on protests in Barcelona, Madrid, and other cities",
+    "publisher": "lavanguardia.com",
+    "kind": "web",
+    "publishedAt": "2026-11-11T22:03:00.767Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.921656,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s64",
+    "url": "https://elpais.com/economia/2026-11-11/la-huelga-general-culmina-con-un-seguimiento-desigual-y-grandes-protestas-en-la-calle.html",
+    "title": "General strike ends with uneven turnout and large street protests",
+    "publisher": "elpais.com",
+    "kind": "web",
+    "publishedAt": "2026-11-12T22:03:00.767Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.935733,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s65",
+    "url": "https://efe.com/espana/2026-11-11/seguimiento-huelga-general-11n-manifestaciones/",
+    "title": "Uneven turnout in a general strike that ends in massive demonstrations",
+    "publisher": "efe.com",
+    "kind": "web",
+    "publishedAt": "2026-11-11T22:03:00.767Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.953336,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s66",
+    "url": "https://www.democrata.es/economia/huelga-general-11-noviembre-mapa-manifestaciones-horarios-provincias/",
+    "title": "11N general strike: map, schedules, and demonstrations",
+    "publisher": "democrata.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.56957,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s67",
+    "url": "https://www.huffingtonpost.es/sociedad/la-huelga-general-cifras-seguimiento-consumo-manifestaciones-masivas-11n-f202611.html",
+    "title": "The general strike in figures: from turnout to consumption and massive 11-N protests",
+    "publisher": "huffingtonpost.es",
+    "kind": "web",
+    "publishedAt": "2026-11-12T22:03:00.767Z",
+    "fetchedAt": 1794693783515,
+    "snippet": null,
+    "relevance": 0.956469,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s68",
+    "url": "https://blog.wego.com/spain-general-strike-11-november/",
+    "title": "Spain General Strike 11 November 2026: Flights, Trains and What Runs",
+    "publisher": "blog.wego.com",
+    "kind": "web",
+    "publishedAt": "2026-10-31T22:03:00.424Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "2 weeks ago - The Spain general strike on 11 ... trains could be disrupted three days running. No minimum services for flights, trains or city transport had been published by 2 November 2026....\nSpain general strike 11 November 2026: what it means for flights, Renfe trains on 10 to 12 November, and city metro and buses.\nAirport tripsPublic transport to and from airports could be disrupted, depending on the minimum services set, The Local reports. ... Check your flight with your airline the day before and again on the morning you fly, and allow extra time to reach the airport. Airport updates: Aena. For other airport strikes in Europe, see our Europe airport strike calendar. ... Renfe trains could be disrupted three days running.\nEFE via Infobae, unions ask for proportionate transport minimum services (22 October 2026), retrieved 2 November 2026. The Local Spain, what to expect if you are traveling to Spain this autumn (updated 25 October 2026), retrieved 2 November 2026. Euronews, Portuguese and Spanish unions discuss Iberian general strike (22 October 2026), retrieved 2 November 2026. Featured image: Renfe AVE trains at Madrid Puerta de Atocha, photo by Carlos Teixidor Cadenas, Wikimedia Commons, CC BY-SA 3.0.\nThe Spain general strike on 11 November 2026 is a 24-hour nationwide stoppage called by the CCOO and UGT unions, and train drivers have called separate Renfe strikes the day before and the day after, so trains could be disrupted three days running. No minimum services …",
+    "relevance": 0.566749,
+    "sourceType": "other",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s69",
+    "url": "https://www.nomadlawyer.org/spain-general-strike-2026-nationwide-transport-collapse-madrid-barcelona",
+    "title": "Spain General Strike 2026: Air and Rail Travel Paralyzed",
+    "publisher": "nomadlawyer.org",
+    "kind": "web",
+    "publishedAt": "2026-11-11T22:03:00.424Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "3 days ago - Consequently, aircraft are frequently grounded at gates not because of crew shortages, but because there are no personnel to load luggage or clear passengers through security checkpoints. Travelers at major hubs should monitor official updates via the Aena network or their respective carriers, such as Iberia. The rail network, managed by Renfe and private competitors, has seen significant schedule reductions.\nNationwide strike in Spain leaves millions stranded. Analysis of aviation bottlenecks, Renfe rail cuts, and the housing crisis driving the 2026 unrest.\nConsequently, aircraft are frequently grounded at gates not because of crew shortages, but because there are no personnel to load luggage or clear passengers through security checkpoints. Travelers at major hubs should monitor official updates via the Aena network or their respective carriers, such as Iberia. The rail network, managed by Renfe and private competitors, has seen significant schedule reductions.\nThe pricing pressure created by this instability often leads to a surge in last-minute private transport costs, though these are currently offset by the physical gridlock caused by union marches blocking major city arteries. Ground Operations are the Weak Link: Flight cancellations are being driven by ground staff (security, baggage, fueling) rather than flight crews. Rail Capacity is Rationed: Renfe high-speed lines are operating at roughly 73%, while regional lines are at 65%, leading to severe overcro…",
+    "relevance": 0.895617,
+    "sourceType": "other",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s70",
+    "url": "https://esimlounge.com/blog/spain-general-strike-11-november-2026",
+    "title": "Spain general strike 11 November 2026: flights and trains",
+    "publisher": "esimlounge.com",
+    "kind": "web",
+    "publishedAt": "2026-11-07T22:03:00.424Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "1 week ago - A general strike covers every sector, ... air transport is an essential service in Spain, the Ministry of Transport sets minimum services for flights before the strike....",
+    "relevance": 0.575148,
+    "sourceType": "other",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s71",
+    "url": "https://www.catalunyainfo.com/en/guides/general-strike-11-november-spain/",
+    "title": "General strike 11 November 2026 in Spain: what runs",
+    "publisher": "catalunyainfo.com",
+    "kind": "web",
+    "publishedAt": "2026-11-09T22:03:00.424Z",
+    "fetchedAt": 1794693783515,
+    "snippet": "5 days ago - Minimum services: Renfe high-speed and long-distance trains: 73% of the usual services; Media Distancia, 65% on average, under the minimum services set by the Ministry of Transport (Renfe's notice of 9 November).\n24-hour general strike in Spain on Wednesday 11 November. Barcelona march: 5.30pm, Jardinets de Gràcia. Minimum services out: Rodalies, metro, buses.\nAt Girona, 71%, 47% and 32%; at Reus, 71%, 42% and 32%. The percentages apply to each route and airline, under the Ministry of Transport's resolution of 6 November. Flights at Barcelona-El Prat, Girona and Reus, which are Aena airports, have the minimum services set by the Spanish Ministry of Transport; the Generalitat's orders only set the operations of the two airports it runs, Lleida-Alguaire and Andorra-La Seu d'Urgell.\nMinimum services: Renfe high-speed and long-distance trains: 73% of the usual services; Media Distancia, 65% on average, under the minimum services set by the Ministry of Transport (Renfe's notice of 9 November).\nHigh-speed and long-distance trains are State services, so they are not in the Generalitat's order: for Ouigo's strike this autumn, the Ministry of Transport set the minimum services in a resolution of 27 October. If you have a ticket for the 11th, check renfe.com or your operator's website; SEMAF's drivers' strike on 10 and 12 November also affects Renfe trains.\nEstablecidos los servicios mínimos para la huelga general convocada el 11N (09/11/2026) — Renfe10 Nov 2026 · Resoluci…",
+    "relevance": 0.833942,
+    "sourceType": "other",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s72",
+    "url": "https://dw.com/es/espa%C3%B1a-en-huelga-elecci%C3%B3n-a-la-vista/audio-79920026",
+    "title": "Spain on strike, election in sight",
+    "publisher": "DW",
+    "kind": "news",
+    "publishedAt": "2026-11-11T13:59:32.505Z",
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.937622,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s73",
+    "url": "https://elpais.com/espana/madrid/2026-11-11/la-sanidad-y-la-educacion-en-madrid-encaran-una-huelga-atipica-la-organizacion-ha-sido-diferente.html",
+    "title": "Healthcare and education in Madrid face an 'atypical' strike",
+    "publisher": "elpais.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.464464,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s74",
+    "url": "https://www.ondacero.es/emisoras/comunidad-madrid/madrid/noticias/servicios-minimos-madrid-huelga-general-que-debes-saber-antes-coger-autobus-metro-acudir-hospital-centro-educativo_202611106af31255ea8d897997805a4a.html",
+    "title": "Minimum services in Madrid for the general strike: transport, hospitals, and schools",
+    "publisher": "ondacero.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.65776,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s75",
+    "url": "https://www.elconfidencial.com/espana/2026-11-11/tsjm-suspende-servicios-minimos-huelga-1tps_4462742/",
+    "title": "Court suspends minimum services agreed for Madrid strike as excessive",
+    "publisher": "elconfidencial.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.740237,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s79",
+    "url": "https://www.lavanguardia.com/economia/20261109/11680073/sindicato-inquilinas-plantea-visperas-huelga-general-cesion-obligatoria-tercera-vivienda-vacia.html",
+    "title": "Tenants' Union proposes mandatory transfer of empty third homes ahead of general strike",
+    "publisher": "lavanguardia.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.936224,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s80",
+    "url": "https://www.ultimahora.es/noticias/nacional/2026/11/11/2747729/sindicato-inquilinas-celebra-huelga-historica-avisa-poder-popular-parar-crecer.html",
+    "title": "Tenants' Union celebrates 'historic' strike and warns: 'People's power will keep growing'",
+    "publisher": "ultimahora.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.923164,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s81",
+    "url": "https://arainfo.org/una-huelga-como-una-casa/",
+    "title": "A strike as big as a house",
+    "publisher": "arainfo.org",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.556307,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s82",
+    "url": "https://www.20minutos.es/nacional/sindicato-inquilinas-madrid-asalta-sede-central-alquiler-seguro-grito-huelga-general-lanzan-octavillas-dentro_7059563_0.html",
+    "title": "Madrid Tenants' Union storms Alquiler Seguro headquarters shouting 'general strike'",
+    "publisher": "20minutos.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.937567,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s83",
+    "url": "https://www.infobae.com/espana/2026/11/09/por-que-hay-huelga-general-el-11-de-noviembre-de-la-acampada-en-la-puerta-del-sol-a-un-paro-nacional-por-la-vivienda-los-salarios-y-los-precios/",
+    "title": "Why there is a general strike on November 11: housing, wages, and prices",
+    "publisher": "infobae.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.928785,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s84",
+    "url": "https://www.madridnorte24horas.com/madrid/huelga-general-11-noviembre-son-reivindicaciones-vivienda-salarios/20261110161006132714.html",
+    "title": "November 11 general strike: demands for housing access and wages",
+    "publisher": "madridnorte24horas.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693846653,
+    "snippet": null,
+    "relevance": 0.832255,
+    "sourceType": "news",
+    "via": "contextdev"
+   },
+   {
+    "id": "s115",
+    "url": "https://amp.elmundo.es/economia/2026/11/11/6af4223ee4d4d8787d8b4593.html",
+    "title": "First general strike in 14 years over housing begins with blockades and incidents",
+    "publisher": "amp.elmundo.es",
+    "kind": "web",
+    "publishedAt": "2026-11-10T22:06:14.050Z",
+    "fetchedAt": 1794693974101,
+    "snippet": null,
+    "relevance": 0.963492,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s116",
+    "url": "https://www.businessinsider.es/economia/servicios-minimos-transporte-por-huelga-general-11-noviembre-asi-afecta-cercanias-ave-aviones-metro-autobuses_7059119_0.html",
+    "title": "Minimum transport services for the November 11 general strike",
+    "publisher": "businessinsider.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794693974101,
+    "snippet": null,
+    "relevance": 0.920614,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s120",
+    "url": "https://www.rtve.es/noticias/20261109/huelga-general-11-noviembre-hora-recorrido-manifestaciones/17301386.shtml",
+    "title": "General strike on November 11: times and routes of the main protests in the country",
+    "publisher": "rtve.es",
+    "kind": "web",
+    "publishedAt": "2026-11-09T22:08:14.826Z",
+    "fetchedAt": 1794694094876,
+    "snippet": null,
+    "relevance": 0.907905,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s121",
+    "url": "https://www.mundiario.com/politica/huelga-general-11n-manifestaciones-horarios-provincias/20261110121109451996.html",
+    "title": "General strike on November 11: protests, times and locations",
+    "publisher": "mundiario.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794694094876,
+    "snippet": null,
+    "relevance": 0.502402,
+    "sourceType": "news",
+    "via": "oxylabs"
+   },
+   {
+    "id": "s127",
+    "url": "https://www.democrata.es/en/economy/the-strike-keeps-up-to-73-of-ave-trains-and-75-of-cercanias-as-minimum-services/",
+    "title": "Railway strike: up to 73% of AVE and 75% of Cercanías | Demócrata",
+    "publisher": "democrata.es",
+    "kind": "web",
+    "publishedAt": "2026-11-10T22:10:14.592Z",
+    "fetchedAt": 1794694214646,
+    "snippet": "4 days ago - The mandatory minimum services set by the Ministry of Transport and Sustainable Mobility for the day of a general strike that began at 0.00 hours this Wednesday ensure the average circulation of 73% of Renfe’s High Speed and Long Distance ...\nThe general strike maintains up to 73% of High Speed trains and 75% of Suburban trains, with 111 long-distance services canceled in Spain.\nThe general strike maintains up to 73% of High-Speed trains and 75% of Suburban trains, with 111 long-distance services canceled in Spain.\nFor Renfe’s conventional Medium Distance and high-speed services, an average protection of 65% has been set, while in Rail Freight traffic the essential services are limited to 26% of the scheduled runs. Across the High Speed and Long Distance transport operated by the three commercial companies in Spain (Renfe, Iryo and Ouigo), of a total of 403 trains affected or scheduled for today, 292 protected services will run as essential minimums, which represents 72.46% of the total and the cancellation of 111 runs (27.54%).\nThe mandatory minimum services set by the Ministry of Transport and Sustainable Mobility for the day of a general strike that began at 0.00 hours this Wednesday ensure the average circulation of 73% of Renfe’s High Speed and Long Distance trains, 72.7% of those of Iryo, and 69.23% of those of Ouigo.\nIn the Madrid Suburban rail networks managed by the General State Administration, the resolution establishes coverage of 75% of the usual ser…",
+    "relevance": 0.705977,
+    "sourceType": "news",
+    "via": "oxylabs"
+   }
+  ],
+  "events": [
+   {
+    "id": 163,
+    "ts": 1794694238832,
+    "kind": "update",
+    "message": "Added 111 cancelled trains and minimum service levels for four rail transport services.",
+    "data": {
+     "importance": "medium",
+     "material": true,
+     "sources": [
+      "s127"
+     ],
+     "added": 5,
+     "changed": 0,
+     "silent": false
+    }
+   },
+   {
+    "id": 136,
+    "ts": 1794694109860,
+    "kind": "update",
+    "message": "Jardinets de Gràcia, Barcelona is now listed as the meeting and starting point for the November 11 general strike demonstration at 17:30.",
+    "data": {
+     "importance": "medium",
+     "material": false,
+     "sources": [
+      "s120",
+      "s121"
+     ],
+     "added": 0,
+     "changed": 1,
+     "silent": false
+    }
+   },
+   {
+    "id": 97,
+    "ts": 1794693993611,
+    "kind": "update",
+    "message": "Added Madrid's deployment of 2,700 police and 80% minimum transport services for the general strike, pickets at the Fuencarral bus depot, and Metro de Madrid operating at 93% during rush hour.",
+    "data": {
+     "importance": "medium",
+     "material": false,
+     "sources": [
+      "s115",
+      "s116"
+     ],
+     "added": 3,
+     "changed": 0,
+     "silent": false
+    }
+   },
+   {
+    "id": 96,
+    "ts": 1794693931681,
+    "kind": "info",
+    "message": "Checked the web: 24 new or changed results, none about this crisis",
+    "data": null
+   },
+   {
+    "id": 95,
+    "ts": 1794693930395,
+    "kind": "error",
+    "message": "X social search failed (credentials, budget store or API unavailable)",
+    "data": null
+   },
+   {
+    "id": 91,
+    "ts": 1794693888619,
+    "kind": "update",
+    "message": "Added Madrid healthcare minimum services, the court suspension of other sector minimums, union and government positions, and protests in Madrid and Zaragoza.",
+    "data": {
+     "importance": "medium",
+     "material": true,
+     "sources": [
+      "s82",
+      "s83",
+      "s79",
+      "s74",
+      "s80",
+      "s75",
+      "s84",
+      "s72",
+      "s81",
+      "s73"
+     ],
+     "added": 14,
+     "changed": 0,
+     "silent": false
+    }
+   },
+   {
+    "id": 89,
+    "ts": 1794693840897,
+    "kind": "info",
+    "message": "Searching the web for 3 open questions next",
+    "data": null
+   },
+   {
+    "id": 88,
+    "ts": 1794693840866,
+    "kind": "stage",
+    "message": "Board live in 78.0s",
+    "data": {
+     "ms": 77963,
+     "sources": 63
+    }
+   },
+   {
+    "id": 87,
+    "ts": 1794693840811,
+    "kind": "info",
+    "message": "search monitor mon_7e53eff0697e490ea498857f4377149b; page monitor on grupo.renfe.com; page monitor on transportes.gob.es",
+    "data": null
+   },
+   {
+    "id": 86,
+    "ts": 1794693838597,
+    "kind": "stage",
+    "message": "Setting up live monitoring",
+    "data": null
+   },
+   {
+    "id": 85,
+    "ts": 1794693838559,
+    "kind": "stage",
+    "message": "Board written",
+    "data": {
+     "ms": 8842,
+     "placed": 6
+    }
+   },
+   {
+    "id": 84,
+    "ts": 1794693829717,
+    "kind": "stage",
+    "message": "Writing the summary",
+    "data": null
+   },
+   {
+    "id": 83,
+    "ts": 1794693829666,
+    "kind": "stage",
+    "message": "Extracted 122 verified facts from 40 sources",
+    "data": {
+     "ms": 51349,
+     "rejected": 8,
+     "added": 78
+    }
+   },
+   {
+    "id": 75,
+    "ts": 1794693791653,
+    "kind": "stage",
+    "message": "Read 71 results, kept 63 on topic",
+    "data": {
+     "ms": 13336,
+     "dropped": 8
+    }
+   },
+   {
+    "id": 74,
+    "ts": 1794693783471,
+    "kind": "stage",
+    "message": "Local search from ES: 24 results, 18 sources global search missed",
+    "data": {
+     "found": 24,
+     "added": 18,
+     "calls": 3
+    }
+   },
+   {
+    "id": 73,
+    "ts": 1794693783457,
+    "kind": "error",
+    "message": "X social search failed (credentials, budget store or API unavailable)",
+    "data": null
+   },
+   {
+    "id": 71,
+    "ts": 1794693777660,
+    "kind": "stage",
+    "message": "Reading the live web with Context.dev",
+    "data": null
+   },
+   {
+    "id": 70,
+    "ts": 1794693777631,
+    "kind": "stage",
+    "message": "Plan ready: Spain Housing General Strike",
+    "data": {
+     "ms": 14666,
+     "metrics": 6,
+     "widgets": 13
+    }
+   },
+   {
+    "id": 66,
+    "ts": 1794693762951,
+    "kind": "stage",
+    "message": "Compiling the prompt into a plan",
+    "data": null
+   }
+  ],
+  "createdAt": 1794693762559,
+  "updatedAt": 1794694238757,
+  "lastPolledAt": 1794694334032,
+  "ownerId": null,
+  "plan": {
+   "title": "Spain Housing General Strike",
+   "subtitle": "Nationwide general strike and housing protests across Spanish cities",
+   "crisisType": "other",
+   "language": "en",
+   "location": {
+    "name": "Spain",
+    "zoom": 6
+   },
+   "lookbackDays": 7,
+   "entities": [
+    "Spain",
+    "Madrid",
+    "Barcelona",
+    "CCOO",
+    "UGT",
+    "Sindicato de Inquilinas",
+    "Renfe",
+    "CGT"
+   ],
+   "newsQueries": [
+    "Spain general strike housing protests turnout Madrid Barcelona",
+    "Spain general strike transport disruption Renfe metro flights",
+    "Spain housing strike union demands government response",
+    "huelga general vivienda España seguimiento manifestaciones"
+   ],
+   "socialQueries": [
+    "(huelga general OR huelga vivienda) (España OR Madrid OR Barcelona) -filter:retweets lang:es",
+    "(#HuelgaGeneral OR #HuelgaDeVivienda) España -filter:retweets lang:es"
+   ],
+   "localQueries": [
+    "huelga general vivienda España servicios mínimos transporte",
+    "seguimiento huelga general manifestaciones Madrid Barcelona Valencia"
+   ],
+   "webQueries": [
+    "Spain general strike minimum services Renfe Iberia Aena transport",
+    "Ministerio de Transportes servicios mínimos huelga general España",
+    "Sindicato de Inquilinas CCOO UGT huelga general vivienda demandas"
+   ],
+   "monitor": {
+    "query": "Spain general strike housing protests turnout disruption",
+    "instructions": "Prioritize official turnout figures, minimum service compliance, transport and public service disruptions (Renfe, metro, flights, schools, hospitals), major protest incidents or clashes, and official statements from the Spanish government, major unions (CCOO, UGT, CGT), and tenant organizations. Ignore opinion columns, unrelated local strikes, or historical articles about the 2012 strike."
+   },
+   "metrics": [
+    {
+     "key": "strike-turnout",
+     "label": "Strike Turnout",
+     "unit": "%",
+     "why": "Measures overall participation across sectors as reported by unions and the government"
+    },
+    {
+     "key": "protest-attendance",
+     "label": "Total Protesters",
+     "unit": "people",
+     "why": "Shows the scale of street demonstrations across Spanish cities"
+    },
+    {
+     "key": "trains-cancelled",
+     "label": "Trains Cancelled",
+     "unit": "trains",
+     "why": "Indicates rail and commuter disruption from Renfe and regional operators"
+    },
+    {
+     "key": "flights-cancelled",
+     "label": "Flights Cancelled",
+     "unit": "flights",
+     "why": "Tracks air travel disruption across Spanish airports"
+    },
+    {
+     "key": "cities-with-protests",
+     "label": "Cities with Protests",
+     "unit": "cities",
+     "why": "Reflects the geographic spread of the general strike nationwide"
+    },
+    {
+     "key": "arrests-incidents",
+     "label": "Arrests & Incidents",
+     "unit": "count",
+     "why": "Tracks law enforcement actions and picket-line incidents during the strike"
+    }
+   ],
+   "tables": [
+    {
+     "key": "city-protests",
+     "title": "Turnout & Protests by City",
+     "columns": [
+      {
+       "key": "city",
+       "label": "City",
+       "kind": "text"
+      },
+      {
+       "key": "attendance",
+       "label": "Attendance",
+       "kind": "number"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      },
+      {
+       "key": "key-disruptions",
+       "label": "Key Disruptions",
+       "kind": "text"
+      }
+     ]
+    },
+    {
+     "key": "transport-disruptions",
+     "title": "Transport & Public Service Disruptions",
+     "columns": [
+      {
+       "key": "service",
+       "label": "Service",
+       "kind": "text"
+      },
+      {
+       "key": "operator",
+       "label": "Operator",
+       "kind": "text"
+      },
+      {
+       "key": "minimum-service",
+       "label": "Minimum Service",
+       "kind": "text"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      }
+     ]
+    },
+    {
+     "key": "demands-response",
+     "title": "Demands & Government Response",
+     "columns": [
+      {
+       "key": "actor",
+       "label": "Actor",
+       "kind": "text"
+      },
+      {
+       "key": "position",
+       "label": "Position / Action",
+       "kind": "text"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      }
+     ]
+    }
+   ],
+   "statusGroups": [],
+   "questions": [
+    {
+     "id": "q1",
+     "text": "Which trains, metro lines, buses, and flights are running under minimum services today?"
+    },
+    {
+     "id": "q2",
+     "text": "What are the reported strike turnout figures and protest sizes in Madrid, Barcelona, and other major cities?"
+    },
+    {
+     "id": "q3",
+     "text": "Are schools, hospitals, and municipal offices open or operating with reduced staff?"
+    },
+    {
+     "id": "q4",
+     "text": "What are the core housing demands of the unions and tenant organizations?"
+    },
+    {
+     "id": "q5",
+     "text": "How has the Spanish government responded to the strike and housing demands?"
+    }
+   ],
+   "widgets": [
+    {
+     "type": "narrative",
+     "title": "Situation Overview",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "type": "stat-grid",
+     "title": "Key Figures",
+     "span": "full",
+     "bind": null,
+     "metrics": [
+      "strike-turnout",
+      "protest-attendance",
+      "trains-cancelled",
+      "flights-cancelled",
+      "cities-with-protests",
+      "arrests-incidents"
+     ]
+    },
+    {
+     "type": "trend",
+     "title": "Protest Attendance Over Time",
+     "span": "half",
+     "bind": "protest-attendance",
+     "metrics": []
+    },
+    {
+     "type": "timeline",
+     "title": "Latest Developments",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "type": "map",
+     "title": "Strike & Protest Map",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "type": "table",
+     "title": "Turnout & Protests by City",
+     "span": "full",
+     "bind": "city-protests",
+     "metrics": []
+    },
+    {
+     "type": "table",
+     "title": "Transport & Public Service Disruptions",
+     "span": "full",
+     "bind": "transport-disruptions",
+     "metrics": []
+    },
+    {
+     "type": "table",
+     "title": "Demands & Government Response",
+     "span": "full",
+     "bind": "demands-response",
+     "metrics": []
+    },
+    {
+     "type": "alert-list",
+     "title": "Official Advisories & Minimum Services",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "type": "link-list",
+     "title": "Official Portals & Service Status",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "type": "feed",
+     "title": "Live Updates",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "type": "changelog",
+     "title": "Board Changelog",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "type": "sources",
+     "title": "Sources",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    }
+   ]
+  },
+  "messages": [],
+  "language": "en",
+  "origin": "system",
+  "topicState": "active"
+ },
+ "run": {
+  "run": null,
+  "steps": [],
+  "totals": {
+   "ms": null,
+   "llmCalls": 0,
+   "tokensIn": 0,
+   "tokensOut": 0,
+   "contextCalls": 0
+  }
+ }
+}

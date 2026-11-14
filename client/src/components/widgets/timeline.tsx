@@ -47,7 +47,7 @@ export function TimelineWidget({ widget, data, sources, building, filter: person
                 <TimelineTime dateTime={toMs(t.at) !== null ? (t.at ?? undefined) : undefined}>{when(t.at)}</TimelineTime>
                 <TimelineDescription>
                   {t.detail ? `${t.detail} ` : null}
-                  <SourceChips ids={t.sources} sources={sources} />
+                  <SourceChips ids={t.sources} sources={sources} evidence={t.evidence} />
                 </TimelineDescription>
               </TimelineContent>
             </TimelineItem>

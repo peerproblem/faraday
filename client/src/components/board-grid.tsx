@@ -1,9 +1,11 @@
 import { Ago } from "@/components/ago";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { TopicSourceLine } from "@/components/sources/source-mark";
 import { Card, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/typography";
 import { boardUrl } from "@/lib/config";
+import type { TopicSources } from "@/lib/source-brand";
 import type { BoardCard } from "@/lib/spec";
 
 /** A board's state as a Badge: the variant, its text, and whether the dot pulses (a live, connected board). */
@@ -35,8 +37,11 @@ export function BoardGrid({
   boards,
   empty = "No topics yet",
   emptyDescription = "Faraday adds topics as crises are detected.",
+  sources,
 }: {
   boards: BoardCard[];
+  /** Outlets by board id, for the logos at the foot of a tile. */
+  sources?: Record<string, TopicSources>;
   empty?: string;
   emptyDescription?: string;
 }) {
@@ -67,6 +72,11 @@ export function BoardGrid({
             <Text size="sm" tone="muted" className="line-clamp-3">
               {b.headline ?? b.prompt}
             </Text>
+            {sources?.[b.id] ? (
+              <div className="mt-auto pt-1">
+                <TopicSourceLine sources={sources[b.id]} max={4} />
+              </div>
+            ) : null}
           </Card>
         </li>
       ))}

@@ -1,6 +1,7 @@
 import "server-only";
 import type { BoardCard, BoardView, MeView, PersonalViewCard, PersonalViewState, RunView, TopicState } from "./spec";
 import { API_URL } from "./config";
+import { summarizeSources, type TopicSources } from "./source-brand";
 
 // Server-side calls from the web app to the engine. On the Vultr box this goes over
 // loopback (ENGINE_URL=http://127.0.0.1:4000); on Vercel it goes to api.<domain>.
@@ -98,6 +99,25 @@ export async function getAdminOverview(cookie: string | null): Promise<{ discove
     console.error("getAdminOverview failed", e);
     return null;
   }
+}
+
+/**
+ * Where each topic's board comes from (outlets and newest headlines), for the logos on topic tiles and the home
+ * page wire. Interim: it reads every topic's whole board. The engine should send this with the topic cards.
+ */
+export async function topicSources(topics: Pick<BoardCard, "id" | "title">[], max = 12): Promise<Record<string, TopicSources>> {
+  const out: Record<string, TopicSources> = {};
+  await Promise.all(
+    topics.slice(0, max).map(async (t) => {
+      try {
+        const v = await get<BoardView>(`/api/boards/${encodeURIComponent(t.id)}`);
+        if (v?.sources.length) out[t.id] = summarizeSources(v.sources, t.title);
+      } catch (e) {
+        console.error("topicSources failed", t.id, e);
+      }
+    }),
+  );
+  return out;
 }
 
 export const getBoard = (id: string) => get<BoardView>(`/api/boards/${encodeURIComponent(id)}`);

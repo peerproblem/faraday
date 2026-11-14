@@ -112,7 +112,82 @@
     }
   }
 
+  /* A passage of a source's own words: set off by a rule, never by quote marks the source did not write. */
+  .fd-excerpt {
+    margin: 0;
+    padding-inline-start: 10px;
+    border-inline-start: 2px solid var(--sw-hairline);
+  }
+
+  /* A publisher's icon is drawn for a light browser tab. It keeps a white plate in the dark theme too, so a
+     dark mark on a transparent ground (BBC, CNN) does not vanish. */
+  .fd-logo img {
+    background: #fff;
+  }
+
+  /* A source that arrived while the board was open: it settles in and its tint fades. */
+  .fd-source-enter {
+    animation: fd-source-enter var(--fd-motion-highlight) var(--fd-motion-ease) both;
+  }
+  @keyframes fd-source-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(-6px);
+      background-color: color-mix(in srgb, var(--sw-accent) 14%, transparent);
+    }
+    30% {
+      opacity: 1;
+      transform: none;
+      background-color: color-mix(in srgb, var(--sw-accent) 14%, transparent);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  /* The wire: the newest headlines with their publishers' logos, moving slowly. It stops under the pointer and
+     while a link in it has focus. The track holds the list twice and moves by one list, so the loop has no seam. */
+  .fd-wire {
+    overflow: hidden;
+    mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 40px), transparent);
+  }
+  .fd-wire__track {
+    display: flex;
+    width: max-content;
+    animation: fd-wire var(--fd-wire-duration, 60s) linear infinite;
+  }
+  .fd-wire:hover .fd-wire__track,
+  .fd-wire:focus-within .fd-wire__track {
+    animation-play-state: paused;
+  }
+  @keyframes fd-wire {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
+    /* No motion: the wire becomes a row the person scrolls, and the repeated half is hidden. */
+    .fd-wire {
+      overflow-x: auto;
+    }
+    .fd-wire__track {
+      animation: none;
+    }
+    .fd-wire__track > [aria-hidden="true"] {
+      display: none;
+    }
+    .fd-source-enter {
+      animation: fd-source-tint var(--fd-motion-highlight) steps(1, end);
+    }
+    @keyframes fd-source-tint {
+      0% {
+        background-color: color-mix(in srgb, var(--sw-accent) 14%, transparent);
+      }
+      100% {
+        background-color: transparent;
+      }
+    }
     ::view-transition-group(*),
     ::view-transition-new(*),
     ::view-transition-old(*) {

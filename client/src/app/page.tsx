@@ -4,7 +4,9 @@ import { BoardGrid } from "@/components/board-grid";
 import { PageIntro } from "@/components/page-intro";
 import { EmptyTopics, MyDashboards, TopicHero, TypeFilter } from "@/components/topic-cards";
 import { Heading } from "@/components/ui/typography";
-import { listMyViews, listTopics } from "@/lib/engine";
+import { SourceWire } from "@/components/sources/source-wire";
+import { listMyViews, listTopics, topicSources } from "@/lib/engine";
+import { mergeWires } from "@/lib/source-brand";
 import { crisisTypes } from "@/lib/spec";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +16,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const type = typeof sp.type === "string" && (crisisTypes as readonly string[]).includes(sp.type) ? sp.type : null;
   const cookie = (await headers()).get("cookie");
   const [session, topics] = await Promise.all([auth(), listTopics({ state: "active", type, limit: 25 })]);
-  const views = session?.user ? await listMyViews(cookie) : [];
+  const [views, sources] = await Promise.all([session?.user ? listMyViews(cookie) : [], topicSources(topics)]);
+  const wire = mergeWires(Object.values(sources));
   const [top, ...rest] = topics;
   return (
     <>
@@ -39,10 +42,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           Happening now
         </Heading>
         <TypeFilter base="/" active={type} />
+        <SourceWire items={wire} label="Reading now" />
         {top ? (
           <>
-            <TopicHero topic={top} />
-            {rest.length ? <BoardGrid boards={rest} /> : null}
+            <TopicHero topic={top} sources={sources[top.id]} />
+            {rest.length ? <BoardGrid boards={rest} sources={sources} /> : null}
           </>
         ) : (
           <EmptyTopics type={type} />

@@ -11,12 +11,15 @@ import { toast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Caption, Display, Text } from "@/components/ui/typography";
 import { Separator } from "@/components/ui/separator";
+import { SourceStack } from "@/components/sources/source-mark";
+import { SourceWire } from "@/components/sources/source-wire";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { SourceChips } from "@/components/widgets/source-chips";
 import { WidgetFrame } from "@/components/widgets/widget-frame";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
 import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, PersonalLayout, Source, Widget } from "@/lib/spec";
+import { outletsOf, wireItems } from "@/lib/source-brand";
 import { newest } from "@/lib/time";
 
 export type BoardProps = {
@@ -97,6 +100,8 @@ export function Board(props: BoardProps) {
   const widgets = laid.widgets;
   const compact = laid.compactHeader;
   const newestSource = useMemo(() => newest(sources.map((s) => s.publishedAt)), [sources]);
+  const outlets = useMemo(() => outletsOf(sources), [sources]);
+  const wire = useMemo(() => wireItems(sources), [sources]);
   const title = header?.title ?? props.title;
   const live = !building && connected && tier !== "paused";
 
@@ -194,8 +199,13 @@ export function Board(props: BoardProps) {
               />
             </div>
           ) : null}
-          <Text as="div" size="sm" tone="muted" className="flex min-w-0 flex-wrap gap-x-4 gap-y-1">
-            <span>{sources.length} sources read</span>
+          <Text as="div" size="sm" tone="muted" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="flex items-center gap-2">
+              <SourceStack outlets={outlets} max={6} />
+              <span>
+                {sources.length} sources read{outlets.length > 1 ? ` from ${outlets.length} outlets` : ""}
+              </span>
+            </span>
             {newestSource ? (
               <span>
                 newest <Ago t={newestSource} />
@@ -225,6 +235,8 @@ export function Board(props: BoardProps) {
         </div>
         </Card>
       </header>
+
+      {compact ? null : <SourceWire items={wire} label="On the wire" />}
 
       {widgets.length ? (
         <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2">

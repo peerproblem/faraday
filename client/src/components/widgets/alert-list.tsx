@@ -56,7 +56,7 @@ export function AlertListWidget({ widget, data, sources, tier, building, filter 
                     </Link>
                   </Text>
                 ) : null}
-                <SourceChips ids={a.sources} sources={sources} />
+                <SourceChips ids={a.sources} sources={sources} evidence={a.evidence} />
                 <AsOf t={a.asOf} tier={tier} prefix="issued" />
               </div>
             </div>

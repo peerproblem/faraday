@@ -1,43 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Ago } from "@/components/ago";
+import { BrandMark, SourceMark } from "@/components/sources/source-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/components/ui/link";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Caption, Text } from "@/components/ui/typography";
 import type { SourceType } from "@/lib/spec";
+import { brandOf, outletsOf } from "@/lib/source-brand";
 import type { WidgetProps } from "./types";
 
 const STEP = 100;
+/** Outlets offered as filters. The rest are still in the list. */
+const OUTLETS = 14;
 
 export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
   const [limit, setLimit] = useState(STEP);
+  const [outlet, setOutlet] = useState<string | null>(null);
+  const outlets = useMemo(() => outletsOf(allSources), [allSources]);
   const byType = allSources.reduce<Partial<Record<SourceType | "untriaged", number>>>((acc, s) => {
     const k = s.sourceType ?? "untriaged";
     acc[k] = (acc[k] ?? 0) + 1;
     return acc;
   }, {});
-  const shown = allSources.slice(0, limit);
+  // An outlet that left the board (its sources were discarded) cannot stay selected.
+  const active = outlet && outlets.some((o) => o.key === outlet) ? outlet : null;
+  const matching = active ? allSources.filter((s) => brandOf(s).key === active) : allSources;
+  const shown = matching.slice(0, limit);
   const breakdown = Object.entries(byType)
     .map(([k, n]) => `${n} ${k}`)
     .join(", ");
+  const pick = (key: string | null) => {
+    setOutlet(key);
+    setLimit(STEP);
+  };
   return (
     <div className="flex flex-col gap-3">
       <Text size="sm" tone="subtle">
-        {allSources.length} sources from the live web, read through Context.dev
+        {allSources.length} sources from the live web across {outlets.length} {outlets.length === 1 ? "outlet" : "outlets"}, read through Context.dev
         {breakdown ? ` (${breakdown})` : null}
       </Text>
-      {allSources.length ? (
-        <ScrollArea maxHeight={256} aria-label={`${widget.title} list`}>
-          <ol className="grid gap-1.5">
+      {outlets.length > 1 ? (
+        <ul aria-label="Filter by outlet" className="flex flex-wrap gap-1">
+          <li>
+            <Button size="sm" radius="full" variant={active === null ? "secondary" : "ghost"} aria-pressed={active === null} onClick={() => pick(null)}>
+              All
+            </Button>
+          </li>
+          {outlets.slice(0, OUTLETS).map((o) => (
+            <li key={o.key}>
+              <Button
+                size="sm"
+                radius="full"
+                variant={active === o.key ? "secondary" : "ghost"}
+                aria-pressed={active === o.key}
+                aria-label={`${o.name}, ${o.count} ${o.count === 1 ? "source" : "sources"}`}
+                leading={<BrandMark brand={o} size={16} />}
+                onClick={() => pick(active === o.key ? null : o.key)}
+              >
+                <span className="flex items-baseline gap-1.5">
+                  {o.name}
+                  <Caption>{o.count}</Caption>
+                </span>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {matching.length ? (
+        <ScrollArea maxHeight={320} aria-label={`${widget.title} list`}>
+          <ol className="grid gap-2">
             {shown.map((s) => (
-              <li key={s.id} className="flex min-w-0 items-baseline gap-2">
-                <Caption className="w-9 shrink-0">{s.id}</Caption>
+              <li key={s.id} className="flex min-w-0 items-center gap-2">
+                <SourceMark source={s} size="xs" />
+                <Caption className="w-8 shrink-0">{s.id}</Caption>
                 <Text as="span" size="sm" tone="muted" className="hidden w-20 shrink-0 @md:inline">
                   {s.sourceType ?? s.kind}
                 </Text>
-                <Text as="span" size="sm" className="min-w-0 truncate">
+                <Text as="span" size="sm" className="min-w-0 flex-1 truncate">
                   <Link href={s.url} target="_blank" rel="noreferrer">
                     {s.publisher ? `${s.publisher}: ` : ""}
                     {s.title ?? s.url}
@@ -48,15 +90,20 @@ export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
                     via Oxylabs
                   </Badge>
                 ) : null}
+                {s.publishedAt ? (
+                  <Text as="span" size="sm" tone="muted" className="hidden shrink-0 @2xl:inline">
+                    <Ago t={s.publishedAt} />
+                  </Text>
+                ) : null}
               </li>
             ))}
           </ol>
         </ScrollArea>
       ) : null}
-      {allSources.length > limit ? (
+      {matching.length > limit ? (
         <div>
           <Button variant="secondary" size="sm" onClick={() => setLimit((l) => l + STEP)}>
-            Show {Math.min(STEP, allSources.length - limit)} more sources
+            Show {Math.min(STEP, matching.length - limit)} more sources
           </Button>
         </div>
       ) : null}

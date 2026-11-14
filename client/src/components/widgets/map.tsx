@@ -43,7 +43,7 @@ export function MapWidget({ data, sources, tier, building, filter }: WidgetProps
                 <Text as="span" size="sm" className="min-w-0 [overflow-wrap:anywhere]">
                   {p.name}
                 </Text>
-                <SourceChips ids={p.sources} sources={sources} />
+                <SourceChips ids={p.sources} sources={sources} evidence={p.evidence} />
                 <AsOf t={p.asOf} tier={tier} />
               </li>
             ))}
