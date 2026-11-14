@@ -1,5 +1,5 @@
 #!/bin/bash
-# Ships the working tree to the Vultr box as a new release, builds it there, migrates the DB and switches over.
+# Ships the working tree to the Vultr box as a new release, builds it there, migrates the DB (Aiven for MySQL) and switches over.
 #   /opt/faraday/releases/<ts>/   one directory per deploy, the newest 3 are kept
 #   /opt/faraday/app              symlink to the live release (the units run from here)
 #   /opt/faraday/shared/.env      the production env, linked into every release as .env
@@ -111,13 +111,18 @@ fi
 
 ln -sfn "$REL" "$BASE/app.next"
 mv -T "$BASE/app.next" "$APP"
-install -m 644 "$REL/scripts/faraday-api.service" "$REL/scripts/faraday-worker.service" "$REL/scripts/faraday-web.service" \
-  "$REL/scripts/faraday-backup.service" "$REL/scripts/faraday-backup.timer" /etc/systemd/system/
-install -m 750 "$REL/scripts/backup.sh" /usr/local/sbin/faraday-backup
+install -m 644 "$REL/scripts/faraday-api.service" "$REL/scripts/faraday-worker.service" "$REL/scripts/faraday-web.service" /etc/systemd/system/
+# The database is Aiven (managed backups), so the old local dump timer goes away. Old dumps in $BASE/backups stay.
+if [ -f /etc/systemd/system/faraday-backup.timer ] || [ -f /etc/systemd/system/faraday-backup.service ]; then
+  systemctl disable --now faraday-backup.timer >/dev/null 2>&1 || true
+  systemctl stop faraday-backup.service >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/faraday-backup.timer /etc/systemd/system/faraday-backup.service
+  log "removed the old faraday-backup timer"
+fi
+rm -f /usr/local/sbin/faraday-backup
 mv /etc/caddy/Caddyfile.next /etc/caddy/Caddyfile
 systemctl daemon-reload
-systemctl enable $UNITS faraday-backup.timer >/dev/null 2>&1
-systemctl start faraday-backup.timer
+systemctl enable $UNITS >/dev/null 2>&1
 log "restarting worker, api, web"
 systemctl restart faraday-worker
 systemctl restart faraday-api
@@ -140,8 +145,9 @@ trap - ERR
 
 # Optional: one real board through Caddy and its certificate. A failure here only warns.
 DOMAIN="$(grep -E '^FARADAY_DOMAIN=' "$SHARED/.env" | tail -1 | cut -d= -f2- | tr -d '"' || true)"
-DBNAME="$(grep -E '^DATABASE_URL=' "$SHARED/.env" | tail -1 | sed -E 's#.*/([^/?]+)(\?.*)?$#\1#' || true)"
-SLUG="$(mariadb -N -e "SELECT slug FROM \`${DBNAME:-faraday}\`.boards WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT 1" 2>/dev/null || true)"
+# The newest public board, asked from the api (no DB client on this box).
+SLUG="$(curl -fsS --max-time 10 'http://127.0.0.1:4000/api/boards?limit=1' 2>/dev/null \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).boards?.[0]?.slug??"")}catch{}})' || true)"
 if [ -n "$DOMAIN" ] && [ -n "$SLUG" ]; then
   if curl -fsS --max-time 15 -o /dev/null --resolve "$SLUG.$DOMAIN:443:127.0.0.1" "https://$SLUG.$DOMAIN/"; then
     log "board host ok: https://$SLUG.$DOMAIN/"
@@ -156,6 +162,6 @@ ls -1d "$BASE"/releases/*/ 2>/dev/null | sed 's#/$##' | sort -r | tail -n +4 | w
   [ "$old" = "$LIVE" ] || { rm -rf "$old"; log "removed old release $(basename "$old")"; }
 done
 
-systemctl is-active faraday-api faraday-worker faraday-web caddy mariadb faraday-backup.timer
+systemctl is-active faraday-api faraday-worker faraday-web caddy
 log "live: $(basename "$LIVE")"
 REMOTE

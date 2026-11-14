@@ -1,8 +1,7 @@
 [Unit]
 Description=Faraday api (HTTP, SSE, webhooks) on 127.0.0.1:4000
-After=network-online.target mariadb.service
+After=network-online.target
 Wants=network-online.target
-Requires=mariadb.service
 
 [Service]
 User=faraday

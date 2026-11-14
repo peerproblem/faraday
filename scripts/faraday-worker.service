@@ -1,8 +1,7 @@
 [Unit]
 Description=Faraday worker (build, edit and update graphs, scheduler)
-After=network-online.target mariadb.service faraday-api.service
+After=network-online.target faraday-api.service
 Wants=network-online.target faraday-api.service
-Requires=mariadb.service
 
 [Service]
 User=faraday

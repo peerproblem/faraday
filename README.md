@@ -21,7 +21,7 @@ When a flood, fire, blackout or cyberattack hits, the facts are scattered across
 
 Every figure on the board links to the source it came from.
 
-> Built at Junction 2026 for the Context.dev challenge, "The Web Is Your Real-Time Database".
+> Built at Junction 2026 for the Context.dev challenge, "The Web Is Your Real-Time Database", and the "Best Use of Aiven" tech challenge.
 
 ## How it works
 
@@ -88,13 +88,13 @@ Local pages are in the local language, but the board stays in English: non-Engli
 
 ```
 client/    Next.js 16 app: site, studio, board hosting
-server/    Hono API, worker, pipeline graphs, MariaDB
+server/    Hono API, worker, pipeline graphs, MySQL (Aiven)
 scripts/   provision, deploy, Caddyfile, systemd units
 ```
 
 ## Run locally
 
-Put your keys in a single `.env` at the root, point `DATABASE_URL` at a MariaDB, then:
+Put your keys in a single `.env` at the root, set the database variables (see [Database](#database)), then:
 
 ```bash
 cd server && npm install && npm run dev   # http://localhost:4000, migrates on start
@@ -103,7 +103,7 @@ cd client && npm install && npm run dev   # http://localhost:3000
 
 X is optional. Set `X_API_BEARER_TOKEN` in the same root `.env` to enable it for newly planned boards. Existing plans without `socialQueries` continue without X. Background X polling runs only for hot boards.
 
-`X_BOARD_DAILY_READ_LIMIT` defaults to 20 and `X_GLOBAL_DAILY_READ_LIMIT` defaults to 100. Each request reserves 10 reads before calling X, including on errors or empty results; counters reset at midnight UTC. Set either limit to 0 to stop live X reads. Invalid limits also stop reads. Reservations and per-board/query `since_id` cursors persist in MariaDB (migration 006). Queries combine up to two local keyword/hashtag searches, exclude retweets, and request one page of 10 posts without retries or pagination. A cursor advances after source ingestion succeeds; this deliberately samples the newest posts rather than backfilling a busy search.
+`X_BOARD_DAILY_READ_LIMIT` defaults to 20 and `X_GLOBAL_DAILY_READ_LIMIT` defaults to 100. Each request reserves 10 reads before calling X, including on errors or empty results; counters reset at midnight UTC. Set either limit to 0 to stop live X reads. Invalid limits also stop reads. Reservations and per-board/query `since_id` cursors persist in MySQL (migration 006). Queries combine up to two local keyword/hashtag searches, exclude retweets, and request one page of 10 posts without retries or pagination. A cursor advances after source ingestion succeeds; this deliberately samples the newest posts rather than backfilling a busy search.
 
 Social quotes pass the same quote/number checks as other facts, but appear only in **On the ground (unverified)**. Official/news confirmation must be extracted and verified independently before the information enters figures, tables, timelines, maps, status, advisories or summaries. Social reports cannot overwrite trusted facts or supply numbers to the change log. See [implementation and validation](docs/x-social-source.md).
 
@@ -111,15 +111,28 @@ Leave `FARADAY_DOMAIN` empty locally and boards are served at `/b/<slug>`.
 
 Deploy with `scripts/deploy.sh` (engine and boards) and `scripts/deploy-site.sh` (main site).
 
+## Database
+
+The engine stores everything in a managed Aiven for MySQL 8.4 service (`faraday`, Google Cloud `europe-north2` in Stockholm, Hobbyist plan), next to the Vultr box in Stockholm. Aiven runs the backups, so the server has no local database. The api and worker run the same migrations on start (`npm run migrate` during deploy). Every connection uses TLS and checks the Aiven CA.
+
+| Variable | Value |
+| :- | :- |
+| `DATABASE_URL` | `mysql://user:password@host:port/faraday?ssl-mode=REQUIRED` |
+| `DATABASE_CA` | the Aiven project CA certificate (PEM), base64 encoded on one line |
+| `TEST_DATABASE_URL` | the same service with no database path. Tests and evals create and drop their own `faraday_test_*` databases there |
+
+Download the CA from the service overview in the Aiven console (CA certificate), then `base64 < ca.pem | tr -d '\n'`.
+
+
 ## Stack
 
 | Layer | Tech |
 | :- | :- |
 | Web | Next.js 16, React 19, Tailwind 4, SW3 UI (`@sw3/ui`, our design system, pinned in `client/vendor`) |
-| Engine | Hono, AI SDK 7, MariaDB, Server-Sent Events |
+| Engine | Hono, AI SDK 7, Aiven for MySQL 8.4, Server-Sent Events |
 | Models | Gemini 4 Hydrogen and Carbon, with OpenAI as a switchable fallback |
 | Data | Context.dev TypeScript SDK, MapLibre with OpenFreeMap tiles |
-| Infra | Vercel, Vultr, Caddy with on-demand TLS |
+| Infra | Vercel, Vultr, Aiven, Caddy with on-demand TLS |
 
 ## License
 
