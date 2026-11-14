@@ -13,6 +13,13 @@ const nextConfig: NextConfig = {
   },
   // Keeps next dev from writing its own AGENTS.md into client/.
   experimental: { agentRules: false } as NextConfig["experimental"],
+  // On the Vultr box every <slug>.<domain> serves its board at the root.
+  async rewrites() {
+    const domain = process.env.FARADAY_DOMAIN;
+    if (!domain) return { beforeFiles: [] };
+    const host = `(?<slug>(?!(?:www|api)\\.)[a-z0-9-]{1,63})\\.${domain.replace(/\./g, "\\.")}`;
+    return { beforeFiles: [{ source: "/", has: [{ type: "host", value: host }], destination: "/b/:slug" }] };
+  },
   async headers() {
     return [
       {
