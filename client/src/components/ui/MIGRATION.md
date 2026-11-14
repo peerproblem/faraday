@@ -15,6 +15,8 @@ commit of that repository. The SDK is frozen, so fixes Faraday needs are patches
   register with the agent bridge, and the bridge then hid every Button, SegmentedControl and Input inside them. The
   patch treats them as content containers, like Tabs and Accordion.
 - `0002-table-sort-button-name-without-arrow.patch`: a sortable header's bridge label was "Road↕". It is now "Road".
+- `0003-map-keeps-its-canvas-when-unframed.patch`: a MapView inside a tile drops its frame, and with it the
+  positioning that kept the map canvas inside its 340px box. The canvas covered the locations list below.
 
 ## Upgrading
 
