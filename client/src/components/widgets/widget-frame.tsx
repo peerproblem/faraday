@@ -3,7 +3,7 @@
 import { Component, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardTile } from "@/components/ui/dashboard";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/typography";
 
@@ -54,6 +54,7 @@ export class WidgetBoundary extends Component<BoundaryProps, { failed: boolean; 
   }
 }
 
+/** One widget as a tile of the board's DashboardGrid: a panel Card with the widget's title in its header bar. */
 export function WidgetFrame({
   id,
   title,
@@ -76,34 +77,38 @@ export function WidgetFrame({
   updatedAt?: number;
   /** Added to the baseline since the person last saved their layout. */
   isNew?: boolean;
-  /** Edit-mode controls, drawn in the title row. */
+  /** Edit-mode controls, drawn in the header bar. */
   tools?: ReactNode;
 }) {
+  const extras =
+    isNew || updatedAt || tools ? (
+      <span className="flex flex-wrap items-center gap-1.5">
+        {isNew ? <Badge variant="accent">New</Badge> : null}
+        {updatedAt ? (
+          <Text as="span" size="sm" tone="muted" data-updated>
+            Updated <Ago t={updatedAt} />
+          </Text>
+        ) : null}
+        {tools}
+      </span>
+    ) : undefined;
   return (
-    <section
-      aria-labelledby={`${id}-title`}
+    <DashboardTile
+      id={id}
+      span={span === "full" ? 12 : 6}
+      title={title}
+      headingLevel={2}
+      actions={extras}
+      role="region"
+      aria-label={title}
       data-widget={id}
-      className={`@container relative min-w-0 ${span === "full" ? "@4xl:col-span-2" : ""}`}
+      padding="md"
       style={transitionName ? { viewTransitionName: transitionName } : undefined}
     >
-      <Card padding="md" className="h-full">
-        <CardHeader className="flex-row flex-wrap items-center gap-x-3 gap-y-2">
-          <CardTitle as="h2" id={`${id}-title`}>
-            {title}
-          </CardTitle>
-          {isNew ? <Badge variant="accent">New</Badge> : null}
-          {updatedAt ? (
-            <Text as="span" size="sm" tone="muted" data-updated>
-              Updated <Ago t={updatedAt} />
-            </Text>
-          ) : null}
-          {tools ? <div className="ml-auto flex flex-wrap items-center gap-1.5">{tools}</div> : null}
-        </CardHeader>
-        <CardContent>
-          <WidgetBoundary resetKey={resetKey}>{children}</WidgetBoundary>
-        </CardContent>
-      </Card>
+      <div className="@container relative min-w-0">
+        <WidgetBoundary resetKey={resetKey}>{children}</WidgetBoundary>
+      </div>
       {updatedAt ? <span key={updatedAt} aria-hidden="true" className="fd-updated-ring" /> : null}
-    </section>
+    </DashboardTile>
   );
 }

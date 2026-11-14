@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import { Link } from "@/components/ui/link";
 import { Caption, Text } from "@/components/ui/typography";
 import { SourceChips } from "./source-chips";
@@ -11,10 +10,10 @@ export function LinkListWidget({ data, sources, building }: WidgetProps<"link-li
   const items = (data?.items ?? []).filter((h) => h && typeof h.id === "string" && /^https?:\/\//.test(h.url ?? ""));
   if (!items.length) return <Empty building={building} title="No help resources" description="The sources do not list hotlines, shelters or donation pages yet." />;
   return (
-    <ul className="grid gap-3">
+    // Rows on hairlines inside the tile, no cards of their own: the tile is the frame.
+    <ul className="grid divide-y divide-hairline">
       {items.map((h) => (
-        <li key={h.id} className="min-w-0">
-          <Card variant="muted" padding="sm" className="gap-1.5">
+        <li key={h.id} className="flex min-w-0 flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
             <Caption>{h.kind}</Caption>
             <Text>
               <Link href={h.url} target="_blank" rel="noreferrer">
@@ -27,7 +26,6 @@ export function LinkListWidget({ data, sources, building }: WidgetProps<"link-li
               </Text>
             ) : null}
             <SourceChips ids={h.sources} sources={sources} />
-          </Card>
         </li>
       ))}
     </ul>

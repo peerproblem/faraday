@@ -5,6 +5,7 @@ import { Ago } from "@/components/ago";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DashboardGrid } from "@/components/ui/dashboard";
 import { Meter } from "@/components/ui/meter";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
@@ -239,7 +240,7 @@ export function Board(props: BoardProps) {
       {compact ? null : <SourceWire items={wire} label="On the wire" />}
 
       {widgets.length ? (
-        <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2">
+        <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
           {widgets.map((lw) => {
             const w = lw.widget;
             const Comp = widgetComponent(w.type)!;
@@ -271,7 +272,7 @@ export function Board(props: BoardProps) {
               </WidgetFrame>
             );
           })}
-        </div>
+        </DashboardGrid>
       ) : building ? (
         <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2" aria-busy="true">
           <Skeleton height={160} radius="lg" className="@4xl:col-span-2" />

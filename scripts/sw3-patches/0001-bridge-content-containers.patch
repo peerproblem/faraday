@@ -1,0 +1,14 @@
+diff --git a/packages/ui/src/agent/bridge.ts b/packages/ui/src/agent/bridge.ts
+index 784f175..61d4d69 100644
+--- a/packages/ui/src/agent/bridge.ts
++++ b/packages/ui/src/agent/bridge.ts
+@@ -121,7 +121,8 @@ const words = (s: string) => norm(s).split(' ').filter(Boolean)
+ 
+ const hidden = (el: Element) => !!el.closest('[data-sw-agent="off"], [inert], [aria-hidden="true"], [hidden], [data-sw="accordion-panel"][data-state="closed"]')
+ const requiresConfirmation = (el: Element) => !!el.closest('[data-sw-confirm]')
+-const contentContainers = new Set(['tabs', 'accordion', 'resizable', 'scroll-area', 'table'])
++// Faraday patch: containers added in 1.0 (and Card, which now registers itself) hold ordinary controls too.
++const contentContainers = new Set(['tabs', 'accordion', 'resizable', 'scroll-area', 'table', 'card', 'collapsible', 'dashboard-grid', 'dashboard-section', 'app-shell'])
+ 
+ function textOf(id: string) {
+   return document.getElementById(id)?.textContent?.trim() ?? ''

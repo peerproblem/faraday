@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { Toggle } from "@/components/ui/toggle";
-import { Heading, Text } from "@/components/ui/typography";
+import { Text } from "@/components/ui/typography";
 import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
@@ -264,44 +264,43 @@ export function PersonalBoard({
       />
 
       {editing ? (
-        <Card padding="md" className="gap-3">
-          <Heading as="h2" size="sm">
-            Hidden sections
-          </Heading>
-          {hiddenWidgets.length ? (
-            <ul className="flex flex-wrap gap-2">
-              {hiddenWidgets.map((w) => {
-                const k = widgetKeyOf(w);
-                return (
-                  <li key={k}>
-                    <Button variant="outline" size="sm" onClick={() => commit({ ...current, hidden: current.hidden.filter((x) => x !== k) })}>
-                      Show {w.title}
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <EmptyState headingLevel={3} title="Nothing is hidden" description="Hide a section with its eye button while you edit." />
-          )}
-          <div>
-            <AlertDialog>
-              <AlertDialogTrigger variant="danger" size="sm" loading={busy === "remove"} data-sw-confirm="">
-                Remove from my dashboards
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remove this dashboard?</AlertDialogTitle>
-                  <AlertDialogDescription>Your layout, filters and pins for this topic are deleted. The shared board stays.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep it</AlertDialogCancel>
-                  <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => remove()}>
-                    Remove
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+        <Card title="Hidden sections" count={hiddenWidgets.length} headingLevel={2}>
+          <div className="flex flex-col gap-3">
+            {hiddenWidgets.length ? (
+              <ul className="flex flex-wrap gap-2">
+                {hiddenWidgets.map((w) => {
+                  const k = widgetKeyOf(w);
+                  return (
+                    <li key={k}>
+                      <Button variant="outline" size="sm" onClick={() => commit({ ...current, hidden: current.hidden.filter((x) => x !== k) })}>
+                        Show {w.title}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <EmptyState headingLevel={3} title="Nothing is hidden" description="Hide a section with its eye button while you edit." />
+            )}
+            <div>
+              <AlertDialog>
+                <AlertDialogTrigger variant="danger" size="sm" loading={busy === "remove"} data-sw-confirm="">
+                  Remove from my dashboards
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove this dashboard?</AlertDialogTitle>
+                    <AlertDialogDescription>Your layout, filters and pins for this topic are deleted. The shared board stays.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep it</AlertDialogCancel>
+                    <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => remove()}>
+                      Remove
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </Card>
       ) : null}
