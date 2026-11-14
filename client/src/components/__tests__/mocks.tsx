@@ -21,7 +21,9 @@ vi.mock("@/components/ui/point-map", () => ({
 }));
 
 // Unovis measures SVG text, which jsdom cannot do. The widgets only need the charts' accessible names here.
-vi.mock("@/components/ui/charts", () => ({
+// TrendChart is plain SVG and renders for real.
+vi.mock("@/components/ui/charts", async (importOriginal) => ({
+  TrendChart: (await importOriginal<typeof import("@/components/ui/charts")>()).TrendChart,
   LineChart: (props: { "aria-label"?: string }) => <div role="img" aria-label={props["aria-label"]} data-testid="line-chart" />,
   Sparkline: () => <svg aria-hidden="true" data-testid="sparkline" />,
   ChartCard: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

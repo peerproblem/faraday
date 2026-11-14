@@ -42,7 +42,7 @@ describe("board v2", () => {
     expect(within(stats).getByText("+3 since 09:00 UTC")).toBeTruthy();
     expect(within(stats).getByText(/Sources disagree/)).toBeTruthy();
     expect(within(stats).getAllByText("Stale")).toHaveLength(1);
-    expect(within(stats).getByText(/Deaths rose from 4 to 15/)).toBeTruthy();
+    expect(within(stats).getByRole("img", { name: /Deaths rose from 4 to 15/ })).toBeTruthy();
   });
 
   test("no stale badges on a board that is not hot", () => {

@@ -1,9 +1,8 @@
 "use client";
 
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
-import { Card, CardTitle } from "@/components/ui/card";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { Text } from "@/components/ui/typography";
+import { Heading, Text } from "@/components/ui/typography";
 import type { ServiceState } from "@/lib/spec";
 import { AsOf } from "./as-of";
 import { SourceChips } from "./source-chips";
@@ -25,14 +24,14 @@ export function StatusGridWidget({ data, sources, tier, building }: WidgetProps<
       <Text size="sm" tone="muted">
         {counts.map(([s, n]) => `${n} ${stateLabel[s].toLowerCase()}`).join(", ")}
       </Text>
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-3">
+      {/* Service cells inside the tile, no cards of their own: the tile is the frame. */}
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-x-6 gap-y-5">
         {sorted.map((x) => (
-          <li key={x.id} className="min-w-0">
-            <Card variant="muted" padding="sm" className="h-full gap-2">
+          <li key={x.id} className="flex min-w-0 flex-col gap-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <CardTitle as="h3" className="min-w-0 flex-1 basis-32 [overflow-wrap:anywhere]">
+                <Heading as="h3" size="sm" className="min-w-0 flex-1 basis-32 [overflow-wrap:anywhere]">
                   {x.name}
-                </CardTitle>
+                </Heading>
                 <span className="shrink-0">
                   <Badge variant={stateTone[x.state] ?? "neutral"} leading={<Icon name={stateIcon[x.state] ?? "info"} weight={2} />}>
                     {stateLabel[x.state] ?? x.state}
@@ -48,7 +47,6 @@ export function StatusGridWidget({ data, sources, tier, building }: WidgetProps<
                 <AsOf t={x.asOf} tier={tier} />
                 <SourceChips ids={x.sources} sources={sources} />
               </div>
-            </Card>
           </li>
         ))}
       </ul>

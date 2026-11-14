@@ -90,12 +90,13 @@
     }
   }
 
-  /* A widget whose data just changed: the accent ring comes in and fades out. The layout never moves for this. */
+  /* A widget whose data just changed: the accent ring comes in and fades out over the tile's body. The layout never
+     moves for this. Tiles in a joined grid have square inner corners, so the ring follows the frame's inner radius. */
   .fd-updated-ring {
     pointer-events: none;
     position: absolute;
     inset: 0;
-    border-radius: var(--sw-radius-lg);
+    border-radius: var(--sw-inner-r, 0);
     box-shadow: 0 0 0 2px var(--sw-accent);
     opacity: 0;
     animation: fd-updated var(--fd-motion-highlight) ease-out;

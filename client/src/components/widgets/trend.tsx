@@ -1,6 +1,6 @@
 "use client";
 
-import { LineChart } from "@/components/ui/charts";
+import { TrendChart } from "@/components/ui/charts";
 import { Text } from "@/components/ui/typography";
 import { shortTime } from "@/lib/time";
 import { cleanPoints, trendSummary } from "./chart";
@@ -16,13 +16,12 @@ export function TrendWidget({ data, sources, building }: WidgetProps<"trend">) {
   const last = data.points[data.points.length - 1];
   return (
     <figure className="m-0 flex min-w-0 flex-col gap-3">
-      <LineChart
+      <TrendChart
         aria-label={summary}
-        data={pts}
-        x={(d) => d.x}
-        series={[{ key: "v", label: data.unit ? `${data.label} (${data.unit})` : data.label }]}
-        xFormat={(v) => shortTime(Number(v))}
-        curve="linear"
+        values={pts.map((p) => p.v)}
+        labels={pts.map((p) => shortTime(p.x))}
+        seriesLabels={[data.unit ? `${data.label} (${data.unit})` : data.label, "Previous"]}
+        format={(n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 })}
         height={220}
       />
       <figcaption className="flex flex-wrap items-center gap-2">
