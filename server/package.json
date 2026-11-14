@@ -14,6 +14,7 @@
     "smoke:decide": "tsx --env-file-if-exists=../.env src/scripts/smoke-decide.ts",
     "migrate": "tsx --env-file-if-exists=../.env src/scripts/migrate.ts",
     "rebuild-v1": "tsx --env-file-if-exists=../.env src/scripts/rebuild-v1.ts",
+    "recompose": "tsx --env-file-if-exists=../.env src/scripts/recompose.ts",
     "smoke:x": "tsx --env-file-if-exists=../.env src/scripts/smoke-x.ts",
     "lint": "eslint src"
   },
