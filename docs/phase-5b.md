@@ -15,6 +15,24 @@ SW3의 코너 스무딩과 에이전트 연동은 실제 컴포넌트를 렌더�
 
 두 기준의 패키지 버전은 모두 `0.1.0`이다. `client/vendor`에 서로 다른 파일명으로 보관하고 lockfile이 해당 tarball을 가리키는지 확인한다. v2는 브랜치가 이동해도 위의 전체 커밋 SHA로 빌드한다.
 
+## Next 16 사전 검증
+
+Next 16.4.6과 React 19.3.0의 독립 테스트 앱에서 두 tarball 설치와 프로덕션 빌드가 통과했다. v2는 브라우저에서 표, 경고, 인용 칩, 로딩 자리표시자, 빈 상태, 위치 목록을 확인했다. 인용 칩은 키보드로 열고 닫았을 때 포커스가 돌아왔다.
+
+MapLibre 6.18.0은 기본 설정에서 브라우저 워커 로드에 실패했다. Next 클라이언트 모듈에서 지도 생성 전에 다음 설정을 실행한 뒤, v2 프로덕션 빌드에서 지도 타일과 마커가 표시되는 것을 확인했다. [MapLibre Turbopack 설정](https://maplibre.org/maplibre-gl-js/docs/#esm)
+
+```ts
+'use client'
+
+import { setWorkerUrl } from 'maplibre-gl'
+
+if (typeof window !== 'undefined') {
+  setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).toString())
+}
+```
+
+이 검증 범위는 독립 테스트 앱이다. 10개 fork가 통합된 Faraday에서 tarball 설치, 실제 위젯과 스트리밍 상태, 경로별 초기 JS·지도 청크 크기를 다시 검증한다.
+
 ## 통합 직후 준비
 
 - [ ] 통합 커밋을 기록하고 `client/src/components/ui`의 export와 위젯의 import를 대조해 아래 검수표를 갱신한다. 검수표의 초기 범위는 통합 전 보드와 Studio 화면을 기준으로 한다. [Faraday 기준 커밋](https://github.com/peerproblem/faraday/tree/01406eb0241b21f4108cae790839e82dc34f8f00)
