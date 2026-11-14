@@ -9,11 +9,10 @@
     "lint": "bash ../scripts/sync-spec.sh --check && eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "e2e": "node e2e/sweep.mjs",
-    "postinstall": "node scripts/copy-map-worker.mjs"
+    "e2e": "node e2e/sweep.mjs"
   },
   "dependencies": {
-    "@sw3/ui": "file:vendor/sw3-ui-0.1.0-2e087cc.tgz",
+    "@sw3/ui": "file:vendor/sw3-ui-0.2.0-b2c609c.tgz",
     "@unovis/react": "^1.8.1",
     "@unovis/ts": "^1.8.1",
     "d3-hierarchy": "^3.1.3",

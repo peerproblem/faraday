@@ -28,5 +28,3 @@ server/.eval/
 # e2e screenshots
 client/e2e/out/
 
-# copied from node_modules after install (client/scripts/copy-map-worker.mjs)
-client/public/vendor/
