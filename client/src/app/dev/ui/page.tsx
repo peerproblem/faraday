@@ -3,18 +3,17 @@ import { fixtureNames, getFixture } from "../../../../e2e/fixtures";
 import { BoardGrid } from "@/components/board-grid";
 import { PageIntro } from "@/components/page-intro";
 import { SectionIntro } from "@/components/section-intro";
-import { ToneBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TextLink } from "@/components/ui/link";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/components/ui/link";
 import { Caption, Text } from "@/components/ui/typography";
 import type { BoardCard } from "@/lib/spec";
-import { StandinDemos } from "./standins";
+import { Demos } from "./demos";
 
 export const dynamic = "force-dynamic";
 
-// Everything Faraday draws that is not a board: the shell pieces and the stand-ins for parts sw3 v1 lacks.
+// Everything Faraday draws that is not a board: the shell pieces and the sw3 v2 parts it relies on.
 // Open it next to the same page on a new sw3 version to see what a migration changed. Never in production.
 export default function UiGallery() {
   if (process.env.NODE_ENV === "production") notFound();
@@ -38,29 +37,24 @@ export default function UiGallery() {
   });
   return (
     <>
-      <PageIntro eyebrow="/dev/ui" title="Interface gallery" lede="Shell pieces and stand-ins, for checking a design system upgrade." />
+      <PageIntro eyebrow="/dev/ui" title="Interface gallery" lede="Shell pieces and sw3 parts, for checking a design system upgrade." />
 
       <SectionIntro title="Board cards" lede="Live, paused and building." />
       <BoardGrid boards={cards} />
 
       <SectionIntro title="Tones and actions" />
-      <Card padding="md">
+      <Card padding="md" className="flex flex-col gap-3">
         <Caption>Badges</Caption>
         <div className="flex flex-wrap gap-2">
-          <ToneBadge tone="neutral">Neutral</ToneBadge>
-          <ToneBadge tone="accent">Accent</ToneBadge>
-          <ToneBadge tone="success" dot>
-            Success
-          </ToneBadge>
-          <ToneBadge tone="warning" dot>
-            Warning (stand-in)
-          </ToneBadge>
-          <ToneBadge tone="danger" dot>
-            Danger
-          </ToneBadge>
-          <ToneBadge tone="neutral" mono>
-            Mono
-          </ToneBadge>
+          <Badge>Neutral</Badge>
+          <Badge variant="accent">Accent</Badge>
+          <Badge variant="success">Success</Badge>
+          <Badge variant="warning">Warning</Badge>
+          <Badge variant="danger">Danger</Badge>
+          <Badge variant="success" pulse>
+            Live
+          </Badge>
+          <Badge mono>Mono</Badge>
         </div>
         <Caption>Buttons</Caption>
         <div className="flex flex-wrap gap-2">
@@ -71,20 +65,22 @@ export default function UiGallery() {
           <Button variant="ghost">Ghost</Button>
           <Button variant="danger">Danger</Button>
         </div>
-        <Caption>Text link (stand-in)</Caption>
+        <Caption>Text link</Caption>
         <Text>
-          A sentence with <TextLink href="/dev/ui">an internal link</TextLink> and{" "}
-          <TextLink href="https://context.dev" external>
+          A sentence with <Link href="/dev/ui">an internal link</Link> and{" "}
+          <Link href="https://context.dev" target="_blank" rel="noreferrer">
             an external one
-          </TextLink>
+          </Link>
           .
         </Text>
-        <Caption>Skeleton (stand-in)</Caption>
-        <Skeleton className="h-16" />
+        <Caption>Card link</Caption>
+        <Card href="/dev/fixtures/flood" padding="sm" variant="muted">
+          <Text size="sm">The flood fixture board</Text>
+        </Card>
       </Card>
 
-      <SectionIntro title="Stand-ins with behaviour" lede="Citation chip, table and empty state." />
-      <StandinDemos />
+      <SectionIntro title="Parts with behaviour" lede="Citation chip, table, tones, nested agent controls, skeleton and empty state." />
+      <Demos />
     </>
   );
 }

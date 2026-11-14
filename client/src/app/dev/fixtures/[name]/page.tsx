@@ -3,6 +3,7 @@ import { fixtureNames, getFixture } from "../../../../../e2e/fixtures";
 import { LiveBoard } from "@/components/board/live-board";
 import { PersonalBoard } from "@/components/personal/personal-board";
 import { Studio } from "@/components/studio";
+import { Caption } from "@/components/ui/typography";
 import { emptyLayout, widgetKeyOf } from "@/lib/spec";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export default async function FixturePage({ params, searchParams }: PageProps<"/
       ) : (
         <LiveBoard initial={fx.board} live={false} />
       )}
-      <p className="mt-6 text-center text-xs text-faint">Fixture boards: {fixtureNames.join(", ")}</p>
+      <Caption className="mt-6 block text-center">Fixture boards: {fixtureNames.join(", ")}</Caption>
     </div>
   );
 }

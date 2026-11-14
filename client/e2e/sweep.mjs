@@ -59,6 +59,9 @@ try {
           .map((el) => `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}.${String(el.className).split(" ").slice(0, 3).join(".")}`);
         return { scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth, wide };
       });
+      // A map whose MapLibre worker did not load stays blank: no canvas, or a canvas with no tiles drawn.
+      const blankMaps = await page.evaluate(() => [...document.querySelectorAll('[data-sw="map"]')].filter((m) => !m.querySelector("canvas")).length);
+      if (blankMaps) errors.push(`${blankMaps} map(s) without a canvas`);
       if (overflow) errors.push(`horizontal overflow ${overflow.scrollWidth} > ${overflow.clientWidth}: ${overflow.wide.join(", ")}`);
       const file = path.join(OUT, `${p.name}-${width}-${scheme}.png`);
       await page.screenshot({ path: file, fullPage: true });
