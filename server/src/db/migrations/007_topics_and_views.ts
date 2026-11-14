@@ -1,4 +1,4 @@
-import type { Migration } from "../migrate";
+import { addColumn, addIndex, type Migration } from "./steps";
 
 // Shared topics (system-owned boards found by the discover job) and personal views (a per-user layout overlay on a
 // topic's baseline board), plus discovery candidates and data requests users leave on a topic.
@@ -8,15 +8,14 @@ export const m007: Migration = {
   up: [
     // origin: 'system' (a shared topic) or 'user' (a board made from a prompt before that feature was removed).
     // topic_state (system only): 'active' | 'archived' | 'merged'. entities: JSON string[] copied from plan.entities.
-    `ALTER TABLE boards
-      ADD COLUMN IF NOT EXISTS origin VARCHAR(8) NOT NULL DEFAULT 'user',
-      ADD COLUMN IF NOT EXISTS topic_state VARCHAR(16) NULL,
-      ADD COLUMN IF NOT EXISTS entities TEXT NULL,
-      ADD COLUMN IF NOT EXISTS location_name VARCHAR(255) NULL,
-      ADD COLUMN IF NOT EXISTS rank_score DOUBLE NULL,
-      ADD COLUMN IF NOT EXISTS merged_into VARCHAR(32) NULL,
-      ADD COLUMN IF NOT EXISTS discovered_at BIGINT NULL`,
-    `ALTER TABLE boards ADD INDEX IF NOT EXISTS boards_topics (origin, deleted_at, topic_state, rank_score)`,
+    addColumn("boards", "origin", "VARCHAR(8) NOT NULL DEFAULT 'user'"),
+    addColumn("boards", "topic_state", "VARCHAR(16) NULL"),
+    addColumn("boards", "entities", "TEXT NULL"),
+    addColumn("boards", "location_name", "VARCHAR(255) NULL"),
+    addColumn("boards", "rank_score", "DOUBLE NULL"),
+    addColumn("boards", "merged_into", "VARCHAR(32) NULL"),
+    addColumn("boards", "discovered_at", "BIGINT NULL"),
+    addIndex("boards", "boards_topics", ["origin", "deleted_at", "topic_state", "rank_score"]),
     // Boards can no longer be made from prompts, so the public boards that exist become shared topics.
     `UPDATE boards SET origin = 'system', topic_state = 'active'
      WHERE deleted_at IS NULL AND visibility = 'public' AND origin = 'user'`,

@@ -1,7 +1,8 @@
 import mariadb from "mariadb";
 import { afterAll, describe, expect, it } from "vitest";
+import { connectionConfig } from "./connect";
 import { createPool } from "./pool";
-import { migrate } from "./migrate";
+import { migrate, runStep } from "./migrate";
 import { m001 } from "./migrations/001_baseline";
 import { migrations } from "./migrations";
 import { useTestDb } from "../test/db";
@@ -12,13 +13,7 @@ const base = process.env.TEST_DATABASE_URL;
 const prodLike = "faraday_test_migrations_prod";
 
 async function admin() {
-  const u = new URL(base!);
-  return mariadb.createConnection({
-    host: u.hostname,
-    port: Number(u.port || 3306),
-    user: decodeURIComponent(u.username),
-    password: decodeURIComponent(u.password),
-  });
+  return mariadb.createConnection(connectionConfig(base!, { database: null }));
 }
 
 const v1Spec = {
@@ -54,7 +49,7 @@ describe.skipIf(!enabled)("migrations", () => {
     await c.query(`DROP DATABASE IF EXISTS \`${prodLike}\``);
     await c.query(`CREATE DATABASE \`${prodLike}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
     await c.query(`USE \`${prodLike}\``);
-    for (const sql of m001.up) await c.query(sql);
+    for (const step of m001.up) await runStep(c, step);
     const now = Date.now();
     await c.query(
       `INSERT INTO boards (id, slug, owner_id, prompt, title, status, plan, spec, version, metrics, last_polled_at, created_at, updated_at)

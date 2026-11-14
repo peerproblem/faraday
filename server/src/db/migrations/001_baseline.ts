@@ -1,7 +1,8 @@
-import type { Migration } from "../migrate";
+import type { Migration } from "./steps";
 
 // The schema that is live in production at commit 01406eb. Do not change.
-export const m001: Migration = {
+// Typed with satisfies so up stays string[] (migrations.test.ts runs these statements directly).
+export const m001 = {
   id: 1,
   name: "baseline",
   up: [
@@ -75,4 +76,4 @@ export const m001: Migration = {
       CONSTRAINT messages_board FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
     )`,
   ],
-};
+} satisfies Migration;

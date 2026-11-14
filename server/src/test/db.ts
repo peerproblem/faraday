@@ -1,10 +1,11 @@
 import mariadb from "mariadb";
 import { afterAll, beforeAll } from "vitest";
+import { connectionConfig } from "../db/connect";
 import { closePool, pool } from "../db/pool";
 
 /**
- * Gives a test file its own empty, migrated database on the VPS (through the SSH tunnel on
- * 127.0.0.1:3307). `name` must be unique per test file, e.g. "repo_boards".
+ * Gives a test file its own empty, migrated database on the Aiven MySQL service (TEST_DATABASE_URL,
+ * TLS with DATABASE_CA). `name` must be unique per test file, e.g. "repo_boards".
  * Skips the suite when TEST_DATABASE_URL is not set.
  */
 export function useTestDb(name: string) {
@@ -14,12 +15,7 @@ export function useTestDb(name: string) {
   beforeAll(async () => {
     if (!base) return;
     const u = new URL(base);
-    const admin = await mariadb.createConnection({
-      host: u.hostname,
-      port: Number(u.port || 3306),
-      user: decodeURIComponent(u.username),
-      password: decodeURIComponent(u.password),
-    });
+    const admin = await mariadb.createConnection(connectionConfig(base, { database: null }));
     await admin.query(`DROP DATABASE IF EXISTS \`${dbName}\``);
     await admin.query(`CREATE DATABASE \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
     await admin.end();

@@ -1,4 +1,4 @@
-import type { Migration } from "../migrate";
+import type { Migration } from "./steps";
 
 // Job queue, run checkpoints and worker heartbeats (guide P2-1, P2-2, P6-5).
 export const m002: Migration = {

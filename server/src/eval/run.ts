@@ -8,13 +8,14 @@
 //   npm run eval -- --replay              Context.dev from cassettes only (LLM calls stay live)
 //   npm run eval -- --keep                keep the test databases for inspection
 //
-// Needs TEST_DATABASE_URL (the SSH tunnel to the VPS test DB user). Writes server/.eval/results-<ts>.json and prints
+// Needs TEST_DATABASE_URL (the Aiven MySQL service, see README). Writes server/.eval/results-<ts>.json and prints
 // the comparison against server/.eval/baseline.json.
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import mariadb from "mariadb";
+import { connectionConfig } from "../db/connect";
 import { fixtures, type Fixture } from "./fixtures";
 import { compare, EVAL_DIR, loadBaseline, type FixtureResult, type ResultsFile } from "./metrics";
 
@@ -39,12 +40,7 @@ function testDbUrl(dbName: string) {
 
 async function adminQuery(sql: string) {
   const { base } = testDbUrl("x");
-  const c = await mariadb.createConnection({
-    host: base.hostname,
-    port: Number(base.port || 3306),
-    user: decodeURIComponent(base.username),
-    password: decodeURIComponent(base.password),
-  });
+  const c = await mariadb.createConnection(connectionConfig(base.toString(), { database: null }));
   try {
     await c.query(sql);
   } finally {

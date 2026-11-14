@@ -1,4 +1,4 @@
-import type { Migration } from "../migrate";
+import { addColumn, addIndex, type Migration } from "./steps";
 
 // Fact store, source texts, board versions, geocode cache, source triage columns (guide P3-1, P3-8).
 export const m003: Migration = {
@@ -50,11 +50,10 @@ export const m003: Migration = {
       display_name TEXT NULL,
       fetched_at BIGINT NOT NULL
     )`,
-    `ALTER TABLE sources
-      ADD COLUMN IF NOT EXISTS relevance FLOAT NULL,
-      ADD COLUMN IF NOT EXISTS source_type VARCHAR(16) NULL,
-      ADD COLUMN IF NOT EXISTS url_hash CHAR(64) NULL,
-      ADD COLUMN IF NOT EXISTS extracted_at BIGINT NULL`,
+    addColumn("sources", "relevance", "FLOAT NULL"),
+    addColumn("sources", "source_type", "VARCHAR(16) NULL"),
+    addColumn("sources", "url_hash", "CHAR(64) NULL"),
+    addColumn("sources", "extracted_at", "BIGINT NULL"),
     `UPDATE sources SET url_hash = SHA2(SUBSTRING_INDEX(url, '#', 1), 256) WHERE url_hash IS NULL`,
     // v1 deduped by url, but drop any duplicate (keep the lowest id) so the unique key can be added.
     `UPDATE sources s JOIN (
@@ -62,6 +61,6 @@ export const m003: Migration = {
        FROM sources GROUP BY board_id, url_hash HAVING COUNT(*) > 1
      ) d ON d.board_id = s.board_id AND d.url_hash = s.url_hash AND CAST(SUBSTRING(s.id, 2) AS UNSIGNED) <> d.keep_n
      SET s.url_hash = SHA2(CONCAT(s.url, '#dup-', s.id), 256), s.discarded = 1`,
-    `ALTER TABLE sources ADD UNIQUE INDEX IF NOT EXISTS sources_url (board_id, url_hash)`,
+    addIndex("sources", "sources_url", ["board_id", "url_hash"], { unique: true }),
   ],
 };

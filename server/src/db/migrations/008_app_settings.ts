@@ -1,4 +1,4 @@
-import type { Migration } from "../migrate";
+import type { Migration } from "./steps";
 
 // Runtime settings an admin changes from /admin. discover_enabled starts off: only topics an admin registers show up.
 export const m008: Migration = {

@@ -1,4 +1,5 @@
 import mariadb, { type Pool, type PoolConnection } from "mariadb";
+import { connectionConfig } from "./connect";
 import { migrate } from "./migrate";
 
 declare global {
@@ -13,19 +14,14 @@ export type Exec = {
 };
 
 export function createPool(databaseUrl = process.env.DATABASE_URL): Pool {
-  if (!databaseUrl) throw new Error("DATABASE_URL is not set (mariadb://user:password@host:3306/database)");
+  if (!databaseUrl) throw new Error("DATABASE_URL is not set (mysql://user:password@host:port/database?ssl-mode=REQUIRED)");
   const u = new URL(databaseUrl);
   return mariadb.createPool({
-    host: u.hostname,
-    port: Number(u.port || 3306),
-    user: decodeURIComponent(u.username),
-    password: decodeURIComponent(u.password),
-    database: u.pathname.replace(/^\//, ""),
+    ...connectionConfig(databaseUrl),
     connectionLimit: Number(u.searchParams.get("connectionLimit") ?? 10),
     bigIntAsNumber: true,
     insertIdAsNumber: true,
     decimalAsNumber: true,
-    timezone: "Z",
   });
 }
 

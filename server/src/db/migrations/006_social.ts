@@ -1,4 +1,4 @@
-import type { Migration } from "../migrate";
+import type { Migration } from "./steps";
 
 export const m006: Migration = {
   id: 6,
