@@ -3,6 +3,8 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 // A hex color like #ef4444 (3, 4, 6 or 8 digits) at the start of a string or after a space, "[", "(", ":" or ",".
+const VIEWPORT = String.raw`/(^|\s)(sm|md|lg|xl|2xl):/`;
+const viewportMessage = "Use container queries (@md: @4xl: ...) or auto-fill grids here. Viewport breakpoints break when the board sits in a narrow panel.";
 const HEX = String.raw`/(^|[\s\[(:,])#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})($|[^0-9a-zA-Z_-])/`;
 const hexMessage = "Use a design system colour (bg-background, text-accent, var(--sw-danger)...) instead of a hex colour. Colours come from @sw3/ui.";
 
@@ -18,6 +20,21 @@ const eslintConfig = defineConfig([
         { selector: `Literal[value=${HEX}]`, message: hexMessage },
         { selector: `TemplateElement[value.raw=${HEX}]`, message: hexMessage },
         { selector: `JSXText[value=${HEX}]`, message: hexMessage },
+      ],
+    },
+  },
+  {
+    // A board renders at any width (full page, studio panel, phone), so its layout must follow its own container.
+    // Viewport breakpoints (sm: md: lg: xl:) squeezed three status cards into a 450px panel on a wide screen.
+    files: ["src/components/widgets/**/*.tsx", "src/components/board/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: `Literal[value=${HEX}]`, message: hexMessage },
+        { selector: `TemplateElement[value.raw=${HEX}]`, message: hexMessage },
+        { selector: `JSXText[value=${HEX}]`, message: hexMessage },
+        { selector: `Literal[value=${VIEWPORT}]`, message: viewportMessage },
+        { selector: `TemplateElement[value.raw=${VIEWPORT}]`, message: viewportMessage },
       ],
     },
   },

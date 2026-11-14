@@ -33,7 +33,7 @@ export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
             {shown.map((s) => (
               <li key={s.id} className="flex min-w-0 gap-2 text-sm">
                 <span className="w-9 shrink-0 font-mono text-xs leading-5 text-muted-foreground">{s.id}</span>
-                <span className="hidden w-20 shrink-0 text-muted-foreground sm:inline">{s.sourceType ?? s.kind}</span>
+                <span className="hidden w-20 shrink-0 text-muted-foreground @md:inline">{s.sourceType ?? s.kind}</span>
                 <TextLink href={s.url} external className="min-w-0 truncate text-subtle">
                   {s.publisher ? `${s.publisher}: ` : ""}
                   {s.title ?? s.url}

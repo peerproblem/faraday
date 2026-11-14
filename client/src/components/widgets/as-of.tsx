@@ -9,7 +9,7 @@ import { isStale } from "@/lib/time";
 export function AsOf({ t, tier, prefix = "as of" }: { t: string | null | undefined; tier: string; prefix?: string }) {
   if (!t) return null;
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
       <Text as="span" size="sm" tone="muted">
         {prefix} <Ago t={t} />
       </Text>

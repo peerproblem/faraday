@@ -23,17 +23,19 @@ export function StatusGridWidget({ data, sources, tier, building }: WidgetProps<
       <Text size="sm" tone="muted">
         {counts.map(([s, n]) => `${n} ${stateLabel[s].toLowerCase()}`).join(", ")}
       </Text>
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-3">
         {sorted.map((x) => (
           <li key={x.id} className="min-w-0">
             <Card variant="muted" padding="sm" className="h-full gap-2">
-              <div className="flex items-center gap-2">
-                <Text as="span" className="min-w-0 flex-1 truncate font-medium">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <Text as="span" className="min-w-0 flex-1 basis-32 font-medium [overflow-wrap:anywhere]">
                   {x.name}
                 </Text>
-                <ToneBadge tone={stateTone[x.state] ?? "neutral"} dot>
-                  {stateLabel[x.state] ?? x.state}
-                </ToneBadge>
+                <span className="shrink-0">
+                  <ToneBadge tone={stateTone[x.state] ?? "neutral"} dot>
+                    {stateLabel[x.state] ?? x.state}
+                  </ToneBadge>
+                </span>
               </div>
               {x.note ? (
                 <Text size="sm" tone="subtle">

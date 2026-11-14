@@ -17,14 +17,14 @@ export function ChangelogWidget({ events }: WidgetProps<"changelog">) {
   return (
     <ul className="grid gap-3">
       {changes.map((e) => (
-        <li key={e.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:flex-nowrap">
+        <li key={e.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 @md:flex-nowrap">
           <Text as="span" size="sm" tone="muted" className="w-16 shrink-0 font-mono text-xs">
             <Ago t={e.ts} />
           </Text>
           <Badge mono className="shrink-0">
             {e.kind}
           </Badge>
-          <Text as="span" size="sm" className="min-w-0 basis-full sm:basis-auto">
+          <Text as="span" size="sm" className="min-w-0 basis-full @md:basis-auto">
             {e.message}
           </Text>
         </li>

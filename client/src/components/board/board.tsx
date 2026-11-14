@@ -189,7 +189,7 @@ export function Board(props: BoardProps) {
             {!building ? <span>{tierLabel[tier]}</span> : null}
           </Text>
           {onRefresh && status === "live" && tier !== "paused" ? (
-            <div className="sm:ml-auto">
+            <div className="@2xl:ml-auto">
               <Tooltip content="Searches the news and runs the monitors now" type="description">
                 <Button variant="outline" size="sm" loading={refreshing} onClick={() => void refresh()}>
                   Check the web now
@@ -202,7 +202,7 @@ export function Board(props: BoardProps) {
       </header>
 
       {widgets.length ? (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2">
           {widgets.map((w) => {
             const Comp = widgetComponent(w.type)!;
             const d = data?.widgets[w.id];
@@ -223,8 +223,8 @@ export function Board(props: BoardProps) {
           })}
         </div>
       ) : building ? (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Skeleton className="h-40 lg:col-span-2" />
+        <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2">
+          <Skeleton className="h-40 @4xl:col-span-2" />
           <Skeleton className="h-56" />
           <Skeleton className="h-56" />
         </div>

@@ -45,7 +45,7 @@ export function WidgetFrame({
   children: ReactNode;
 }) {
   return (
-    <section aria-labelledby={`${id}-title`} data-widget={id} className={`min-w-0 ${span === "full" ? "lg:col-span-2" : ""}`}>
+    <section aria-labelledby={`${id}-title`} data-widget={id} className={`@container min-w-0 ${span === "full" ? "@4xl:col-span-2" : ""}`}>
       <Card padding="md" className="h-full">
         <h2 id={`${id}-title`} className="m-0 flex">
           <Caption>{title}</Caption>

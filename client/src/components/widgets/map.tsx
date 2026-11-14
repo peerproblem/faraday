@@ -42,7 +42,7 @@ export function MapWidget({ data, sources, tier, building }: WidgetProps<"map">)
     <div className="flex flex-col gap-4">
       <PointMap points={points.map((p) => ({ id: p.id, name: p.name, lat: p.lat, lon: p.lon, emphasis: emphasis[p.kind] ?? "default" }))} center={center} />
       {points.length ? (
-        <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2" aria-label="Places on the map">
+        <ul className="grid gap-x-6 gap-y-2 @md:grid-cols-2" aria-label="Places on the map">
           {points.map((p) => (
             <li key={p.id} className="flex min-w-0 items-start gap-2.5">
               <span aria-hidden="true" className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${marker[emphasis[p.kind] ?? "default"]}`} />
