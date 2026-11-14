@@ -63,7 +63,7 @@ describe("board v2", () => {
     await user.click(within(t).getByRole("button", { name: "Next" }));
     expect(within(t).getAllByRole("row")).toHaveLength(5);
     await user.click(within(t).getByRole("button", { name: "Previous" }));
-    await user.click(within(t).getByRole("button", { name: "Sort Road closures by Road" }));
+    await user.click(within(t).getByRole("button", { name: "Road" }));
     const first = within(t).getAllByRole("row")[1];
     expect(within(first).getByText("A-7")).toBeTruthy();
     expect(within(t).getByRole("columnheader", { name: /Road/ }).getAttribute("aria-sort")).toBe("ascending");
@@ -75,12 +75,12 @@ describe("board v2", () => {
     expect(within(t).getByRole("link", { name: "lasprovincias.es" })).toBeTruthy();
   });
 
-  test("the timeline filter shows only major events", async () => {
+  test("the timeline filter shows only high-importance events", async () => {
     const user = userEvent.setup();
     render(<LiveBoard initial={board("flood")} live={false} />);
     const tl = section("Timeline");
     expect(within(tl).getAllByRole("listitem")).toHaveLength(4);
-    await user.click(within(tl).getByRole("radio", { name: "Major only" }));
+    await user.click(within(tl).getByRole("radio", { name: "High importance" }));
     expect(within(tl).getAllByRole("listitem")).toHaveLength(2);
   });
 

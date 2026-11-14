@@ -1,6 +1,7 @@
 "use client";
 
-import { ToneBadge, type Tone } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/typography";
 import { Waterfall, type WaterfallSpan } from "@/components/ui/waterfall";
 import type { RunView } from "@/lib/spec";
@@ -27,7 +28,7 @@ const NODE_LABEL: Record<string, string> = {
   save: "Save",
 };
 
-const statusTone: Record<string, Tone> = { done: "success", running: "accent", failed: "danger", skipped: "neutral" };
+const statusTone: Record<string, BadgeVariant> = { done: "success", running: "accent", failed: "danger", skipped: "neutral" };
 
 /** Bars are coloured by what happened to the step, from the chart palette: ink, blue, red, grey. */
 const KINDS = { done: 2, running: 1, failed: 6, skipped: 8 };
@@ -54,9 +55,7 @@ const secs = (ms: number | null) => (ms === null ? "…" : ms < 1000 ? `${ms}ms`
 export function RunWaterfall({ view }: { view: RunView | null }) {
   if (!view?.run) {
     return (
-      <Text size="sm" tone="muted">
-        The pipeline appears here once the first run starts.
-      </Text>
+      <EmptyState title="No runs yet" description="The pipeline appears here once the first run starts." />
     );
   }
   const rows = runRows(view);
@@ -73,9 +72,9 @@ export function RunWaterfall({ view }: { view: RunView | null }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <ToneBadge tone={statusTone[view.run.status] ?? "neutral"} mono>
+        <Badge variant={statusTone[view.run.status] ?? "neutral"} pulse={view.run.status === "running"} mono>
           {view.run.graph} {view.run.status}
-        </ToneBadge>
+        </Badge>
         <Text as="div" size="sm" tone="muted" className="flex flex-wrap gap-x-3">
           <span>{secs(t.ms)}</span>
           <span>{t.llmCalls} model calls</span>

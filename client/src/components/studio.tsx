@@ -20,12 +20,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
-import { TextLink } from "@/components/ui/link";
+import { Link } from "@/components/ui/link";
 import { Resizable, ResizableHandle, ResizablePanel } from "@/components/ui/resizable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Caption, Text } from "@/components/ui/typography";
+import { Caption, Heading, Text } from "@/components/ui/typography";
+import { Timeline } from "@/components/ui/timeline";
+import { EmptyState } from "@/components/ui/skeleton";
 import { api, boardUrl } from "@/lib/config";
 import type { BoardTier, BoardView, RunView, Source, Visibility } from "@/lib/spec";
 import { RunWaterfall } from "./studio-run";
@@ -121,12 +123,12 @@ export function Studio({
     <aside className="flex min-w-0 flex-col gap-4">
       <Card padding="md">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="m-0 flex">
-            <Caption>Pipeline</Caption>
-          </h2>
+          <Heading as="h2" size="sm">
+            Pipeline
+          </Heading>
           {board.status === "live" ? (
             <Text as="span" size="sm">
-              <TextLink href={boardUrl(board.slug)}>Open public board</TextLink>
+              <Link href={boardUrl(board.slug)}>Open public board</Link>
             </Text>
           ) : null}
         </div>
@@ -145,27 +147,24 @@ export function Studio({
             <ProgramPanel board={board} canEdit={canEdit} building={building} />
           </TabsPanel>
           <TabsPanel value="plan">
-            {plan ? (
-              <PlanPanel board={board} />
-            ) : (
-              <Text size="sm" tone="muted">
-                The plan appears once the topic is planned.
-              </Text>
-            )}
+            {plan ? <PlanPanel board={board} /> : <EmptyState title="No plan yet" description="The plan appears once the topic is planned." />}
           </TabsPanel>
           <TabsPanel value="activity">
-            <ul className="grid gap-2">
-              {board.events.map((e) => (
-                <li key={e.id} className="flex gap-3">
-                  <Text as="span" size="sm" tone="muted" className="w-16 shrink-0 font-mono text-xs leading-5">
-                    <Ago t={e.ts} />
-                  </Text>
-                  <Text as="span" size="sm" tone={e.kind === "update" || e.kind === "error" ? "default" : "subtle"} className={e.kind === "error" ? "text-danger" : undefined}>
-                    {e.message}
-                  </Text>
-                </li>
-              ))}
-            </ul>
+            {board.events.length ? (
+              <Timeline
+                aria-label="Board activity"
+                size="sm"
+                items={board.events.map((e) => ({
+                  value: String(e.id),
+                  title: e.message,
+                  time: <Ago t={e.ts} />,
+                  dateTime: new Date(e.ts).toISOString(),
+                  importance: e.kind === "error" ? "high" : "normal",
+                }))}
+              />
+            ) : (
+              <EmptyState title="No activity yet" description="Runs, updates and edits are listed here as they happen." />
+            )}
           </TabsPanel>
           {canEdit ? (
             <TabsPanel value="manage">
@@ -222,12 +221,12 @@ export function Studio({
 
 function PanelSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className="m-0 flex">
-        <Caption>{title}</Caption>
-      </h3>
+    <section className="flex flex-col gap-2">
+      <Heading as="h3" size="sm">
+        {title}
+      </Heading>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -275,7 +274,14 @@ function ProgramPanel({ board, canEdit, building }: { board: BoardView; canEdit:
           <Field label="Edit the program" error={error ?? undefined}>
             <Textarea value={instruction} onValueChange={setInstruction} minRows={2} maxRows={8} placeholder="Add a table of road closures. Focus on the north of the city." />
           </Field>
-          <Button type="submit" variant="accent" fullWidth loading={sending} disabled={instruction.trim().length < 3 || building || board.specVersion < 2}>
+          <Button
+            type="submit"
+            variant="accent"
+            fullWidth
+            loading={sending}
+            disabled={instruction.trim().length < 3 || building || board.specVersion < 2}
+            data-sw-confirm=""
+          >
             Recompile the board
           </Button>
         </form>
@@ -294,8 +300,10 @@ function PlanList({ title, items }: { title: string; items?: string[] }) {
     <PanelSection title={title}>
       <ul className="grid gap-1.5">
         {items.map((q, i) => (
-          <li key={`${i}-${q}`} className="font-mono text-xs text-subtle">
-            {q}
+          <li key={`${i}-${q}`}>
+            <Text size="sm" tone="subtle" className="font-mono">
+              {q}
+            </Text>
           </li>
         ))}
       </ul>
@@ -321,7 +329,9 @@ function PlanPanel({ board }: { board: BoardView }) {
                   ({m.unit})
                 </Text>
               ) : null}{" "}
-              <span className="font-mono text-xs text-muted-foreground">{m.key}</span>
+              <Text as="span" size="sm" tone="muted" className="font-mono">
+                {m.key}
+              </Text>
             </li>
           ))}
         </ul>
@@ -354,7 +364,9 @@ function PlanPanel({ board }: { board: BoardView }) {
       <PlanList title="News queries" items={plan.newsQueries} />
       <PlanList title="Web queries" items={plan.webQueries} />
       <PanelSection title="Search monitor (every 10 min)">
-        <p className="m-0 font-mono text-xs text-subtle">{plan.monitor.query}</p>
+        <Text size="sm" tone="subtle" className="font-mono">
+          {plan.monitor.query}
+        </Text>
         <Text size="sm" tone="muted">
           {plan.monitor.instructions}
         </Text>
@@ -438,7 +450,7 @@ function ManagePanel({ board, onDeleted }: { board: BoardView; onDeleted: () => 
       <PanelSection title="Delete">
         <div>
           <AlertDialog>
-            <AlertDialogTrigger variant="danger" size="sm">
+            <AlertDialogTrigger variant="danger" size="sm" data-sw-confirm="">
               Delete board
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -450,7 +462,7 @@ function ManagePanel({ board, onDeleted }: { board: BoardView; onDeleted: () => 
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Keep it</AlertDialogCancel>
-                <AlertDialogAction variant="danger" onClick={() => remove()}>
+                <AlertDialogAction variant="danger" onClick={() => remove()} data-sw-confirm="">
                   Delete forever
                 </AlertDialogAction>
               </AlertDialogFooter>

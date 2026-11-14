@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LiveBoard } from "@/components/board/live-board";
 import { AddToDashboard } from "@/components/personal/add-to-dashboard";
+import { Link } from "@/components/ui/link";
+import { Text } from "@/components/ui/typography";
 import { boardSlugFromHost, boardUrl, DOMAIN, SITE_URL } from "@/lib/config";
 import { getBoardBySlug, getMyView } from "@/lib/engine";
 
@@ -38,12 +39,10 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
   return (
     <div className="pt-6">
       <LiveBoard initial={board} actions={actions} />
-      <p className="mt-8 text-center text-xs text-faint">
+      <Text size="sm" tone="muted" className="mt-8 text-center">
         A shared Faraday board, kept current from the live web. Every figure links to its source.{" "}
-        <Link href={`${SITE_URL}/topics`} className="underline">
-          More topics
-        </Link>
-      </p>
+        <Link href={`${SITE_URL}/topics`}>More topics</Link>
+      </Text>
     </div>
   );
 }

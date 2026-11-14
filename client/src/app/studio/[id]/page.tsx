@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { PageIntro } from "@/components/page-intro";
 import { Studio } from "@/components/studio";
-import { TextLink } from "@/components/ui/link";
+import { Link } from "@/components/ui/link";
 import { getAdminSession, getBoard, getLatestRun } from "@/lib/engine";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export default async function StudioPage({ params }: PageProps<"/studio/[id]">) 
         title="Admins only"
         lede={
           <>
-            The studio is where Faraday&apos;s admins run the shared topics. <TextLink href="/admin">Sign in as admin</TextLink>
+            The studio is where Faraday&apos;s admins run the shared topics. <Link href="/admin">Sign in as admin</Link>
           </>
         }
       />

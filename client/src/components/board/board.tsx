@@ -2,14 +2,15 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
-import { ToneBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Meter } from "@/components/ui/meter";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Caption, Display, Text } from "@/components/ui/typography";
+import { Separator } from "@/components/ui/separator";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { SourceChips } from "@/components/widgets/source-chips";
 import { WidgetFrame } from "@/components/widgets/widget-frame";
@@ -134,15 +135,14 @@ export function Board(props: BoardProps) {
       <header>
         <Card padding="lg" radius="xl" className="gap-5">
         <div className="flex flex-wrap items-center gap-2">
-          <ToneBadge tone={building ? "accent" : live ? "success" : "neutral"}>
-            {live || building ? <span aria-hidden="true" className="fd-live-dot" /> : null}
+          <Badge variant={building ? "accent" : live ? "success" : connected ? "neutral" : "warning"} pulse={live || building}>
             {building ? "Building" : tier === "paused" ? "Paused" : connected ? "Live" : "Offline"}
-          </ToneBadge>
-          {header?.status ? <ToneBadge tone="neutral">{situationLabel[header.status] ?? header.status}</ToneBadge> : null}
+          </Badge>
+          {header?.status ? <Badge variant="outline">{situationLabel[header.status] ?? header.status}</Badge> : null}
           {header?.crisisType ? (
-            <ToneBadge tone="neutral" mono>
+            <Badge variant="outline" mono>
               {header.crisisType}
-            </ToneBadge>
+            </Badge>
           ) : null}
         </div>
 
@@ -151,7 +151,10 @@ export function Board(props: BoardProps) {
             {title}
           </Display>
         ) : (
-          <Skeleton className="h-12 w-2/3" />
+          <Display as="h1" size="md">
+            <span className="sr-only">Live board</span>
+            <Skeleton inline width="12ch" />
+          </Display>
         )}
         {header?.subtitle && !compact ? <Text tone="muted">{header.subtitle}</Text> : null}
 
@@ -161,7 +164,9 @@ export function Board(props: BoardProps) {
           </Text>
         ) : building ? (
           <>
-            <Skeleton className="h-6 w-full max-w-3xl" />
+            <Text size="lg" tone="subtle" className="max-w-4xl" aria-hidden="true">
+              <Skeleton inline width="min(100%, 48ch)" />
+            </Text>
             <Text size="sm" tone="muted" role="status">
               {props.stage ?? stageText[status] ?? "Working"}
               {status === "composing" ? `, ${sources.length} sources so far. Sections appear as they are filled.` : "…"}
@@ -171,7 +176,8 @@ export function Board(props: BoardProps) {
 
         {props.actions ? <div className="flex flex-wrap items-center gap-2">{props.actions}</div> : null}
 
-        <div className="flex flex-wrap items-end gap-x-8 gap-y-4 border-t border-hairline pt-5">
+        <Separator />
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
           {typeof header?.severity === "number" ? (
             <div className="w-56 max-w-full">
               <Meter
@@ -255,14 +261,18 @@ export function Board(props: BoardProps) {
           })}
         </div>
       ) : building ? (
-        <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2">
-          <Skeleton className="h-40 @4xl:col-span-2" />
-          <Skeleton className="h-56" />
-          <Skeleton className="h-56" />
+        <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2" aria-busy="true">
+          <Skeleton height={160} radius="lg" className="@4xl:col-span-2" />
+          <Skeleton height={224} radius="lg" />
+          <Skeleton height={224} radius="lg" />
         </div>
       ) : status === "error" ? (
         <Card padding="md" role="alert">
-          <Text className="text-danger">The board could not be built. {events.find((e) => e.kind === "error")?.message ?? ""}</Text>
+          <EmptyState
+            title="The board could not be built"
+            description={events.find((e) => e.kind === "error")?.message ?? "The pipeline stopped before the board was ready."}
+            headingLevel={2}
+          />
         </Card>
       ) : null}
     </div>
