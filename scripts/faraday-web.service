@@ -1,0 +1,21 @@
+[Unit]
+Description=Faraday web (serves published boards at <slug>.faraday.watch)
+After=network-online.target faraday-engine.service
+Wants=network-online.target
+
+[Service]
+User=faraday
+Group=faraday
+WorkingDirectory=/opt/faraday/app/client
+ExecStart=/usr/bin/npx next start -H 127.0.0.1 -p 3000
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/faraday
+
+[Install]
+WantedBy=multi-user.target
