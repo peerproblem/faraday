@@ -91,8 +91,21 @@ export function createApp(opts: AppOptions = {}) {
   const viewEditsPerUser = createLimiter({ windowMs: 3_600_000, max: VIEW_EDITS_PER_HOUR });
   const viewSavesPerUser = createLimiter({ windowMs: 3_600_000, max: VIEW_SAVES_PER_HOUR });
   const writesPerIp = createLimiter({ windowMs: 60_000, max: 60 });
-  // Failed admin logins per IP. The password is short, so this is the main guard against guessing.
-  const adminLoginFailures = createLimiter({ windowMs: 15 * 60_000, max: 5 });
+  // Failed admin logins per IP. The password is short, so this is the main guard against guessing. A blocked address is
+  // refused before its password is checked, so guessing on past the limit cannot reveal the right one.
+  const LOGIN_WINDOW_MS = 15 * 60_000;
+  const LOGIN_MAX_FAILURES = 5;
+  const loginFailures = new Map<string, number[]>();
+  const recentLoginFailures = (ip: string, now: number) => {
+    const ts = (loginFailures.get(ip) ?? []).filter((t) => now - t < LOGIN_WINDOW_MS);
+    if (ts.length) loginFailures.set(ip, ts);
+    else loginFailures.delete(ip);
+    return ts;
+  };
+  const recordLoginFailure = (ip: string, now: number) => {
+    if (loginFailures.size > 10_000) for (const k of [...loginFailures.keys()]) recentLoginFailures(k, now);
+    loginFailures.set(ip, [...recentLoginFailures(ip, now), now]);
+  };
   const cache = createViewCache(5_000);
   const unsubscribeCache = subscribeAll(({ boardId }) => cache.invalidate(boardId));
 
@@ -179,13 +192,17 @@ export function createApp(opts: AppOptions = {}) {
     return v;
   }
 
-  function sendView(c: Context, v: BoardView | null) {
+  /** The owner, the plan and the edit history are for admins (the studio); everyone else gets the board itself. */
+  async function sendView(c: Context, v: BoardView | null) {
     if (!v) return c.json({ error: "Not found" }, 404);
     const etag = etagFor(v);
     c.header("ETag", etag);
     c.header("Cache-Control", "no-cache");
+    c.header("Vary", "Cookie");
     if (etagMatches(c.req.header("if-none-match"), etag)) return c.body(null, 304);
-    return c.json(v);
+    if (await isAdmin(c)) return c.json(v);
+    const out: BoardView = { ...v, ownerId: null, plan: null, messages: [] };
+    return c.json(out);
   }
 
   const app = new Hono();
@@ -314,6 +331,8 @@ export function createApp(opts: AppOptions = {}) {
   app.get("/api/boards/:id", async (c) => sendView(c, await view(c.req.param("id"))));
 
   app.get("/api/boards/:id/runs/latest", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
     const id = c.req.param("id");
     if (!(await getBoard(id))) return c.json({ error: "Not found" }, 404);
     return c.json(await latestRunView(id));
@@ -333,6 +352,22 @@ export function createApp(opts: AppOptions = {}) {
       let replayedUpTo = 0;
       const queued: StreamMsg[] = [];
       let replaying = true;
+      let ping: ReturnType<typeof setInterval> | undefined = undefined;
+      let off: () => void = () => {};
+      let finish: () => void = () => {};
+      const finished = new Promise<void>((resolve) => (finish = resolve));
+      // Runs once, whenever the viewer goes: also while the replay below is still waiting on the database (Hono does not
+      // call abort listeners registered after the stream was aborted).
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        off();
+        if (ping) clearInterval(ping);
+        sseState.connections -= 1;
+        if (subscriberCount(id) === 0) sseState.touchedAt.delete(id);
+        finish();
+      };
+      stream.onAbort(cleanup);
 
       const write = (msg: StreamMsg) => {
         if (closed) return;
@@ -341,7 +376,8 @@ export function createApp(opts: AppOptions = {}) {
         const out: StreamMsg = msg.type === "sources" ? { ...msg, added: publicSources(msg.added) } : msg;
         chain = chain.then(() => stream.writeSSE({ data: JSON.stringify(out), id })).catch(() => {});
       };
-      const off = subscribe(id, (msg) => (replaying ? queued.push(msg) : write(msg)));
+      off = subscribe(id, (msg) => (replaying ? queued.push(msg) : write(msg)));
+      if (stream.aborted) cleanup();
 
       const touch = () => {
         const now = Date.now();
@@ -362,22 +398,15 @@ export function createApp(opts: AppOptions = {}) {
         }
       }
       replaying = false;
+      if (stream.aborted) cleanup();
+      if (closed) return;
       for (const m of queued.splice(0)) write(m);
 
-      const ping = setInterval(() => {
+      ping = setInterval(() => {
         chain = chain.then(() => stream.write(": ping\n\n")).then(() => undefined).catch(() => {});
         touch();
       }, PING_MS);
-      await new Promise<void>((resolve) =>
-        stream.onAbort(() => {
-          closed = true;
-          off();
-          clearInterval(ping);
-          sseState.connections -= 1;
-          if (subscriberCount(id) === 0) sseState.touchedAt.delete(id);
-          resolve();
-        }),
-      );
+      await finished;
     });
   });
 
@@ -496,14 +525,16 @@ export function createApp(opts: AppOptions = {}) {
 
   app.post("/api/admin/login", async (c) => {
     const ip = clientIp(c);
+    const now = Date.now();
+    const failures = recentLoginFailures(ip, now);
+    if (failures.length >= LOGIN_MAX_FAILURES) {
+      c.header("Retry-After", String(Math.ceil((LOGIN_WINDOW_MS - (now - failures[0])) / 1000)));
+      return c.json({ error: "Too many failed attempts. Try again later." }, 429);
+    }
     const parsed = loginBody.safeParse(await c.req.json().catch(() => null));
     const ok = parsed.success && checkAdminLogin(parsed.data.username, parsed.data.password);
     if (!ok) {
-      const r = adminLoginFailures.hit(ip);
-      if (!r.ok) {
-        c.header("Retry-After", String(Math.ceil(r.retryAfterMs / 1000)));
-        return c.json({ error: "Too many failed attempts. Try again later." }, 429);
-      }
+      recordLoginFailure(ip, now);
       log("warn", "admin login failed", { ip });
       return c.json({ error: "Wrong username or password" }, 401);
     }
@@ -625,6 +656,9 @@ export function createApp(opts: AppOptions = {}) {
     const [row, user] = await Promise.all([getBoard(id), uid(c)]);
     if (!row) return c.json({ error: "Not found" }, 404);
     if (row.status !== "live") return c.json({ error: "The board is still building" }, 409);
+    if (row.tier === "paused" || (row.origin === "system" && row.topicState !== "active")) {
+      return c.json({ error: "Live updates are paused for this board" }, 409);
+    }
     const byIp = refreshPerIp.hit(clientIp(c));
     if (!byIp.ok) {
       c.header("Retry-After", String(Math.ceil(byIp.retryAfterMs / 1000)));
@@ -687,6 +721,9 @@ export function createApp(opts: AppOptions = {}) {
     if (owned instanceof Response) return owned;
     const id = owned.row.id;
     await removeBoardMonitors(id);
+    // Open tabs learn the board is gone before the rows stop answering.
+    await emitEvent(id, "info", "This board was deleted.").catch(() => {});
+    publish(id, { type: "status", status: "error", tier: "paused" });
     await deleteBoard(id);
     cache.invalidate(id);
     log("info", "board deleted", { boardId: id });

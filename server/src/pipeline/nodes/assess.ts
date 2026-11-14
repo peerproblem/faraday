@@ -2,7 +2,7 @@ import { decide } from "../../llm/decide";
 import { THRESHOLDS } from "../../llm/thresholds";
 import type { Usage } from "../../graph/runner";
 import { situationStatuses, type Fact, type FactDiff, type HeaderData, type Plan, type SituationStatus } from "../../spec";
-import { factLine } from "./util";
+import { factLine, newestFacts } from "./util";
 
 export type Assessment = { status: SituationStatus; statusP: Record<string, number>; severity: number; severityP: Record<string, number> };
 
@@ -17,7 +17,7 @@ const SEVERITY = [
 /** Severity 1 to 5 and situation status (guide G5). */
 export async function assess(plan: Plan, facts: Fact[], use: Usage, signal: AbortSignal): Promise<Assessment> {
   const r = await decide(
-    { crisis: plan.title, type: plan.crisisType, place: plan.location?.name ?? null, facts: facts.slice(0, 100).map(factLine) },
+    { crisis: plan.title, type: plan.crisisType, place: plan.location?.name ?? null, facts: newestFacts(facts, 100).map(factLine) },
     {
       severity: { type: "score" as const, instructions: "How severe is this crisis right now, judging only from these facts?", criteria: SEVERITY },
       status: {

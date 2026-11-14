@@ -40,6 +40,8 @@ describe("X recent search", () => {
     expect(url.searchParams.get("max_results")).toBe("10");
     expect(url.searchParams.get("since_id")).toBe("1900000000000000000");
     expect(url.searchParams.get("expansions")).toBe("author_id");
+    expect(url.searchParams.get("tweet.fields")).toBe("author_id,created_at,note_tweet");
+    expect(url.searchParams.has("post.fields")).toBe(false);
   });
   it("records the raw response, then replays without token or network", async () => {
     vi.stubEnv("EVAL_RECORD", "1");
@@ -75,6 +77,13 @@ describe("X recent search", () => {
   it("combines local keywords/hashtags and preserves language filters while excluding retweets", () => {
     expect(xQuery(["Valencia #DANA lang:es", "inundaciones"])).toBe("((Valencia #DANA lang:es) OR (inundaciones)) -is:retweet");
     expect(xQuery(["flood -is:retweet"])).toBe("((flood)) -is:retweet");
+    // Website-only operators fail the whole v2 request with HTTP 400, so they are removed.
+    expect(xQuery(["(huelga general OR huelga vivienda) (Madrid OR Barcelona) -filter:retweets lang:es", "#HuelgaGeneral min_faves:10 since:2026-11-01"]))
+      .toBe("(((huelga general OR huelga vivienda) (Madrid OR Barcelona) lang:es) OR (#HuelgaGeneral)) -is:retweet");
+    expect(xQuery(["filter:media"])).toBeNull();
+    // An operator value never swallows a closing parenthesis, so groups stay balanced.
+    expect(xQuery(["(flood since:2026-11-01)"])).toBe("(((flood))) -is:retweet");
+    expect(xQuery(["(a OR filter:media) lang:es"])).toBe("(((a) lang:es)) -is:retweet");
     expect(xQuery([])).toBeNull();
     expect(xQuery(["x".repeat(513)])).toBeNull();
   });

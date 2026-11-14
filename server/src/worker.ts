@@ -233,6 +233,8 @@ export function startWorker() {
   const workerId = `${hostname()}-${process.pid}`.slice(0, 64);
   const stop = new AbortController();
   const running = new Set<Promise<void>>();
+  // Set at shutdown: slots stop claiming while running jobs get their grace period.
+  let draining = false;
   const pools: Pool[] = [
     { name: "build", kinds: ["build", "edit"], size: Math.max(1, Number(process.env.BUILD_CONCURRENCY ?? 3)) },
     { name: "poll", kinds: ["poll", "discover", "cleanup"], size: Math.max(1, Number(process.env.POLL_CONCURRENCY ?? 4)) },
@@ -245,7 +247,7 @@ export function startWorker() {
     });
 
   async function slot(pool: Pool) {
-    while (!stop.signal.aborted) {
+    while (!stop.signal.aborted && !draining) {
       let job: Job | null = null;
       try {
         job = await claim(workerId, pool.kinds);
@@ -257,6 +259,11 @@ export function startWorker() {
       if (!job) {
         await idle(750 + Math.random() * 500);
         continue;
+      }
+      if (draining) {
+        // Claimed just as shutdown began: hand it back untouched.
+        await release(job.id).catch(() => {});
+        break;
       }
       const p = executeJob(job, stop.signal);
       running.add(p);
@@ -298,9 +305,10 @@ export function startWorker() {
   async function shutdown(sig: string) {
     if (stopping) return;
     stopping = true;
+    draining = true;
     log("info", "worker stopping", { signal: sig, running: running.size });
     for (const t of timers) clearInterval(t);
-    // Stop claiming; give running jobs up to 30s to finish their current steps.
+    // Claiming has stopped (draining); give running jobs up to 30s to finish their current steps.
     const drained = Promise.allSettled([...running]);
     const grace = new Promise((r) => setTimeout(r, Number(process.env.WORKER_GRACE_MS ?? 30_000)));
     await Promise.race([drained, grace]);

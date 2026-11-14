@@ -66,4 +66,20 @@ describe("placeCountry", () => {
     vi.mocked(getCachedGeocode).mockResolvedValue(null);
     expect(await placeCountry("Atlantis", undefined, vi.fn() as never)).toBeNull();
   });
+
+  it("asks again for a miss after a while instead of keeping it until a restart", async () => {
+    vi.useFakeTimers({ now: Date.parse("2026-11-15T00:00:00Z"), toFake: ["Date"] });
+    try {
+      vi.mocked(getCachedGeocode).mockResolvedValue(null);
+      expect(await placeCountry("Kyiv", undefined, vi.fn() as never)).toBeNull();
+      expect(getCachedGeocode).toHaveBeenCalledTimes(1);
+      expect(await placeCountry("Kyiv", undefined, vi.fn() as never)).toBeNull();
+      expect(getCachedGeocode).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(Date.parse("2026-11-15T00:11:00Z"));
+      vi.mocked(getCachedGeocode).mockResolvedValue({ lat: 1, lon: 2, displayName: "Kyiv", countryCode: "UA" });
+      expect(await placeCountry("Kyiv", undefined, vi.fn() as never)).toBe("UA");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

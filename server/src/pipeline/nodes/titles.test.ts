@@ -9,6 +9,7 @@ const { generateText } = await import("ai");
 const { decide } = await import("../../llm/decide");
 const { englishTitles } = await import("./titles");
 const { triage } = await import("./triage");
+const { withLanguageRows } = await import("../graphs/common");
 
 const use = { llm: vi.fn(), context: vi.fn() };
 const signal = new AbortController().signal;
@@ -29,6 +30,14 @@ const src = (id: string, over: Partial<Source> = {}): Source => ({
 beforeEach(() => vi.clearAllMocks());
 
 describe("englishTitles", () => {
+  it("marks sources past the 40-title cap as non-English instead of leaving them without a language", async () => {
+    vi.mocked(generateText).mockResolvedValueOnce({ output: { titles: [] }, usage: {} } as never);
+    const many = Array.from({ length: 45 }, (_, i) => src(`s${i + 1}`, { title: "Huelga general en Madrid" }));
+    const out = await englishTitles(many, use, signal);
+    expect(out.map((t) => t.id).sort()).toEqual(many.map((s) => s.id).sort());
+    expect(out.every((t) => t.lang === "und" && t.titleEn === null)).toBe(true);
+  });
+
   it("returns English titles and drops ids, languages and titles it cannot trust", async () => {
     vi.mocked(generateText).mockResolvedValueOnce({
       output: {
@@ -71,5 +80,13 @@ describe("triage language", () => {
       .mockResolvedValueOnce({ answers: { onTopic: { probability: 0.9 }, type: { choice: "news" }, hasFacts: { probability: 0.5 } }, model: "m", tokensIn: 1 } as never);
     const r = await triage(plan, [src("s1"), src("s2")], use, signal);
     expect(r.rows.map((x) => [x.id, x.english])).toEqual([["s1", 0.1], ["s2", 1]]);
+  });
+});
+
+describe("withLanguageRows", () => {
+  it("gives every kept non-English source a language row", () => {
+    const titles = [{ id: "s1", lang: "es", titleEn: "General strike" }];
+    expect(withLanguageRows([{ id: "s1" }, { id: "s2" }], titles)).toEqual([...titles, { id: "s2", lang: "und", titleEn: null }]);
+    expect(withLanguageRows([], titles)).toEqual(titles);
   });
 });

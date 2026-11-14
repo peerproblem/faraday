@@ -5,13 +5,13 @@ import { fastLlm } from "../../llm/models";
 import { THRESHOLDS } from "../../llm/thresholds";
 import type { Usage } from "../../graph/runner";
 import type { Fact, Plan } from "../../spec";
-import { call, factLine } from "./util";
+import { call, factLine, newestFacts } from "./util";
 
 export type CoverageResult = { answered: Record<string, number>; unanswered: { id: string; text: string }[] };
 
 /** One decision per question (guide G2). */
 export async function checkCoverage(plan: Plan, facts: Fact[], use: Usage, signal: AbortSignal): Promise<CoverageResult> {
-  const lines = facts.slice(0, 80).map(factLine);
+  const lines = newestFacts(facts, 80).map(factLine);
   const answered: Record<string, number> = {};
   await Promise.all(
     plan.questions.map(async (q) => {

@@ -525,6 +525,15 @@ export async function listSources(boardId: string, opts?: { includeDiscarded?: b
   return rows.map(toSource);
 }
 
+function isWebUrl(url: string): boolean {
+  try {
+    const p = new URL(url).protocol;
+    return p === "https:" || p === "http:";
+  } catch {
+    return false;
+  }
+}
+
 /** Dedupes by url_hash (url without fragment). Returns only the newly added sources, ids continue s1, s2... */
 export async function addSources(boardId: string, docs: FoundDoc[]): Promise<Source[]> {
   if (!docs.length) return [];
@@ -543,7 +552,8 @@ export async function addSources(boardId: string, docs: FoundDoc[]): Promise<Sou
     const added: (Source & { hash: string; content: string | null })[] = [];
     for (const doc of docs) {
       const url = urlKey(doc.url ?? "").trim();
-      if (!url) continue;
+      // Sources become links on the board: only http(s) pages, never javascript: or data: URLs.
+      if (!url || !isWebUrl(url)) continue;
       const hash = urlHash(url);
       if (existing.has(hash)) continue;
       existing.add(hash);

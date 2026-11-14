@@ -353,10 +353,17 @@ describe("updateGraph", () => {
     expect(emitted).toContainEqual(expect.objectContaining({ type: "event", event: expect.objectContaining({ kind: "info", message: expect.stringContaining("Stopped watching") }) }));
   });
 
-  it("does not touch monitors on a paused board's manual poll", async () => {
+  it("skips a paused board's manual poll: a paused board does not read the web on request", async () => {
+    vi.mocked(boards.getBoard).mockResolvedValue(board({ tier: "paused", monitorsSyncedAt: null }) as never);
+    const { ctx, steps } = fakeCtx("poll", { reason: "manual" });
+    await updateGraph(ctx);
+    expect(steps).toEqual([]);
+  });
+
+  it("does not touch monitors on a paused board's webhook poll", async () => {
     vi.mocked(boards.getBoard).mockResolvedValue(board({ tier: "paused", monitorsSyncedAt: null }) as never);
     vi.mocked(boards.addSources).mockResolvedValue([]);
-    const { ctx, steps } = fakeCtx("poll", { reason: "manual" });
+    const { ctx, steps } = fakeCtx("poll", { reason: "webhook" });
     await updateGraph(ctx);
     expect(steps).toEqual(["collect"]);
     expect(monitors.ensureBoardMonitors).not.toHaveBeenCalled();

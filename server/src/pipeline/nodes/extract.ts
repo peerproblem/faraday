@@ -138,8 +138,10 @@ export function toExtracted(f: RawFact, plan: Plan): ExtractedFact | null {
       const valueText = str(f.valueText);
       const raw = str(f.key);
       if (!valueText || !raw) return null;
-      const known = plan.metrics.some((m) => m.key === raw);
-      const key = known ? raw : raw.startsWith("new:") ? `new:${slugify(raw.slice(4))}` : `new:${slugify(raw)}`;
+      // The model may write a plan key in another case or with spaces ("Deaths", "people evacuated").
+      const canon = (k: string) => k.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const known = plan.metrics.find((m) => m.key === raw || canon(m.key) === canon(raw))?.key;
+      const key = known ?? (raw.startsWith("new:") ? `new:${slugify(raw.slice(4))}` : `new:${slugify(raw)}`);
       return { ...base, kind, key, payload: { valueText, valueNum: typeof f.valueNum === "number" && Number.isFinite(f.valueNum) ? f.valueNum : null, unit: str(f.unit), scope: str(f.scope) } };
     }
     case "event": {

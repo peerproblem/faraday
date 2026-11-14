@@ -173,6 +173,15 @@ describe("editLayout", () => {
     expect(/[가-힯]/.test(r.reply)).toBe(false);
   });
 
+  it("treats Japanese and Cyrillic replies as non-English too", async () => {
+    const r = await editLayout(input, AbortSignal.timeout(1000), async () => output({ reply: "地図を上に移動しました", unsupported: ["вместимость приютов", "road closures"] }));
+    expect(r.reply).toBe("Updated your dashboard. This topic doesn't track some of what you asked for yet. I left a request.");
+    expect(r.unsupported).toEqual(["road closures"]);
+    expect(r.requests).toEqual(["вместимость приютов", "road closures"]);
+    const accented = await editLayout(input, AbortSignal.timeout(1000), async () => output({ reply: "Moved the café map up." }));
+    expect(accented.reply).toBe("Moved the café map up.");
+  });
+
   it("passes the abort signal to the model", async () => {
     const ac = new AbortController();
     const model = vi.fn(async ({ signal }: { signal: AbortSignal }) => {

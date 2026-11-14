@@ -12,6 +12,7 @@ import {
   reclaimStale,
   release,
 } from "./jobs";
+import { json } from "../db/pool";
 
 const t = useTestDb("runtime_jobs");
 
@@ -52,6 +53,20 @@ describe.skipIf(!t.enabled)("jobs", () => {
     const now = Date.now() + 61_000;
     expect((await claim("w1", ["build"], now))?.id).toBe(later);
     await complete(later);
+  });
+
+  it("keeps a follow-up payload when polls are merged", async () => {
+    const payloadOf = async (id: number) => json<Record<string, unknown>>((await one<{ payload: string | null }>(`SELECT payload FROM jobs WHERE id = ?`, [id]))?.payload ?? null);
+    // A follow-up arriving on a queued scheduled poll takes it over.
+    const a = await board();
+    const first = await enqueue("poll", a, { reason: "schedule" });
+    expect(await enqueue("poll", a, { reason: "followup", newsQueries: ["q1"], webQueries: [] })).toBe(first);
+    expect(await payloadOf(first)).toMatchObject({ reason: "followup", newsQueries: ["q1"] });
+    // A plain poll after it does not wipe the follow-up, even when it is due sooner.
+    expect(await enqueue("poll", a, { reason: "webhook" }, { runAfter: Date.now() - 60_000 })).toBe(first);
+    expect(await payloadOf(first)).toMatchObject({ reason: "followup", newsQueries: ["q1"] });
+    // Later tests claim from the whole queue.
+    await run(`UPDATE jobs SET status = 'done', finished_at = ? WHERE id = ?`, [Date.now(), first]);
   });
 
   it("dedupes queued polls and pulls an earlier one forward", async () => {

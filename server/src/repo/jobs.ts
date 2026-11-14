@@ -48,6 +48,19 @@ const UNLOCKED: ReadonlySet<JobKind> = new Set<JobKind>(["cleanup", "discover"])
 export const BOARD_BUSY_DELAY_MS = 5_000;
 const BACKOFF_BASE_MS = 10_000;
 
+const isFollowup = (p: Record<string, unknown> | null) =>
+  !!p && (p.reason === "followup" || Array.isArray(p.newsQueries) || Array.isArray(p.webQueries));
+
+/**
+ * The payload a reused queued poll ends up with. A follow-up (the build's queries for open questions) is never dropped:
+ * a follow-up arriving on a queued poll takes over its payload, and a later plain poll keeps the queued follow-up's.
+ */
+export function mergePollPayload(existing: Record<string, unknown> | null, incoming: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (isFollowup(incoming)) return { ...(existing ?? {}), ...incoming, reason: "followup" };
+  if (isFollowup(existing)) return existing;
+  return incoming ?? existing;
+}
+
 /** For kind "poll", a queued poll for the same board is reused instead of adding a second one. Returns the job id. */
 export async function enqueue(
   kind: JobKind,
@@ -58,16 +71,20 @@ export async function enqueue(
   const now = Date.now();
   const runAfter = opts?.runAfter ?? now;
   if (kind === "poll") {
-    const existing = await one<{ id: number; run_after: number }>(
-      `SELECT id, run_after FROM jobs WHERE board_id = ? AND kind = 'poll' AND status = 'queued' ORDER BY id LIMIT 1`,
+    const existing = await one<{ id: number; run_after: number; payload: string | null }>(
+      `SELECT id, run_after, payload FROM jobs WHERE board_id = ? AND kind = 'poll' AND status = 'queued' ORDER BY id LIMIT 1`,
       [boardId],
     );
     if (existing) {
+      const merged = mergePollPayload(json<Record<string, unknown>>(existing.payload), payload ?? null);
       // A manual or webhook poll should not wait behind a scheduled one that is due later.
-      if (runAfter < Number(existing.run_after)) {
+      const sooner = runAfter < Number(existing.run_after);
+      const before = existing.payload ?? null;
+      const after = merged ? JSON.stringify(merged) : null;
+      if (sooner || after !== before) {
         await run(`UPDATE jobs SET run_after = ?, payload = ? WHERE id = ? AND status = 'queued'`, [
-          runAfter,
-          payload ? JSON.stringify(payload) : null,
+          sooner ? runAfter : Number(existing.run_after),
+          after,
           existing.id,
         ]);
       }
