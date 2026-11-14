@@ -223,6 +223,12 @@ describe("plan", () => {
 });
 
 describe("triage", () => {
+  it("forces X sources to social even if a model calls the author official", async () => {
+    vi.mocked(decide).mockResolvedValueOnce({ answers: { onTopic: { probability: 0.9 }, type: { choice: "official" }, hasFacts: { probability: 0.8 } }, model: "m", tokensIn: 1 } as never);
+    const result = await triage(plan, [src("sx", { kind: "social" })], use, signal);
+    expect(result.rows[0].sourceType).toBe("social");
+    expect(pickReadTargets([src("sx", { kind: "social", sourceType: "official" })])).toEqual([]);
+  });
   it("keeps on-topic sources, maps the publisher type and records decision usage", async () => {
     vi.mocked(decide)
       .mockResolvedValueOnce({ answers: { onTopic: { type: "boolean", probability: 0.9 }, type: { type: "choice", choice: "official", probabilities: {} }, hasFacts: { type: "boolean", probability: 0.8 } }, backend: "google", model: "gemini-decision-1", ms: 1, tokensIn: 100 } as never)

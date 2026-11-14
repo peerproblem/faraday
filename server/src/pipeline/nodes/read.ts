@@ -8,6 +8,7 @@ import { LIMITS, pool } from "./util";
 export function pickReadTargets(sources: Source[], max = LIMITS.maxScrapes(), alreadyRead: Set<string> = new Set()): Source[] {
   const score = (s: Source) => (s.sourceType === "official" ? 2 : s.kind === "web" ? 1 : 0) + (s.relevance ?? 0);
   return sources
+    .filter((s) => s.kind !== "social")
     .filter((s) => !alreadyRead.has(s.id) && (s.sourceType === "official" || s.kind === "web"))
     .filter((s) => !/\.(pdf|jpg|png|gif|mp4)(\?|$)/i.test(s.url) || s.url.toLowerCase().includes(".pdf"))
     .sort((a, b) => score(b) - score(a))

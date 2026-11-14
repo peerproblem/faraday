@@ -13,7 +13,7 @@ const MIN_RELEVANCE = 0.4;
 export function feedItems(sources: Source[], limit = 15): Source[] {
   const seen = new Set<string>();
   return sources
-    .filter((s) => s.kind !== "web" && (s.relevance === null || s.relevance >= MIN_RELEVANCE))
+    .filter((s) => s.kind !== "web" && s.kind !== "social" && s.sourceType !== "social" && (s.relevance === null || s.relevance >= MIN_RELEVANCE))
     .sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? "") || b.fetchedAt - a.fetchedAt)
     .filter((s) => {
       const key = (s.title ?? s.url).toLowerCase().replace(/\W+/g, " ").trim();

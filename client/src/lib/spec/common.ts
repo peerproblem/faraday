@@ -55,7 +55,7 @@ export type Source = {
   url: string;
   title: string | null;
   publisher: string | null;
-  kind: "news" | "web" | "monitor";
+  kind: "news" | "web" | "monitor" | "social";
   publishedAt: string | null;
   fetchedAt: number;
   snippet: string | null;

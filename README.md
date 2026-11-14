@@ -42,7 +42,7 @@ flowchart LR
 | Step | What happens |
 | :- | :- |
 | **Plan** | An LLM turns the sentence into a plan: crisis type, place, search queries, the questions the board must answer, and what counts as a change. |
-| **Gather** | Context.dev news and web search run in parallel. The best pages are scraped in full. |
+| **Gather** | Context.dev news and web search run in parallel, with optional X recent search for local signals. The best web pages are scraped in full; social posts already contain their text. |
 | **Triage** | Each source is checked against this specific crisis. Off-topic results are dropped. |
 | **Extract** | Facts are pulled out as structured data, each with a verbatim quote from its source. |
 | **Verify** | Plain code checks that every quote really exists in the source text. No quote, no fact. |
@@ -88,6 +88,12 @@ Put your keys in a single `.env` at the root, point `DATABASE_URL` at a MariaDB,
 cd server && npm install && npm run dev   # http://localhost:4000, migrates on start
 cd client && npm install && npm run dev   # http://localhost:3000
 ```
+
+X is optional. Set `X_API_BEARER_TOKEN` in the same root `.env` to enable it for newly planned boards. Existing plans without `socialQueries` continue without X. Background X polling runs only for hot boards.
+
+`X_BOARD_DAILY_READ_LIMIT` defaults to 20 and `X_GLOBAL_DAILY_READ_LIMIT` defaults to 100. Each request reserves 10 reads before calling X, including on errors or empty results; counters reset at midnight UTC. Set either limit to 0 to stop live X reads. Invalid limits also stop reads. Reservations and per-board/query `since_id` cursors persist in MariaDB (migration 006). Queries combine up to two local keyword/hashtag searches, exclude retweets, and request one page of 10 posts without retries or pagination. A cursor advances after source ingestion succeeds; this deliberately samples the newest posts rather than backfilling a busy search.
+
+Social quotes pass the same quote/number checks as other facts, but appear only in **On the ground (unverified)**. Official/news confirmation must be extracted and verified independently before the information enters figures, tables, timelines, maps, status, advisories or summaries. Social reports cannot overwrite trusted facts or supply numbers to the change log. See [implementation and validation](docs/x-social-source.md).
 
 Leave `FARADAY_DOMAIN` empty locally and boards are served at `/b/<slug>`.
 

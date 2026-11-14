@@ -228,3 +228,34 @@ describe("mergeFacts: events", () => {
     expect(r.insert).toHaveLength(1);
   });
 });
+
+describe("social trust isolation", () => {
+  const opts = { sourceTypes: new Map([["s1", "news" as const], ["sx", "social" as const]]) };
+  it("a newer social metric cannot supersede or advance an official/news figure", () => {
+    const cur = fact("metric", "deaths", m(12), { asOf: "2026-11-13T00:00:00Z" });
+    const r = mergeFacts([cur], [staged("metric", "deaths", m(999), { sourceId: "sx", sourceType: "social", asOf: "2026-11-14T00:00:00Z" })], NO_HINTS, opts);
+    expect(r.supersede).toEqual([]);
+    expect(r.addSources).toEqual([]);
+    expect(r.insert[0].sourceIds).toEqual(["sx"]);
+  });
+  it("news confirmation creates an independent fact without inheriting social payload fields", () => {
+    const cur = fact("metric", "deaths", { ...m(12), scope: "unverified scope" }, { sourceIds: ["sx"] });
+    const r = mergeFacts([cur], [staged("metric", "deaths", m(12))], NO_HINTS, opts);
+    expect(r.addSources).toEqual([]);
+    expect(r.insert[0].payload).toEqual(m(12));
+  });
+  it("model event duplicate hints cannot attach a trusted citation to social details", () => {
+    const cur = fact("event", "fire", { title: "Fire", detail: "unconfirmed details", importance: "high" }, { sourceIds: ["sx"] });
+    const r = mergeFacts([cur], [staged("event", "fire", { title: "Fire", detail: "confirmed details", importance: "low" })], { ...NO_HINTS, eventSameAs: { 0: cur.id } }, opts);
+    expect(r.addSources).toEqual([]);
+    expect(r.insert[0].payload).toMatchObject({ detail: "confirmed details" });
+  });
+});
+
+it("does not put unverified social numbers into authoritative change-log diffs", () => {
+  const cur = fact("metric", "deaths", m(12), { sourceIds: ["sx"], asOf: "2026-11-13T00:00:00Z" });
+  const r = mergeFacts([cur], [staged("metric", "deaths", m(999), { sourceId: "sy", sourceType: "social", asOf: "2026-11-14T00:00:00Z" })], NO_HINTS,
+    { sourceTypes: new Map([["sx", "social"]]) });
+  expect(r.diff).toEqual({ added: [], changed: [], superseded: 0 });
+  expect(r.insert[0].valueNum).toBe(999);
+});

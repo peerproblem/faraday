@@ -27,9 +27,11 @@ import {
   type WidgetType,
 } from "../spec";
 import { CONFLICT_WINDOW_MS, dayOf, timeOf } from "./merge";
+import { corroboratedBy, isSocialSource, trustedFacts } from "./trust";
 import { numbersEqual } from "./verify";
 
 const DEFAULT_TITLE: Record<WidgetType, string> = {
+  "on-the-ground": "On the ground (unverified)",
   narrative: "Situation",
   "stat-grid": "Key figures",
   trend: "Trend",
@@ -45,6 +47,7 @@ const DEFAULT_TITLE: Record<WidgetType, string> = {
 };
 
 const DEFAULT_SPAN: Record<WidgetType, "full" | "half"> = {
+  "on-the-ground": "full",
   narrative: "full",
   "stat-grid": "full",
   trend: "half",
@@ -60,7 +63,7 @@ const DEFAULT_SPAN: Record<WidgetType, "full" | "half"> = {
 };
 
 /** Types that appear at most once on a board. table, status-grid and trend are unique per binding. */
-const SINGLE = new Set<WidgetType>(["narrative", "stat-grid", "timeline", "map", "alert-list", "link-list", "feed", "changelog", "sources"]);
+const SINGLE = new Set<WidgetType>(["on-the-ground", "narrative", "stat-grid", "timeline", "map", "alert-list", "link-list", "feed", "changelog", "sources"]);
 const TAIL: WidgetType[] = ["feed", "changelog", "sources"];
 
 type Draft = Omit<Widget, "id">;
@@ -306,7 +309,15 @@ export function assemble(input: {
   now: number;
 }): { spec: BoardSpecV2; data: BoardData } {
   const { plan, prev, overrides } = input;
-  const active = input.facts.filter((f) => f.status === "active" && f.verified);
+  const allActive = input.facts.filter((f) => f.status === "active" && f.verified);
+  const active = trustedFacts(allActive, input.sources);
+  const confirming = active.filter((f) => f.sourceIds.some((id) => input.sources.some((s) =>
+    s.id === id && !isSocialSource(s) && (s.sourceType === "official" || s.sourceType === "news"))));
+  const untrusted = allActive.filter((f) => !active.includes(f) && !corroboratedBy(f, confirming));
+  const socialIds = new Set(input.sources.filter(isSocialSource).map((s) => s.id));
+  const safeCitations = (part: { text: string; sources: string[] }) =>
+    !part.sources.some((id) => socialIds.has(id)) || part.sources.some((id) =>
+      input.sources.some((s) => s.id === id && !isSocialSource(s) && (s.sourceType === "official" || s.sourceType === "news")));
   const of = <K extends Fact["kind"]>(kind: K) => active.filter((f) => f.kind === kind) as unknown as Fact<K>[];
   const ctx: RankCtx = {
     official: new Set(input.sources.filter((s) => s.sourceType === "official").map((s) => s.id)),
@@ -314,11 +325,19 @@ export function assemble(input: {
   };
   const metrics = of("metric");
   const historyFacts = new Map<number, Fact<"metric">>();
-  for (const f of [...input.metricHistory, ...metrics]) historyFacts.set(f.id, f);
+  for (const f of [...trustedFacts(input.metricHistory, input.sources), ...metrics]) historyFacts.set(f.id, f);
   const history = [...historyFacts.values()].sort((a, b) => a.id - b.id);
 
   // Auto trend widgets for metrics with enough points.
   const widgets: Widget[] = input.spec.widgets.map((w) => ({ ...w, metrics: [...w.metrics] }));
+  if (untrusted.length && !widgets.some((w) => w.type === "on-the-ground")) {
+    // Above the feed/changelog/sources tail, not below the source list.
+    const tailAt = widgets.findIndex((w) => TAIL.includes(w.type));
+    widgets.splice(tailAt < 0 ? widgets.length : tailAt, 0,
+      { id: "on-the-ground", type: "on-the-ground", title: DEFAULT_TITLE["on-the-ground"], span: "full", bind: null, metrics: [] });
+  }
+  // The warning is fixed; a plan cannot rename an unverified signal into an authoritative widget.
+  for (const w of widgets) if (w.type === "on-the-ground") w.title = DEFAULT_TITLE["on-the-ground"];
   const trendBound = new Set(widgets.filter((w) => w.type === "trend").map((w) => w.bind));
   const autoTrends: Widget[] = [];
   for (const m of plan.metrics) {
@@ -337,9 +356,11 @@ export function assemble(input: {
 
   const location = overrides.location !== undefined ? overrides.location : (prev?.header.location ?? null);
   const narrativeWidget = widgets.find((w) => w.type === "narrative");
-  const narrative: NarrativeData | null = overrides.narrative
+  let narrative: NarrativeData | null = overrides.narrative
     ? { sentences: overrides.narrative.map((s) => ({ text: s.text, sources: [...s.sources] })) }
     : findPrevNarrative(prev, narrativeWidget?.id);
+
+  if (narrative) narrative = { sentences: narrative.sentences.filter(safeCitations) };
 
   const data: Record<string, WidgetData> = {};
   const hidden: string[] = [];
@@ -350,6 +371,12 @@ export function assemble(input: {
 
   for (const w of widgets) {
     switch (w.type) {
+      case "on-the-ground": {
+        const items = untrusted.filter((f) => f.quote).sort(byAsOfDesc).slice(0, 20)
+          .map((f) => ({ id: `social-${f.id}`, quote: f.quote!, ...cited(f) }));
+        set(w, items.length ? { items } : null);
+        break;
+      }
       case "narrative":
         set(w, narrative && narrative.sentences.length ? narrative : null);
         break;
@@ -483,6 +510,7 @@ export function assemble(input: {
     language: plan.language,
   };
 
+  if (header.headline && !safeCitations(header.headline)) header.headline = null;
   return {
     spec: { version: 2, widgets },
     data: { header, widgets: data, hidden, generatedAt: input.now },

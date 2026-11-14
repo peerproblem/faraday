@@ -54,6 +54,7 @@ type Entry = {
   sourceIds: string[];
   status: "active" | "superseded";
   official: boolean;
+  social: boolean;
   relevance: number;
   /** Larger is newer: existing facts use createdAt order, staged ones come after all of them. */
   order: number;
@@ -158,13 +159,14 @@ export function mergeFacts(current: Fact[], incoming: StagedFact[], hints: Merge
       asOf: f.asOf,
       sourceIds: [...f.sourceIds],
       status: "active",
+      social: f.sourceIds.some((s) => opts.sourceTypes?.get(s) === "social") && !f.sourceIds.some((s) => ["official", "news"].includes(opts.sourceTypes?.get(s) ?? "")),
       official: f.sourceIds.some((s) => opts.sourceTypes?.get(s) === "official"),
       relevance: Math.max(0, ...f.sourceIds.map((s) => opts.relevance?.get(s) ?? 0)),
       order: i,
     };
     entries.push(e);
     existingById.set(f.id, e);
-    originalKeys.add(`${f.kind}:${f.key}`);
+    if (!e.social) originalKeys.add(`${f.kind}:${f.key}`);
   });
 
   const insert: NewFactRow[] = [];
@@ -217,6 +219,7 @@ export function mergeFacts(current: Fact[], incoming: StagedFact[], hints: Merge
       asOf: f.asOf,
       sourceIds: [f.sourceId],
       status,
+      social: f.sourceType === "social",
       official: f.sourceType === "official",
       relevance: f.relevance ?? 0,
       order: sortedCurrent.length + index,
@@ -229,7 +232,7 @@ export function mergeFacts(current: Fact[], incoming: StagedFact[], hints: Merge
     e.status = "superseded";
     if ("id" in e.ref) {
       supersede.push({ id: e.ref.id, by });
-      diff.superseded += 1;
+      if (!e.social) diff.superseded += 1;
     } else {
       const row = insert[e.ref.index];
       row.status = "superseded";
@@ -244,6 +247,7 @@ export function mergeFacts(current: Fact[], incoming: StagedFact[], hints: Merge
     diff.added.push({ kind, key });
   };
   const noteChanged = (kind: FactKind, key: string, from: Entry, toPayload: PayloadMap[FactKind]) => {
+    if (from.social) return; // Unverified signals never become authoritative change-log figures.
     const k = `${kind}:${key}`;
     if (!originalKeys.has(k)) return;
     const to = displayValue(kind, toPayload);
@@ -261,16 +265,18 @@ export function mergeFacts(current: Fact[], incoming: StagedFact[], hints: Merge
     const key = canonicalKey(kind, f.key, hints.keyAliases);
     let payload = f.payload;
 
+    const sameTrust = (e: Entry) => e.social === (f.sourceType === "social");
     if (kind === "event") {
       let target: Entry | undefined;
       const same = hints.eventSameAs[i];
       if (same !== undefined && same >= 0) target = existingById.get(same);
       else if (same !== undefined && same < 0) target = incomingEntry.get(-1 - same);
+      if (target && !sameTrust(target)) target = undefined;
       if (!target) {
         const title = normTitle((f.payload as PayloadMap["event"]).title);
         const day = dayOf(f.asOf);
         target = entries.find((e) => {
-          if (e.kind !== "event" || e.status !== "active") return false;
+          if (e.kind !== "event" || e.status !== "active" || !sameTrust(e)) return false;
           const sameName = e.key === key || normTitle((e.payload as PayloadMap["event"]).title) === title;
           const d = dayOf(e.asOf);
           return sameName && (d === null || day === null || d === day);
@@ -283,14 +289,14 @@ export function mergeFacts(current: Fact[], incoming: StagedFact[], hints: Merge
       }
       const e = stage(f, key, payload, "active", null);
       incomingEntry.set(i, e);
-      if (!originalKeys.has(`event:${key}`)) noteAdded(kind, key);
+      if (f.sourceType !== "social" && !originalKeys.has(`event:${key}`)) noteAdded(kind, key);
       return;
     }
 
-    const actives = entries.filter((e) => e.kind === kind && e.key === key && e.status === "active");
+    const actives = entries.filter((e) => e.kind === kind && e.key === key && e.status === "active" && sameTrust(e));
     if (!actives.length) {
       incomingEntry.set(i, stage(f, key, payload, "active", null));
-      noteAdded(kind, key);
+      if (f.sourceType !== "social") noteAdded(kind, key);
       return;
     }
     const match = actives.find((e) => sameValue(kind, e, { payload, valueNum: f.valueNum }));

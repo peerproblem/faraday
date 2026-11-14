@@ -1,3 +1,4 @@
+import { trustedFacts } from "../trust";
 import type { GraphFn } from "../../graph/runner";
 import {
   ackChanges,
@@ -16,7 +17,7 @@ import { listFacts } from "../../repo/facts";
 import type { FactDiff } from "../../spec";
 import { diffData, type HeaderOverrides } from "../assemble";
 import { assess, materiality, type Assessment, type Materiality } from "../nodes/assess";
-import { dedupeDocs, rotateQueries } from "../nodes/gather";
+import { dedupeDocs, gather, rotateQueries } from "../nodes/gather";
 import { writeNarrative, type Narrative } from "../nodes/narrative";
 import { changeNote } from "../nodes/note";
 import { factLine, POLL_INTERVAL_MS } from "../nodes/util";
@@ -58,7 +59,7 @@ export const updateGraph: GraphFn = async (ctx) => {
     { queries, webQueries, since },
     async (i, use, signal) => {
       const failures: string[] = [];
-      const news = await Promise.all([
+      const newsP = Promise.all([
         ...i.queries.map((q) =>
           searchNews(q, i.since, 10, signal).catch((e) => {
             failures.push(`News poll failed: ${(e as Error).message}`);
@@ -73,13 +74,16 @@ export const updateGraph: GraphFn = async (ctx) => {
         ),
       ]);
       use.context(i.queries.length + i.webQueries.length);
-      const m = await collectMonitorChanges(ctx.boardId, signal);
+      const socialP = gather({ newsQueries: [], webQueries: [], socialQueries: followup ? [] : plan.socialQueries, lookbackDays: plan.lookbackDays }, use, signal,
+        { boardId: ctx.boardId, polling: true, tier: board.tier });
+      const [news, social, m] = await Promise.all([newsP, socialP, collectMonitorChanges(ctx.boardId, signal)]);
+      failures.push(...social.failures);
       use.context(m.calls);
       // Monitor docs carry raw page text only; the judge model's summary goes to the change event, not to sources.
       const filled = await fetchChangeTexts(dedupeDocs(m.changes.flatMap(changeDocs)), signal);
       use.context(filled.calls);
       return {
-        docs: dedupeDocs([...filled.docs, ...news.flat()]),
+        docs: dedupeDocs([...filled.docs, ...news.flat(), ...social.docs]),
         changes: m.changes.map((c) => ({
           id: c.id,
           monitorId: c.monitorId,
@@ -144,33 +148,40 @@ export const updateGraph: GraphFn = async (ctx) => {
   const picked = await extractable(ctx, hasFacts, 15, keptIds);
   const out = await extractRound(ctx, plan, "u1", picked);
   const diff = await mergeRound(ctx, plan, "u1", out);
-  if (emptyDiff(diff)) return finish(`Read ${keptIds.size} new or changed sources, nothing on the board changed`);
+  // Social facts never enter the diff, so a round that staged some still recomposes the unverified widget.
+  // Only this round counts: a board that merely holds older social sources must not save a version per poll.
+  const unchanged = `Read ${keptIds.size} new or changed sources, nothing on the board changed`;
+  const socialOnly = emptyDiff(diff);
+  if (socialOnly && !out.staged.some((f) => f.sourceType === "social")) return finish(unchanged);
 
-  const facts = await listFacts(ctx.boardId, { status: ["active"] });
+  const facts = trustedFacts(await listFacts(ctx.boardId, { status: ["active"] }), await listSources(ctx.boardId, { includeDiscarded: true }));
   const touched = new Set([...diff.added, ...diff.changed].map((d) => `${d.kind}:${d.key}`));
   const lines = facts.filter((f) => touched.has(`${f.kind}:${f.key}`)).map(factLine);
-  const mat = await ctx.step("materiality", { diff }, (i, use, signal) => materiality(board.data?.header ?? null, i.diff, lines, use, signal), {
+  const trustedKeys = new Set(facts.map((f) => `${f.kind}:${f.key}`));
+  const trustedDiff = { added: diff.added.filter((d) => trustedKeys.has(`${d.kind}:${d.key}`)),
+    changed: diff.changed.filter((d) => trustedKeys.has(`${d.kind}:${d.key}`)), superseded: diff.superseded };
+  const mat = await ctx.step("materiality", { diff: trustedDiff }, (i, use, signal) => lines.length ? materiality(board.data?.header ?? null, i.diff, lines, use, signal) : Promise.resolve({ material: false, probability: 0, importance: "low" } as Materiality), {
     timeoutMs: 20_000,
     optional: true,
     fallback: { material: true, probability: 1, importance: "medium" } as Materiality,
   });
 
   const [narrative, assessment, note] = await Promise.all([
-    mat.material
+    mat.material && facts.length > 0
       ? ctx.step("narrative", { n: facts.length, diff }, (_i, use, signal) => writeNarrative(plan, facts, use, signal), {
           timeoutMs: 60_000,
           optional: true,
           fallback: null as Narrative | null,
         })
       : Promise.resolve(null),
-    mat.material
+    mat.material && facts.length > 0
       ? ctx.step("assess", { n: facts.length, diff }, (_i, use, signal) => assess(plan, facts, use, signal), {
           timeoutMs: 20_000,
           optional: true,
           fallback: null as Assessment | null,
         })
       : Promise.resolve(null),
-    ctx.step("note", { diff }, (i, use, signal) => changeNote(plan, i.diff, lines, use, signal), {
+    ctx.step("note", { diff: trustedDiff }, (i, use, signal) => lines.length ? changeNote(plan, i.diff, lines, use, signal) : Promise.resolve("On the ground: unverified social reports updated"), {
       timeoutMs: 20_000,
       optional: true,
       fallback: "New information arrived",
@@ -192,6 +203,8 @@ export const updateGraph: GraphFn = async (ctx) => {
   }
   const { spec, data } = await composeData(ctx, plan, board.spec, board.data, overrides);
   const changed = diffData(board.data, data);
+  // The staged social reports were duplicates or got corroborated away: nothing to publish.
+  if (socialOnly && !changed.widgets.length && !changed.header && !changed.hidden && JSON.stringify(spec) === JSON.stringify(board.spec)) return finish(unchanged);
   const version = await saveBoardVersion(ctx.boardId, { spec, data, changeNote: note });
   if (JSON.stringify(spec) !== JSON.stringify(board.spec)) ctx.emit({ type: "spec", version, spec });
   ctx.emit({

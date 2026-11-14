@@ -45,7 +45,7 @@ export class CassetteMissError extends Error {
   }
 }
 
-async function taped<T>(method: string, args: unknown[], live: () => Promise<T>): Promise<T> {
+export async function taped<T>(method: string, args: unknown[], live: () => Promise<T>): Promise<T> {
   const mode = cassetteMode();
   if (mode === "off") return live();
   const key = cassetteKey(method, args);

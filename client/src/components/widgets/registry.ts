@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { WidgetType } from "@/lib/spec";
+import { OnTheGroundWidget } from "./on-the-ground";
 import { AlertListWidget } from "./alert-list";
 import { ChangelogWidget } from "./changelog";
 import { FeedWidget } from "./feed";
@@ -15,6 +16,7 @@ import { TrendWidget } from "./trend";
 import type { WidgetProps } from "./types";
 
 export const registry: { [T in WidgetType]: ComponentType<WidgetProps<T>> } = {
+  "on-the-ground": OnTheGroundWidget,
   narrative: NarrativeWidget,
   "stat-grid": StatGridWidget,
   trend: TrendWidget,

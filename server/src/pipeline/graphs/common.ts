@@ -1,3 +1,4 @@
+import { advanceSocialCursor } from "../../repo/social";
 import type { RunCtx } from "../../graph/runner";
 import {
   addSources,
@@ -49,6 +50,12 @@ export async function setBoardStatus(ctx: RunCtx, status: BoardStatus, tier: Boa
 
 export async function ingest(ctx: RunCtx, docs: FoundDoc[]): Promise<Source[]> {
   const added = await addSources(ctx.boardId, docs);
+  for (const doc of docs) {
+    if (doc.kind === "social" && doc.socialCursor) {
+      await advanceSocialCursor(ctx.boardId, doc.socialCursor.queryKey, doc.socialCursor.sinceId);
+      break; // One combined X query per gather.
+    }
+  }
   if (added.length) ctx.emit({ type: "sources", added, discarded: [] });
   return added;
 }
@@ -170,7 +177,7 @@ export async function mergeRound(ctx: RunCtx, plan: Plan, round: string, out: Ex
 
 export function mergeOpts(sources: Source[]): MergeOpts {
   return {
-    sourceTypes: new Map(sources.map((s) => [s.id, s.sourceType])),
+    sourceTypes: new Map(sources.map((s) => [s.id, s.kind === "social" ? "social" : s.sourceType])),
     relevance: new Map(sources.map((s) => [s.id, s.relevance])),
   };
 }
@@ -213,7 +220,7 @@ export async function composeData(
   const [active, history, sources] = await Promise.all([
     facts ? Promise.resolve(facts) : listFacts(ctx.boardId, { status: ["active"] }),
     metricHistory(ctx.boardId),
-    listSources(ctx.boardId),
+    listSources(ctx.boardId, { includeDiscarded: true }),
   ]);
   const out = assemble({ plan, spec, facts: active, metricHistory: history, sources, prev, overrides, now: Date.now() });
   return { ...out, facts: active };
@@ -227,7 +234,7 @@ export async function extractable(ctx: RunCtx, hasFacts: Record<string, number>,
 
 export function officialUrls(sources: Source[], max = 4): string[] {
   return sources
-    .filter((s) => s.sourceType === "official" && (s.relevance ?? 0) >= 0.6 && s.kind !== "monitor")
+    .filter((s) => s.sourceType === "official" && (s.relevance ?? 0) >= 0.6 && s.kind !== "monitor" && s.kind !== "social")
     .sort((a, b) => (b.relevance ?? 0) - (a.relevance ?? 0))
     .slice(0, max)
     .map((s) => s.url);

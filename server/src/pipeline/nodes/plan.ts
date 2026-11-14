@@ -32,6 +32,8 @@ Widgets (in reading order). Available types:
 - feed, changelog, sources: always last, in that order.
 Use span "full" for narrative, stat-grid, map, tables, changelog and sources; "half" for the rest.
 
+For socialQueries, use up to 2 short keyword/hashtag queries in the affected place’s local language, not natural-language news questions. Include lang:xx only when confident of the local language. Social posts are unverified signals.
+
 Queries must name the specific place, organisation or event so they do not drift to other crises.`;
 
 export async function makePlan(program: string, use: Usage, signal: AbortSignal, now = new Date()): Promise<Plan> {
@@ -71,6 +73,7 @@ export function normalizePlan(plan: Plan): Plan {
     language: (plan.language || "en").slice(0, 8),
     entities: plan.entities.slice(0, 8),
     newsQueries: plan.newsQueries.filter(Boolean).slice(0, 5),
+    socialQueries: (plan.socialQueries ?? []).filter(Boolean).slice(0, 2),
     webQueries: plan.webQueries.filter(Boolean).slice(0, 4),
     metrics,
     tables,
@@ -94,6 +97,7 @@ export const planPatchSchema = z.object({
   addWidgets: z.array(widgetPlanSchema).describe("New widgets, e.g. a table widget bound to a new table"),
   removeWidgetTitles: z.array(z.string()).describe("Titles of existing widgets to remove"),
   newsQueries: z.array(z.string()).describe("Extra news queries needed for the change, empty if none"),
+  socialQueries: z.array(z.string()).optional().describe("Extra local keyword/hashtag X queries needed for this change, empty if none"),
   webQueries: z.array(z.string()).describe("Extra web queries needed for the change, empty if none"),
   addQuestions: z.array(z.string()),
   monitor: z
@@ -133,6 +137,7 @@ export function applyPlanPatch(plan: Plan, patch: PlanPatch): { plan: Plan; newK
     metrics: [...plan.metrics.filter((m) => !dropM.has(m.key)), ...patch.addMetrics],
     tables: [...plan.tables.filter((t) => !dropT.has(t.key)), ...patch.addTables],
     statusGroups: [...plan.statusGroups, ...patch.addStatusGroups],
+    socialQueries: [...new Set([...(plan.socialQueries ?? []), ...(patch.socialQueries ?? [])])],
     newsQueries: [...new Set([...plan.newsQueries, ...patch.newsQueries])],
     webQueries: [...new Set([...plan.webQueries, ...patch.webQueries])],
     questions: [...plan.questions, ...patch.addQuestions.map((text, i) => ({ id: `q${plan.questions.length + i + 1}`, text }))],

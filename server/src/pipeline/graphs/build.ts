@@ -1,3 +1,4 @@
+import { trustedFacts } from "../trust";
 import type { GraphFn, RunCtx } from "../../graph/runner";
 import { ensureBoardMonitors } from "../../monitors";
 import { addMessage, listMessages, listSources, markMonitorsSynced, markPolled, saveBoardVersion, savePlan, setSchedule } from "../../repo/boards";
@@ -38,12 +39,12 @@ async function collect(
   plan: Plan,
   spec: BoardSpecV2,
   round: string,
-  queries: { newsQueries: string[]; webQueries: string[] },
+  queries: { newsQueries: string[]; webQueries: string[]; socialQueries?: string[] },
   hasFacts: Record<string, number>,
   opts: { scrapes: number; extractCap: number; partial: boolean },
 ) {
   const t0 = Date.now();
-  const g = await ctx.step("gather", { round, ...queries }, (_i, use, signal) => gather({ ...queries, lookbackDays: plan.lookbackDays }, use, signal), {
+  const g = await ctx.step("gather", { round, ...queries }, (_i, use, signal) => gather({ ...queries, lookbackDays: plan.lookbackDays }, use, signal, { boardId: ctx.boardId }), {
     key: round,
     timeoutMs: 75_000,
     retries: 1,
@@ -62,7 +63,8 @@ async function collect(
   const only = round === "r1" ? undefined : new Set(added.map((s) => s.id));
   const picked = await extractable(ctx, hasFacts, opts.extractCap, only);
   const current = await listFacts(ctx.boardId, { status: ["active"] });
-  const mo = mergeOpts(kept);
+  const trustSources = await listSources(ctx.boardId, { includeDiscarded: true });
+  const mo = mergeOpts(trustSources);
   let lastEmit = 0;
   const onBatch = (staged: StagedFact[]) => {
     if (!opts.partial || Date.now() - lastEmit < 500) return;
@@ -74,7 +76,7 @@ async function collect(
         spec,
         facts,
         metricHistory: facts.filter((f): f is Fact<"metric"> => f.kind === "metric"),
-        sources: kept,
+        sources: trustSources,
         prev: null,
         overrides: {},
         now: Date.now(),
@@ -144,7 +146,7 @@ export const buildGraph: GraphFn = async (ctx) => {
   await collect(ctx, plan, spec, "r1", plan, hasFacts, { scrapes: LIMITS.maxScrapes(), extractCap: LIMITS.maxExtract(), partial: true });
 
   await setBoardStatus(ctx, "composing", "hot");
-  const facts = await listFacts(ctx.boardId, { status: ["active"] });
+  const facts = trustedFacts(await listFacts(ctx.boardId, { status: ["active"] }), await listSources(ctx.boardId, { includeDiscarded: true }));
   // Coverage runs beside the narrative. Open questions are searched by the first update after the board is live,
   // so a second gather round never delays the build (it cost ~48s on the critical path).
   const followupP: Promise<{ newsQueries: string[]; webQueries: string[] } | null> =
@@ -184,7 +186,7 @@ export const buildGraph: GraphFn = async (ctx) => {
         ),
       { timeoutMs: 60_000, retries: 1, optional: true, fallback: { headline: null, sentences: [] } as Narrative },
     ),
-    ctx.step("assess", { n: facts.length }, (_i, use, signal) => assess(plan, facts, use, signal), {
+    ctx.step("assess", { n: facts.length }, (_i, use, signal) => facts.length ? assess(plan, facts, use, signal) : Promise.resolve(null), {
       timeoutMs: 20_000,
       optional: true,
       fallback: null as Assessment | null,

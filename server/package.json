@@ -13,7 +13,9 @@
     "smoke": "tsx --env-file-if-exists=../.env src/scripts/smoke.ts",
     "smoke:decide": "tsx --env-file-if-exists=../.env src/scripts/smoke-decide.ts",
     "migrate": "tsx --env-file-if-exists=../.env src/scripts/migrate.ts",
-    "rebuild-v1": "tsx --env-file-if-exists=../.env src/scripts/rebuild-v1.ts"
+    "rebuild-v1": "tsx --env-file-if-exists=../.env src/scripts/rebuild-v1.ts",
+    "smoke:x": "tsx --env-file-if-exists=../.env src/scripts/smoke-x.ts",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.121",
@@ -29,8 +31,12 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/node": "^24.19.2",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0",
     "typescript": "^5",
+    "typescript-eslint": "^8.72.2",
     "vitest": "^4.1.12"
   }
 }

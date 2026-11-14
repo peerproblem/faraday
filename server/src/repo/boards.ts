@@ -23,12 +23,14 @@ export type FoundDoc = {
   publisher: string | null;
   publishedAt: string | null;
   snippet: string | null;
-  kind: "news" | "web" | "monitor";
+  kind: Source["kind"];
   /**
    * Set on monitor changes: the snippet is the raw text the page has now. A source the board already has for this URL
    * is refreshed (see refreshSources) instead of being skipped as a duplicate.
    */
   refresh?: boolean;
+  /** Advanced only after these documents have been stored. */
+  socialCursor?: { queryKey: string; sinceId: string };
 };
 
 export type BoardRow = {
@@ -443,17 +445,17 @@ export async function addSources(boardId: string, docs: FoundDoc[]): Promise<Sou
         fetchedAt: now,
         snippet: doc.snippet,
         relevance: null,
-        sourceType: null,
+        sourceType: doc.kind === "social" ? "social" : null,
         hash,
         content: doc.refresh ? contentHash(doc.snippet) : null,
       });
     }
     if (added.length) {
-      const placeholders = added.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", ");
+      const placeholders = added.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", ");
       await db.run(
-        `INSERT INTO sources (board_id, id, url, title, publisher, kind, published_at, fetched_at, snippet, url_hash, content_hash)
+        `INSERT INTO sources (board_id, id, url, title, publisher, kind, published_at, fetched_at, snippet, url_hash, content_hash, source_type)
          VALUES ${placeholders}`,
-        added.flatMap((s) => [boardId, s.id, s.url, s.title, s.publisher, s.kind, s.publishedAt, s.fetchedAt, s.snippet, s.hash, s.content]),
+        added.flatMap((s) => [boardId, s.id, s.url, s.title, s.publisher, s.kind, s.publishedAt, s.fetchedAt, s.snippet, s.hash, s.content, s.sourceType]),
       );
     }
     return added.map(({ hash: _hash, content: _content, ...s }) => s);
@@ -517,7 +519,7 @@ export async function setSourceTriage(boardId: string, rows: { id: string; relev
   if (!rows.length) return;
   await tx(async (db) => {
     for (const r of rows) {
-      await db.run(`UPDATE sources SET relevance = ?, source_type = ? WHERE board_id = ? AND id = ?`, [r.relevance, r.sourceType, boardId, r.id]);
+      await db.run(`UPDATE sources SET relevance = ?, source_type = CASE WHEN kind = 'social' THEN 'social' ELSE ? END WHERE board_id = ? AND id = ?`, [r.relevance, r.sourceType, boardId, r.id]);
     }
   });
 }

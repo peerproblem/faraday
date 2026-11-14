@@ -40,6 +40,7 @@ export const planSchema = z.object({
   lookbackDays: z.number().int().min(1).max(30).describe("How far back news is relevant"),
   entities: z.array(z.string()).describe("3 to 8 proper names that identify this crisis: places, organisations, systems, named storms"),
   newsQueries: z.array(z.string()).describe("3 to 5 natural-language news queries, specific to this crisis"),
+  socialQueries: z.array(z.string()).optional().describe("0 to 2 short X search queries: local-language place/event keywords and hashtags, OR alternatives, optional lang:xx for the local language. No retweets. Empty when irrelevant."),
   webQueries: z.array(z.string()).describe("2 to 4 web queries for official advisories, emergency services, shelters, help and status pages"),
   monitor: z.object({
     query: z.string().describe("A web search query that will surface new developments"),

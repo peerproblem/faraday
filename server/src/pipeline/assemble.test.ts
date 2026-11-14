@@ -241,3 +241,60 @@ describe("diffData", () => {
     expect(diffData(base, next)).toEqual({ widgets: [], header: true, hidden: true });
   });
 });
+
+describe("social promotion boundary", () => {
+  const social: Source = { ...sources[0], id: "sx", kind: "social", sourceType: "social" };
+  const input = (facts: Fact[], extra: Source[] = []) => ({ plan, spec: specFromPlan(plan), facts,
+    metricHistory: facts.filter((x): x is Fact<"metric"> => x.kind === "metric"), sources: [social, ...extra], prev: null, overrides: {}, now: 1 });
+  const metric = () => f("metric", "deaths", mv(999), { sourceIds: ["sx"], quote: "There are 999 deaths reported locally.", asOf: "2026-11-14T00:00:00Z" });
+  it("quarantines every social-only fact and metric history; only quotes appear in the unverified widget", () => {
+    const facts = [metric(),
+      f("event", "evacuation", { title: "Evacuate now", detail: "reported", importance: "high" }, { sourceIds: ["sx"], quote: "Evacuate now according to a local post." }),
+      f("place", "shelter", { name: "School", lat: 39, lon: -0.3, placeKind: "shelter", note: "" }, { sourceIds: ["sx"], quote: "The school is reportedly a shelter." }),
+      f("row", "road-closures:a", { table: "road-closures", cells: { road: "A", state: "closed" } }, { sourceIds: ["sx"], quote: "Road A is reportedly closed today." })];
+    const out = assemble(input(facts));
+    for (const type of ["stat-grid", "table", "timeline", "map", "trend"]) {
+      for (const w of out.spec.widgets.filter((w) => w.type === type)) expect(out.data.hidden).toContain(w.id);
+    }
+    expect(out.data.header.asOf).toBeNull();
+    expect(out.data.widgets["on-the-ground"]).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ quote: facts[0].quote, sources: ["sx"] })]) });
+    expect(out.spec.widgets.find((w) => w.type === "on-the-ground")?.title).toBe("On the ground (unverified)");
+    const order = out.spec.widgets.map((w) => w.type);
+    expect(order.slice(order.indexOf("on-the-ground") + 1)).toEqual(["feed", "changelog", "sources"]);
+  });
+  it.each(["news", "official"] as const)("permits the same fact when independently cited to %s", (sourceType) => {
+    const fact = metric(); fact.sourceIds.push("confirmed");
+    const out = assemble(input([fact], [{ ...sources[0], id: "confirmed", sourceType }]));
+    const stat = out.spec.widgets.find((w) => w.type === "stat-grid")!;
+    expect(out.data.widgets[stat.id]).toMatchObject({ items: [{ valueNum: 999, sources: ["sx", "confirmed"] }] });
+    expect(out.spec.widgets.some((w) => w.type === "on-the-ground")).toBe(false);
+  });
+  it("does not promote via aggregator, unrelated news fact, or an X source mislabeled official", () => {
+    const fact = metric(); fact.sourceIds.push("agg");
+    const extra = [{ ...sources[0], id: "agg", sourceType: "aggregator" as const }, ...sources];
+    const officialMetric = f("metric", "deaths", mv(12), { sourceIds: ["s2"] });
+    const out = assemble(input([fact, officialMetric], extra));
+    const stat = out.spec.widgets.find((w) => w.type === "stat-grid")!;
+    expect(out.data.widgets[stat.id]).toMatchObject({ items: [{ valueNum: 12 }] });
+    const mislabeled = assemble({ ...input([metric()]), sources: [{ ...social, sourceType: "official" }] });
+    expect(mislabeled.data.hidden).toContain(stat.id);
+  });
+  it("removes unverified citations from old and new narrative/headline overrides", () => {
+    const out = assemble({ ...input([metric()]), overrides: {
+      headline: { text: "999 died", sources: ["sx"] }, narrative: [{ text: "999 died", sources: ["sx"] }],
+    } });
+    expect(out.data.header.headline).toBeNull();
+    expect(out.data.hidden).toContain(out.spec.widgets.find((w) => w.type === "narrative")!.id);
+  });
+});
+
+it("represents corroborated social claims using the independent news fact and removes their unverified entry", () => {
+  const social = { ...sources[0], id: "sx", kind: "social" as const, sourceType: "social" as const };
+  const asOf = "2026-11-14T00:00:00Z";
+  const report = f("metric", "deaths", mv(12), { sourceIds: ["sx"], asOf });
+  const confirmation = f("metric", "deaths", mv(12), { sourceIds: ["s2"], asOf });
+  const out = assemble({ plan, spec: specFromPlan(plan), facts: [report, confirmation], metricHistory: [], sources: [...sources, social], prev: null, overrides: {}, now: 1 });
+  const stat = out.spec.widgets.find((w) => w.type === "stat-grid")!;
+  expect(out.data.widgets[stat.id]).toMatchObject({ items: [{ valueNum: 12, sources: ["s2"] }] });
+  expect(out.spec.widgets.some((w) => w.type === "on-the-ground")).toBe(false);
+});

@@ -1,3 +1,4 @@
+import { trustedFacts } from "../trust";
 import type { GraphFn } from "../../graph/runner";
 import { decide } from "../../llm/decide";
 import { THRESHOLDS } from "../../llm/thresholds";
@@ -95,10 +96,10 @@ export const editGraph: GraphFn = async (ctx) => {
     await ctx.event("stage", `Looked for the new figures in ${top.length} sources: ${out.staged.length} facts`);
   }
 
-  const queries = { newsQueries: patch.newsQueries.slice(0, 3), webQueries: patch.webQueries.slice(0, 3) };
-  if (route.needsNewData && queries.newsQueries.length + queries.webQueries.length > 0) {
+  const queries = { newsQueries: patch.newsQueries.slice(0, 3), webQueries: patch.webQueries.slice(0, 3), socialQueries: (patch.socialQueries ?? []).slice(0, 2) };
+  if (route.needsNewData && queries.newsQueries.length + queries.webQueries.length + queries.socialQueries.length > 0) {
     await setBoardStatus(ctx, "gathering", tier);
-    const g = await ctx.step("gather", queries, (i, use, signal) => gather({ ...i, lookbackDays: plan.lookbackDays }, use, signal), { timeoutMs: 75_000, retries: 1 });
+    const g = await ctx.step("gather", queries, (i, use, signal) => gather({ ...i, lookbackDays: plan.lookbackDays }, use, signal, { boardId: ctx.boardId }), { timeoutMs: 75_000, retries: 1 });
     const added = await ingest(ctx, g.docs);
     const tr = await triageRound(ctx, plan, "e1");
     hasFactsMap(tr.rows, hasFacts);
@@ -111,7 +112,7 @@ export const editGraph: GraphFn = async (ctx) => {
   }
 
   await setBoardStatus(ctx, "composing", tier);
-  const facts = await listFacts(ctx.boardId, { status: ["active"] });
+  const facts = trustedFacts(await listFacts(ctx.boardId, { status: ["active"] }), await listSources(ctx.boardId, { includeDiscarded: true }));
   const rewrite = route.scope === "narrative" || route.scope === "all" || newKeys.metrics.length > 0;
   const [narrative, assessment] = await Promise.all([
     rewrite
@@ -122,14 +123,14 @@ export const editGraph: GraphFn = async (ctx) => {
         })
       : Promise.resolve(null),
     route.scope === "all"
-      ? ctx.step("assess", { n: facts.length }, (_i, use, signal) => assess(plan, facts, use, signal), { timeoutMs: 20_000, optional: true, fallback: null as Assessment | null })
+      ? ctx.step("assess", { n: facts.length }, (_i, use, signal) => facts.length ? assess(plan, facts, use, signal) : Promise.resolve(null), { timeoutMs: 20_000, optional: true, fallback: null as Assessment | null })
       : Promise.resolve(null),
   ]);
   const overrides: HeaderOverrides = {
     ...(narrative ? { headline: narrative.headline, narrative: narrative.sentences } : {}),
     ...(assessment ? { assessment } : {}),
   };
-  const { spec: finalSpec, data } = await composeData(ctx, plan, spec, board.data, overrides, facts);
+  const { spec: finalSpec, data } = await composeData(ctx, plan, spec, board.data, overrides);
   const version = await saveBoardVersion(ctx.boardId, { spec: finalSpec, data, changeNote: patch.reply, status: "live" });
   ctx.emit({ type: "spec", version, spec: finalSpec });
   ctx.emit({ type: "data", version, header: data.header, widgets: data.widgets, hidden: data.hidden });

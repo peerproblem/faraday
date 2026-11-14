@@ -11,6 +11,7 @@ export const widgetTypes = [
   "status-grid",
   "alert-list",
   "link-list",
+  "on-the-ground",
   "feed",
   "changelog",
   "sources",
@@ -53,6 +54,8 @@ export type StatItem = Cited & {
   history: { t: string; v: number }[];
 };
 
+export type OnTheGroundData = { items: (Cited & { id: string; quote: string })[] };
+
 export type NarrativeData = { sentences: { text: string; sources: string[] }[] };
 export type StatGridData = { items: StatItem[] };
 export type TrendData = { metric: string; label: string; unit: string | null; points: { t: string; v: number; sources: string[] }[] };
@@ -88,6 +91,7 @@ export type LinkListData = { items: { id: string; label: string; url: string; ki
 export type ClientComputedData = Record<string, never>;
 
 export type WidgetDataMap = {
+  "on-the-ground": OnTheGroundData;
   narrative: NarrativeData;
   "stat-grid": StatGridData;
   trend: TrendData;

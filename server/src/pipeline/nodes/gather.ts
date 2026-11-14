@@ -1,6 +1,7 @@
 import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
+import { gatherX } from "../../social/x";
 import type { Usage } from "../../graph/runner";
-import type { Plan } from "../../spec";
+import type { BoardTier, Plan } from "../../spec";
 
 export type GatherResult = { docs: FoundDoc[]; calls: number; failures: string[] };
 
@@ -9,10 +10,10 @@ export function freshnessFor(lookbackDays: number) {
 }
 
 export async function gather(
-  q: { newsQueries: string[]; webQueries: string[]; lookbackDays: Plan["lookbackDays"] },
+  q: { newsQueries: string[]; webQueries: string[]; socialQueries?: string[]; lookbackDays: Plan["lookbackDays"] },
   use: Usage,
   signal: AbortSignal,
-  opts: { sinceMs?: number; newsLimit?: number; webResults?: number } = {},
+  opts: { sinceMs?: number; newsLimit?: number; webResults?: number; boardId?: string; polling?: boolean; tier?: BoardTier } = {},
 ): Promise<GatherResult> {
   const sinceMs = opts.sinceMs ?? Date.now() - q.lookbackDays * 86_400_000;
   const freshness = freshnessFor(q.lookbackDays);
@@ -31,9 +32,15 @@ export async function gather(
       }),
     ),
   ];
-  const results = await Promise.all(jobs);
+  const social = opts.boardId && q.socialQueries?.length
+    ? gatherX(opts.boardId, q.socialQueries, signal, opts).catch(() => {
+        failures.push("X social search failed (credentials, budget store or API unavailable)");
+        return [] as FoundDoc[];
+      })
+    : Promise.resolve([] as FoundDoc[]);
+  const [results, socialDocs] = await Promise.all([Promise.all(jobs), social]);
   use.context(jobs.length);
-  return { docs: dedupeDocs(results.flat()), calls: jobs.length, failures };
+  return { docs: dedupeDocs([...results.flat(), ...socialDocs]), calls: jobs.length, failures };
 }
 
 export function dedupeDocs(docs: FoundDoc[]): FoundDoc[] {

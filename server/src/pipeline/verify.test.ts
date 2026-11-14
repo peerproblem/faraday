@@ -119,6 +119,13 @@ const metric = (over: Partial<ExtractedFact<"metric">> = {}, payload: Partial<Ex
 });
 
 describe("verifyFacts", () => {
+  it("applies the identical quote and numeric checks to social post bodies", () => {
+    const social = src("sx", { kind: "social", sourceType: "social", snippet: "At least 12 people have died in Valencia." });
+    const ok = verifyFacts({ facts: [metric({ sourceId: "sx" })], sources: [social], texts: new Map() });
+    expect(ok.accepted[0].sourceType).toBe("social");
+    const bad = verifyFacts({ facts: [metric({ sourceId: "sx", quote: "At least 40 people have died" }, { valueText: "40", valueNum: 40 })], sources: [social], texts: new Map() });
+    expect(bad.rejected[0].reason).toBe("quote not found in source");
+  });
   const sources = [
     src("s1", { snippet: "At least 12 people have died in Valencia. Some 1.2 million people are without power." }),
     src("s2", { url: "https://www.gva.es/en/alerts", sourceType: "official", relevance: 0.95, title: "Red alert for rain" }),

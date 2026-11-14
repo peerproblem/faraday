@@ -57,7 +57,7 @@ export async function triage(plan: Plan, sources: Source[], use: Usage, signal: 
       return {
         id: s.id,
         relevance: r.answers.onTopic.probability,
-        sourceType: (sourceTypes as readonly string[]).includes(choice) ? choice : "other",
+        sourceType: s.kind === "social" ? "social" : (sourceTypes as readonly string[]).includes(choice) ? choice : "other",
         hasFacts: r.answers.hasFacts.probability,
       };
     } catch (e) {
