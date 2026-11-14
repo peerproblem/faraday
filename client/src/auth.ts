@@ -5,7 +5,9 @@ import { DOMAIN } from "@/lib/config";
 import { registerUser } from "@/lib/engine";
 
 export const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
-export const demoLoginEnabled = !googleEnabled || process.env.ALLOW_DEMO_LOGIN === "1";
+// The demo account exists for local development and previews. Production with Google never offers it.
+export const demoLoginEnabled =
+  !googleEnabled || (process.env.NODE_ENV !== "production" && process.env.ALLOW_DEMO_LOGIN === "1");
 
 const providers: NextAuthConfig["providers"] = [];
 if (googleEnabled) providers.push(Google);

@@ -1,7 +1,12 @@
-export function ago(t: string | number | null | undefined, now = Date.now()): string {
-  if (t == null) return "unknown";
+export function toMs(t: string | number | null | undefined): number | null {
+  if (t == null) return null;
   const ms = typeof t === "number" ? t : Date.parse(t);
-  if (!Number.isFinite(ms)) return "unknown";
+  return Number.isFinite(ms) ? ms : null;
+}
+
+export function ago(t: string | number | null | undefined, now = Date.now()): string {
+  const ms = toMs(t);
+  if (ms === null) return "unknown";
   const s = Math.round((now - ms) / 1000);
   if (s < 0) return "just now";
   if (s < 60) return `${s}s ago`;
@@ -17,4 +22,34 @@ export function when(t: string | null | undefined): string {
   const d = new Date(t);
   if (Number.isNaN(d.getTime())) return t;
   return d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+}
+
+/** Short axis label, e.g. "14 Nov 09:00". */
+export function shortTime(t: string | number): string {
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return String(t);
+  return d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+}
+
+export const STALE_MS = 24 * 3_600_000;
+
+/** A figure on a board that is checked every few minutes, but whose own time is more than a day old. */
+export function isStale(asOf: string | null | undefined, tier: string, now = Date.now()): boolean {
+  if (tier !== "hot") return false;
+  const ms = toMs(asOf);
+  return ms !== null && now - ms > STALE_MS;
+}
+
+/** Newest of several ISO times, or null. */
+export function newest(times: (string | null | undefined)[]): string | null {
+  let best: string | null = null;
+  let bestMs = -Infinity;
+  for (const t of times) {
+    const ms = toMs(t);
+    if (ms !== null && ms > bestMs) {
+      bestMs = ms;
+      best = t as string;
+    }
+  }
+  return best;
 }

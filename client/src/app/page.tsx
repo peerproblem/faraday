@@ -1,6 +1,9 @@
 import { auth } from "@/auth";
 import { BoardGrid } from "@/components/board-grid";
 import { PromptForm } from "@/components/prompt-form";
+import { SectionIntro } from "@/components/section-intro";
+import { Card } from "@/components/ui/card";
+import { Caption, Display, Outline, Text } from "@/components/ui/typography";
 import { listBoards } from "@/lib/engine";
 
 export const dynamic = "force-dynamic";
@@ -15,34 +18,38 @@ const steps = [
 export default async function Home() {
   const [session, boards] = await Promise.all([auth(), listBoards(9)]);
   return (
-    <div className="pt-12 sm:pt-20">
-      <section className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#ef4444]">Software 3.0 for crises</p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-          One sentence in.
-          <br />A live situation board out.
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-base text-muted">
-          When a flood, fire, blackout or cyberattack hits, the facts are scattered across hundreds of pages that change by the
-          minute. Describe the crisis. Faraday reads the live web and builds a board that keeps itself true.
-        </p>
-      </section>
-      <section className="mx-auto mt-10 max-w-3xl">
+    <>
+      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <Card padding="lg" radius="xl" className="gap-6">
+          <Caption>/software-3.0 for crises</Caption>
+          <Display as="h1" size="lg">
+            One sentence in. A live <Outline>situation board</Outline> out.
+          </Display>
+          <Text size="lg" tone="subtle" className="max-w-xl">
+            When a flood, fire, blackout or cyberattack hits, the facts are scattered across hundreds of pages that change by the
+            minute. Describe the crisis. Faraday reads the live web and builds a board that keeps itself true.
+          </Text>
+        </Card>
         <PromptForm signedIn={!!session?.user} />
       </section>
-      <section className="mx-auto mt-14 grid max-w-5xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+      <SectionIntro title="How a sentence becomes a board" lede="Four steps, and the last one never stops." />
+      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((s) => (
-          <div key={s.n} className="rounded-xl border border-line p-4">
-            <div className="font-mono text-xs text-faint">{s.n}</div>
-            <div className="mt-1 font-medium">{s.t}</div>
-            <p className="mt-1 text-sm text-muted">{s.d}</p>
-          </div>
+          <li key={s.n} className="min-w-0">
+            <Card padding="md" className="h-full gap-3">
+              <Caption>{s.n}</Caption>
+              <Text className="font-medium">{s.t}</Text>
+              <Text size="sm" tone="muted">
+                {s.d}
+              </Text>
+            </Card>
+          </li>
         ))}
-      </section>
-      <section className="mt-16">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted">Live boards</h2>
-        <BoardGrid boards={boards} />
-      </section>
-    </div>
+      </ol>
+
+      <SectionIntro title="Live boards" lede="Every board keeps reading the web while people are watching." />
+      <BoardGrid boards={boards} />
+    </>
   );
 }

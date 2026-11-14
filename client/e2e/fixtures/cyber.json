@@ -1,0 +1,565 @@
+{
+ "board": {
+  "visibility": "public",
+  "specVersion": 2,
+  "tier": "hot",
+  "status": "live",
+  "version": 7,
+  "ownerId": "u-demo",
+  "language": "ko",
+  "createdAt": 1794549600000,
+  "updatedAt": 1794657240000,
+  "lastPolledAt": 1794657420000,
+  "messages": [
+   {
+    "role": "user",
+    "content": "서울 대형 병원 랜섬웨어 공격: 어떤 병원이 피해를 입었고 진료는 가능한가?",
+    "ts": 1794549600000
+   },
+   {
+    "role": "assistant",
+    "content": "Built \"서울 병원 랜섬웨어\" from 3 live sources in 41.2s.",
+    "ts": 1794549960000
+   }
+  ],
+  "id": "fxcyber0001",
+  "slug": "hospital-ransomware-fx03",
+  "prompt": "서울 대형 병원 랜섬웨어 공격: 어떤 병원이 피해를 입었고 진료는 가능한가?",
+  "title": "서울 병원 랜섬웨어",
+  "sources": [
+   {
+    "id": "s1",
+    "url": "https://www.boho.or.kr/kr/bbs/view.do?bbsId=B0000133&nttId=1",
+    "title": "KISA 보안 공지: 랜섬웨어 피해 주의",
+    "publisher": "boho.or.kr",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "병원 정보시스템을 노린 랜섬웨어 공격이 확인되었습니다.",
+    "relevance": 0.96,
+    "sourceType": "official"
+   },
+   {
+    "id": "s2",
+    "url": "https://www.yna.co.kr/view/AKR20261114000100017",
+    "title": "대형 병원 3곳 랜섬웨어 피해…진료 차질",
+    "publisher": "연합뉴스",
+    "kind": "news",
+    "publishedAt": "2026-11-14T09:00:00.000Z",
+    "fetchedAt": 1794647520000,
+    "snippet": "서울 시내 대형 병원 3곳에서 전산 장애가 발생했다.",
+    "relevance": 0.93,
+    "sourceType": "news"
+   },
+   {
+    "id": "s3",
+    "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-41234",
+    "title": "CVE-2026-41234 Detail",
+    "publisher": "nvd.nist.gov",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "Remote code execution in an EMR gateway.",
+    "relevance": 0.8,
+    "sourceType": "official"
+   }
+  ],
+  "events": [
+   {
+    "id": 2,
+    "ts": 1794654000000,
+    "kind": "update",
+    "message": "피해 병원이 2곳에서 3곳으로 늘었습니다.",
+    "data": null
+   }
+  ],
+  "plan": {
+   "title": "서울 병원 랜섬웨어",
+   "subtitle": null,
+   "crisisType": "cyberattack",
+   "language": "ko",
+   "location": null,
+   "lookbackDays": 2,
+   "entities": [
+    "KISA",
+    "서울"
+   ],
+   "newsQueries": [
+    "서울 병원 랜섬웨어"
+   ],
+   "webQueries": [
+    "KISA 랜섬웨어 공지"
+   ],
+   "monitor": {
+    "query": "병원 랜섬웨어 피해",
+    "instructions": "피해 병원과 진료 상황 변화를 보고."
+   },
+   "metrics": [
+    {
+     "key": "hospitals-affected",
+     "label": "피해 병원",
+     "unit": "곳",
+     "why": "규모"
+    },
+    {
+     "key": "patients-diverted",
+     "label": "이송된 환자",
+     "unit": "명",
+     "why": "진료 영향"
+    }
+   ],
+   "tables": [
+    {
+     "key": "cves",
+     "title": "관련 취약점",
+     "columns": [
+      {
+       "key": "cve",
+       "label": "CVE",
+       "kind": "text"
+      },
+      {
+       "key": "score",
+       "label": "CVSS",
+       "kind": "number"
+      },
+      {
+       "key": "link",
+       "label": "Link",
+       "kind": "link"
+      }
+     ]
+    }
+   ],
+   "statusGroups": [],
+   "questions": [
+    {
+     "id": "q1",
+     "text": "어느 병원이 피해를 입었나?"
+    }
+   ],
+   "widgets": []
+  },
+  "spec": {
+   "version": 2,
+   "widgets": [
+    {
+     "id": "w1",
+     "type": "narrative",
+     "title": "상황",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w2",
+     "type": "stat-grid",
+     "title": "주요 수치",
+     "span": "full",
+     "bind": null,
+     "metrics": [
+      "hospitals-affected",
+      "patients-diverted"
+     ]
+    },
+    {
+     "id": "w3",
+     "type": "table",
+     "title": "관련 취약점",
+     "span": "full",
+     "bind": "cves",
+     "metrics": []
+    },
+    {
+     "id": "w4",
+     "type": "timeline",
+     "title": "타임라인",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w5",
+     "type": "alert-list",
+     "title": "공식 공지",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w6",
+     "type": "link-list",
+     "title": "도움",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w7",
+     "type": "feed",
+     "title": "최신 보도",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w8",
+     "type": "changelog",
+     "title": "변경 내역",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w9",
+     "type": "sources",
+     "title": "출처",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    }
+   ]
+  },
+  "data": {
+   "header": {
+    "title": "서울 병원 랜섬웨어",
+    "subtitle": null,
+    "crisisType": "cyberattack",
+    "accent": "violet",
+    "headline": {
+     "text": "서울 대형 병원 3곳이 랜섬웨어 공격으로 전산이 멈춰 응급 환자를 다른 병원으로 보내고 있습니다.",
+     "sources": [
+      "s2"
+     ]
+    },
+    "status": "developing",
+    "statusP": null,
+    "severity": 3.6,
+    "severityP": null,
+    "location": null,
+    "asOf": "2026-11-13T06:00:00.000Z",
+    "language": "ko"
+   },
+   "widgets": {
+    "w1": {
+     "sentences": [
+      {
+       "text": "서울 시내 대형 병원 3곳에서 전산 장애가 발생했습니다.",
+       "sources": [
+        "s2"
+       ]
+      },
+      {
+       "text": "KISA는 병원 정보시스템을 노린 랜섬웨어라고 밝혔습니다.",
+       "sources": [
+        "s1"
+       ]
+      }
+     ]
+    },
+    "w2": {
+     "items": [
+      {
+       "key": "hospitals-affected",
+       "label": "피해 병원",
+       "valueText": "3",
+       "valueNum": 3,
+       "unit": "곳",
+       "delta": "+1 since Nov 13",
+       "deltaNum": 1,
+       "tone": "critical",
+       "conflict": null,
+       "history": [
+        {
+         "t": "2026-11-12T20:00:00.000Z",
+         "v": 2
+        },
+        {
+         "t": "2026-11-13T06:00:00.000Z",
+         "v": 3
+        }
+       ],
+       "sources": [
+        "s2"
+       ],
+       "asOf": "2026-11-13T06:00:00.000Z"
+      }
+     ]
+    },
+    "w3": {
+     "columns": [
+      {
+       "key": "cve",
+       "label": "CVE",
+       "kind": "text"
+      },
+      {
+       "key": "score",
+       "label": "CVSS",
+       "kind": "number"
+      },
+      {
+       "key": "link",
+       "label": "Link",
+       "kind": "link"
+      }
+     ],
+     "rows": [
+      {
+       "id": "c1",
+       "cells": {
+        "cve": "CVE-2026-41234",
+        "score": "9.8",
+        "link": "https://nvd.nist.gov/vuln/detail/CVE-2026-41234"
+       },
+       "sources": [
+        "s3"
+       ],
+       "asOf": "2026-11-13T16:00:00.000Z"
+      }
+     ]
+    },
+    "w4": {
+     "items": [
+      {
+       "id": "t1",
+       "at": "2026-11-13T06:00:00.000Z",
+       "title": "세 번째 병원 피해 확인",
+       "detail": "응급실 운영 중단.",
+       "importance": "high",
+       "sources": [
+        "s2"
+       ],
+       "asOf": "2026-11-13T06:00:00.000Z"
+      }
+     ]
+    },
+    "w5": {
+     "items": [
+      {
+       "id": "a1",
+       "issuer": "KISA",
+       "title": "랜섬웨어 피해 주의 공지",
+       "text": "의료기관은 EMR 게이트웨이를 즉시 패치하십시오.",
+       "level": "warning",
+       "url": "https://www.boho.or.kr/kr/bbs/view.do?bbsId=B0000133&nttId=1",
+       "active": true,
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T07:00:00.000Z"
+      }
+     ]
+    },
+    "w7": {},
+    "w8": {},
+    "w9": {}
+   },
+   "hidden": [
+    "w6"
+   ],
+   "generatedAt": 1794655800000
+  }
+ },
+ "run": {
+  "run": {
+   "id": 42,
+   "graph": "build",
+   "status": "done",
+   "startedAt": 1794549600000,
+   "finishedAt": 1794549641200,
+   "error": null
+  },
+  "steps": [
+   {
+    "node": "plan",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549600000,
+    "ms": 4100,
+    "model": "gemini-4-carbon",
+    "tokensIn": 1200,
+    "tokensOut": 900,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "gather",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549604100,
+    "ms": 5200,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 9,
+    "error": null
+   },
+   {
+    "node": "triage",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549609300,
+    "ms": 1800,
+    "model": "gemini-decision-1",
+    "tokensIn": 9000,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "read",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549609400,
+    "ms": 7400,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 6,
+    "error": null
+   },
+   {
+    "node": "extract",
+    "stepKey": "1",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549611100,
+    "ms": 6300,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 8000,
+    "tokensOut": 1500,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "extract",
+    "stepKey": "2",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549611150,
+    "ms": 7100,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 8200,
+    "tokensOut": 1600,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "verify",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549618300,
+    "ms": 40,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "merge",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549618340,
+    "ms": 900,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 2000,
+    "tokensOut": 300,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "coverage",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619240,
+    "ms": 700,
+    "model": "gemini-decision-1",
+    "tokensIn": 1500,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "narrative",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619950,
+    "ms": 8200,
+    "model": "gemini-4-carbon",
+    "tokensIn": 6000,
+    "tokensOut": 700,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "assess",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619960,
+    "ms": 600,
+    "model": "gemini-decision-1",
+    "tokensIn": 900,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "geocode",
+    "stepKey": "",
+    "status": "skipped",
+    "attempt": 1,
+    "startedAt": 1794549619970,
+    "ms": 4100,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "assemble",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549628160,
+    "ms": 30,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "watch",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549628200,
+    "ms": 13000,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 3,
+    "error": null
+   }
+  ],
+  "totals": {
+   "ms": 41200,
+   "llmCalls": 9,
+   "tokensIn": 36800,
+   "tokensOut": 5000,
+   "contextCalls": 18
+  }
+ }
+}

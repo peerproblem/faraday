@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { SITE_URL } from "@/lib/config";
+import { SwProvider } from "@/components/ui/provider";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -15,23 +16,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
-        <SiteHeader />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 sm:px-6">{children}</main>
-        <footer className="border-t border-line py-6 text-center text-xs text-faint">
-          <a href={`${SITE_URL}/privacy`} className="hover:text-text">
-            Privacy
-          </a>
-          <span className="mx-3">/</span>
-          <a href={`${SITE_URL}/terms`} className="hover:text-text">
-            Terms
-          </a>
-          <span className="mx-3">/</span>
-          <a href="https://github.com/peerproblem/faraday" className="hover:text-text">
-            GitHub
-          </a>
-        </footer>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+      <body className="sw-root sw-body flex min-h-full flex-col">
+        <SwProvider theme="system">
+          <SiteHeader />
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-10">{children}</main>
+          <SiteFooter />
+        </SwProvider>
       </body>
     </html>
   );

@@ -1,0 +1,165 @@
+/* Styles for the stand-ins: parts Faraday needs that @sw3/ui v1 does not ship yet. Each block is deleted
+   when its stand-in is replaced by the real sw3 component (see MIGRATION.md). Values are --sw-* tokens only. */
+
+/* Table (stand-in for sw3 Table) */
+.fd-table-scroll {
+  overflow-x: auto;
+}
+.fd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.fd-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sw-hairline);
+  font-family: var(--sw-font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: start;
+  white-space: nowrap;
+  color: var(--sw-muted-foreground);
+}
+.fd-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sw-hairline);
+  vertical-align: top;
+}
+.fd-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.fd-table :is(th, td)[data-align="end"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.fd-table :is(th, td):first-child {
+  padding-inline-start: 0;
+}
+.fd-table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+.fd-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.fd-table__sort:hover,
+.fd-table th[aria-sort="ascending"],
+.fd-table th[aria-sort="descending"] {
+  color: var(--sw-foreground);
+}
+.fd-table__sort svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Citation chip (stand-in for an sw3 citation or chip trigger) */
+.fd-cite {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  margin: 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--sw-radius-xs);
+  corner-shape: var(--sw-corner-shape);
+  box-shadow: inset 0 0 0 1px var(--sw-frame);
+  background: var(--sw-background);
+  font-family: var(--sw-font-mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--sw-muted-foreground);
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    color var(--sw-duration-fast) var(--sw-ease-standard),
+    box-shadow var(--sw-duration-fast) var(--sw-ease-standard);
+}
+.fd-cite:hover,
+.fd-cite[aria-expanded="true"] {
+  color: var(--sw-foreground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--sw-foreground) 45%, var(--sw-background));
+}
+
+/* Skeleton (stand-in for sw3 Skeleton) */
+.fd-skeleton {
+  border-radius: var(--sw-radius-sm);
+  corner-shape: var(--sw-corner-shape);
+  background: linear-gradient(90deg, var(--sw-muted) 0%, var(--sw-hairline) 50%, var(--sw-muted) 100%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s linear infinite;
+}
+@keyframes fd-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+/* Warning tone (stand-in for a warning variant on sw3 Badge) */
+.fd-badge-warning {
+  background: color-mix(in oklab, var(--sw-warning) 14%, transparent);
+  color: var(--sw-warning);
+}
+
+/* Live dot: a Badge's status dot that pulses while a board is connected (sw3 v1's dot is static) */
+.fd-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: fd-pulse 1.6s ease-in-out infinite;
+}
+@keyframes fd-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Link (stand-in for an sw3 text link) */
+.fd-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--sw-frame);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition: text-decoration-color var(--sw-duration-fast) var(--sw-ease-standard);
+}
+.fd-link:hover {
+  text-decoration-color: var(--sw-foreground);
+}
+
+/* Link card (stand-in for an href on sw3 Card) */
+.fd-link-card {
+  display: block;
+  height: 100%;
+  border-radius: var(--sw-radius-lg);
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-skeleton,
+  .fd-live-dot {
+    animation: none;
+  }
+}

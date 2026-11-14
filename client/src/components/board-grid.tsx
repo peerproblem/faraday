@@ -1,31 +1,55 @@
-import Link from "next/link";
+import { Ago } from "@/components/ago";
+import { ToneBadge, type Tone } from "@/components/ui/badge";
+import { CardTitle } from "@/components/ui/card";
+import { LinkCard } from "@/components/ui/link-card";
+import { Text } from "@/components/ui/typography";
 import { boardUrl } from "@/lib/config";
-import type { BoardCard } from "@/lib/engine";
-import { ago } from "@/lib/time";
+import type { BoardCard } from "@/lib/spec";
+
+export function boardBadge(b: Pick<BoardCard, "status" | "tier">): { text: string; tone: Tone; live: boolean } {
+  if (b.status === "error") return { text: "Error", tone: "danger", live: false };
+  if (b.status !== "live") return { text: "Building", tone: "accent", live: false };
+  if (b.tier === "paused") return { text: "Paused", tone: "neutral", live: false };
+  return { text: "Live", tone: "success", live: true };
+}
 
 export function BoardGrid({ boards }: { boards: BoardCard[] }) {
-  if (!boards.length) return <p className="text-sm text-faint">No boards yet. Build the first one above.</p>;
+  if (!boards.length) {
+    return (
+      <Text tone="muted">
+        No boards yet. Build the first one above.
+      </Text>
+    );
+  }
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {boards.map((b) => (
-        <li key={b.id} data-accent={b.accent ?? "red"}>
-          <Link
-            href={b.status === "live" ? boardUrl(b.slug) : `/studio/${b.id}`}
-            className="flex h-full flex-col rounded-xl border border-line bg-panel p-4 hover:border-accent"
-          >
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-accent">
-                <span className={`h-1.5 w-1.5 rounded-full bg-accent ${b.status === "live" ? "pulse-dot" : ""}`} />
-                {b.status === "live" ? "Live" : b.status}
-              </span>
-              {b.crisisType ? <span className="capitalize text-faint">{b.crisisType}</span> : null}
-              <span className="ml-auto text-faint">{ago(b.updatedAt)}</span>
-            </div>
-            <div className="mt-2 font-medium">{b.title ?? "Untitled board"}</div>
-            <p className="mt-1 line-clamp-3 text-sm text-muted">{b.headline ?? b.prompt}</p>
-          </Link>
-        </li>
-      ))}
+      {boards.map((b) => {
+        const s = boardBadge(b);
+        return (
+          <li key={b.id} data-tier={b.tier} className="min-w-0">
+            <LinkCard href={b.status === "live" ? boardUrl(b.slug) : `/studio/${b.id}`} padding="md" className="gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <ToneBadge tone={s.tone}>
+                  {s.live ? <span aria-hidden="true" className="fd-live-dot" /> : null}
+                  {s.text}
+                </ToneBadge>
+                {b.crisisType ? (
+                  <ToneBadge tone="neutral" mono>
+                    {b.crisisType}
+                  </ToneBadge>
+                ) : null}
+                <Text as="span" size="sm" tone="muted" className="ml-auto">
+                  <Ago t={b.updatedAt} />
+                </Text>
+              </div>
+              <CardTitle as="h3">{b.title ?? "Untitled board"}</CardTitle>
+              <Text size="sm" tone="muted" className="line-clamp-3">
+                {b.headline ?? b.prompt}
+              </Text>
+            </LinkCard>
+          </li>
+        );
+      })}
     </ul>
   );
 }

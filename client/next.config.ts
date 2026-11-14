@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_API_URL: process.env.API_URL ?? "",
   },
   // Keeps next dev from writing its own AGENTS.md into client/.
-  experimental: { agentRules: false } as NextConfig["experimental"],
+  agentRules: false,
   // On the Vultr box every <slug>.<domain> serves its board at the root.
   async rewrites() {
     const domain = process.env.FARADAY_DOMAIN;

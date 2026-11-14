@@ -1,206 +1,289 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import { Button } from "@ui-sdk/react/button";
-import { Field, FieldLabel } from "@ui-sdk/react/field";
-import { Tabs, TabsList, TabsPanel, TabsTab } from "@ui-sdk/react/tabs";
-import { Textarea } from "@ui-sdk/react/textarea";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Ago } from "@/components/ago";
+import { AgentBridge } from "@/components/board/agent-bridge";
+import { Board, isBuilding } from "@/components/board/board";
+import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { TextLink } from "@/components/ui/link";
+import { Resizable, ResizableHandle, ResizablePanel } from "@/components/ui/resizable";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Caption, Text } from "@/components/ui/typography";
 import { api, boardUrl } from "@/lib/config";
-import type { BoardView } from "@/lib/spec";
-import { Ago } from "./ago";
-import { Board } from "./board/board";
-import { AgentBridge, BoardToasts, useLiveBoard } from "./board/live-board";
+import type { BoardTier, BoardView, RunView, Source, Visibility } from "@/lib/spec";
+import { RunWaterfall } from "./studio-run";
 
-const pipeline = [
-  { key: "planning", stage: "plan", label: "Compile", hint: "Prompt → plan" },
-  { key: "gathering", stage: "gather", label: "Read the web", hint: "Context.dev search + news" },
-  { key: "composing", stage: "compose", label: "Compose", hint: "Sources → board" },
-  { key: "watching", stage: "watch", label: "Watch", hint: "Monitors + polling" },
-] as const;
+async function post(path: string, body?: unknown, method = "POST") {
+  const res = await fetch(api(path), {
+    method,
+    credentials: "include",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+  return data;
+}
 
-const order = ["queued", "planning", "gathering", "composing", "watching", "live"];
-
-export function Studio({ initial, canEdit }: { initial: BoardView; canEdit: boolean }) {
-  const { board, partial, connected, refresh } = useLiveBoard(initial);
-  const [instruction, setInstruction] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const statusIdx = order.indexOf(board.status);
-  const plan = board.plan as null | {
-    newsQueries?: string[];
-    webQueries?: string[];
-    monitor?: { query: string; instructions: string };
-    questions?: string[];
-  };
-
-  async function sendEdit() {
-    setError(null);
-    const res = await fetch(api(`/api/boards/${board.id}/edit`), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instruction }),
+/** Re-reads the latest run when the pipeline reports progress, and every few seconds while one is running. */
+function useLatestRun(boardId: string, trigger: string, building: boolean, initial: RunView | null, enabled: boolean) {
+  const [run, setRun] = useState<RunView | null>(initial);
+  const load = useCallback(
+    () =>
+      fetch(api(`/api/boards/${boardId}/runs/latest`), { cache: "no-store", credentials: "include" })
+        .then((res) => (res.ok ? (res.json() as Promise<RunView>) : null))
+        .catch(() => null),
+    [boardId],
+  );
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    void load().then((v) => {
+      if (live && v) setRun(v);
     });
-    if (!res.ok) {
-      setError(((await res.json()) as { error?: string }).error ?? "Edit failed");
-      return;
-    }
-    setInstruction("");
-  }
+    return () => {
+      live = false;
+    };
+  }, [enabled, load, trigger]);
+  const running = building || run?.run?.status === "running";
+  useEffect(() => {
+    if (!enabled || !running) return;
+    const t = setInterval(() => {
+      void load().then((v) => v && setRun(v));
+    }, 4000);
+    return () => clearInterval(t);
+  }, [enabled, running, load]);
+  return run;
+}
 
-  return (
-    <div className="grid gap-4 pt-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-      <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-        <div className="rounded-xl border border-line bg-panel p-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Pipeline</h2>
-            {board.status === "live" ? (
-              <Link href={boardUrl(board.slug)} className="ml-auto text-xs text-[#ef4444] underline">
-                Open public board
-              </Link>
-            ) : null}
-          </div>
-          <ol className="mt-3 grid gap-2">
-            {pipeline.map((p, i) => {
-              const metric = board.metrics?.stages.findLast((s) => s.stage === p.stage);
-              const active = board.status === p.key;
-              const done = statusIdx > order.indexOf(p.key) || (board.status === "live" && !!metric);
-              return (
-                <li key={p.key} className="flex items-start gap-3">
-                  <span
-                    className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full font-mono text-[10px] ${
-                      done ? "bg-[#ef4444] text-white" : active ? "pulse-dot border border-[#ef4444] text-[#ef4444]" : "border border-line-strong text-faint"
-                    }`}
-                  >
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2 text-sm">
-                      <span className={done || active ? "text-text" : "text-faint"}>{p.label}</span>
-                      <span className="text-[11px] text-faint">{p.hint}</span>
-                      {metric ? <span className="ml-auto font-mono text-[11px] text-muted">{(metric.ms / 1000).toFixed(1)}s</span> : null}
-                    </div>
-                    {metric ? <div className="text-xs text-faint">{metric.detail}</div> : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-          {board.metrics ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3 text-center">
-              <Stat label="Context.dev calls" value={board.metrics.contextCalls} />
-              <Stat label="LLM calls" value={board.metrics.llmCalls} />
-              <Stat label="Sources" value={board.metrics.sourcesRead} />
-            </div>
+export function triageCounts(sources: Source[]) {
+  const counts: Record<string, number> = {};
+  let untriaged = 0;
+  for (const s of sources) {
+    if (!s.sourceType) untriaged += 1;
+    else counts[s.sourceType] = (counts[s.sourceType] ?? 0) + 1;
+  }
+  return { counts, untriaged, kept: sources.length - untriaged };
+}
+
+const WIDE = "(min-width: 1024px)";
+
+/** True from the first client render on a wide screen. The server and narrow screens get the stacked layout. */
+function useWide() {
+  return useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia(WIDE);
+      mq.addEventListener("change", notify);
+      return () => mq.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(WIDE).matches,
+    () => false,
+  );
+}
+
+export function Studio({
+  initial,
+  canEdit,
+  initialRun = null,
+  offline = false,
+}: {
+  initial: BoardView;
+  canEdit: boolean;
+  initialRun?: RunView | null;
+  offline?: boolean;
+}) {
+  const router = useRouter();
+  const wide = useWide();
+  const { board, partial, spec, data, connected, refresh } = useLiveBoard(initial, { live: !offline });
+  const building = isBuilding(board.status);
+  const progressKey = board.events.find((e) => e.kind === "stage" || e.kind === "update" || e.kind === "edit" || e.kind === "error")?.id;
+  const run = useLatestRun(board.id, `${progressKey ?? ""}:${board.status}`, building, initialRun, !offline);
+  const plan = board.plan;
+
+  const side = (
+    <aside className="flex min-w-0 flex-col gap-4">
+      <Card padding="md">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="m-0 flex">
+            <Caption>Pipeline</Caption>
+          </h2>
+          {board.status === "live" ? (
+            <Text as="span" size="sm">
+              <TextLink href={boardUrl(board.slug)}>Open public board</TextLink>
+            </Text>
           ) : null}
         </div>
+        <RunWaterfall view={run} />
+      </Card>
 
-        <Tabs defaultValue="program" className="rounded-xl border border-line bg-panel">
-          <TabsList aria-label="Studio panels" className="flex border-b border-line px-2">
-            <TabsTab value="program">Program</TabsTab>
-            <TabsTab value="plan">Plan</TabsTab>
-            <TabsTab value="activity">Activity</TabsTab>
+      <Card padding="md">
+        <Tabs defaultValue="program" size="sm">
+          <TabsList aria-label="Studio panels">
+            <Tab value="program">Program</Tab>
+            <Tab value="plan">Plan</Tab>
+            <Tab value="activity">Activity</Tab>
+            {canEdit ? <Tab value="manage">Manage</Tab> : null}
           </TabsList>
-          <TabsPanel value="program" className="p-4">
-            <ul className="grid gap-3">
-              {board.messages.map((m) => (
-                <li
-                  key={`${m.ts}-${m.role}`}
-                  className={`rounded-lg p-3 text-sm ${m.role === "user" ? "bg-panel-2" : "border border-line text-muted"}`}
-                >
-                  <div className="mb-1 text-[10px] uppercase tracking-wider text-faint">{m.role === "user" ? "You" : "Faraday"}</div>
-                  {m.content}
-                </li>
-              ))}
-            </ul>
-            {canEdit ? (
-              <form
-                className="mt-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void sendEdit();
-                }}
-              >
-                <Field>
-                  <FieldLabel className="text-xs text-muted">Edit the program</FieldLabel>
-                  <Textarea
-                    value={instruction}
-                    onValueChange={(v) => setInstruction(v)}
-                    rows={2}
-                    placeholder="Add a table of road closures. Focus on Ellijay."
-                    className="mt-1 w-full resize-none rounded-lg border border-line-strong bg-bg p-2 text-sm outline-none focus:border-[#ef4444]"
-                  />
-                </Field>
-                {error ? <p className="mt-1 text-xs text-critical">{error}</p> : null}
-                <Button
-                  type="submit"
-                  disabled={instruction.trim().length < 3 || board.status !== "live"}
-                  className="mt-2 w-full rounded-lg bg-[#ef4444] px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
-                >
-                  Recompile the board
-                </Button>
-              </form>
-            ) : (
-              <p className="mt-3 text-xs text-faint">Only the person who built this board can edit it.</p>
-            )}
+          <TabsPanel value="program">
+            <ProgramPanel board={board} canEdit={canEdit} building={building} />
           </TabsPanel>
-          <TabsPanel value="plan" className="p-4 text-sm">
+          <TabsPanel value="plan">
             {plan ? (
-              <div className="grid gap-4">
-                <PlanList title="News queries" items={plan.newsQueries} />
-                <PlanList title="Web queries" items={plan.webQueries} />
-                <PlanList title="Questions the board answers" items={plan.questions} />
-                {plan.monitor ? (
-                  <div>
-                    <h3 className="text-xs font-semibold text-muted">Search monitor (every 10 min)</h3>
-                    <p className="mt-1 font-mono text-xs">{plan.monitor.query}</p>
-                    <p className="mt-1 text-xs text-faint">{plan.monitor.instructions}</p>
-                  </div>
-                ) : null}
-              </div>
+              <PlanPanel board={board} />
             ) : (
-              <p className="text-faint">The plan appears once the prompt is compiled.</p>
+              <Text size="sm" tone="muted">
+                The plan appears once the prompt is compiled.
+              </Text>
             )}
           </TabsPanel>
-          <TabsPanel value="activity" className="p-4">
-            <ul className="grid gap-1.5 text-xs">
+          <TabsPanel value="activity">
+            <ul className="grid gap-2">
               {board.events.map((e) => (
-                <li key={e.id} className="flex gap-2">
-                  <span className="w-14 shrink-0 font-mono text-faint">
+                <li key={e.id} className="flex gap-3">
+                  <Text as="span" size="sm" tone="muted" className="w-16 shrink-0 font-mono text-xs leading-5">
                     <Ago t={e.ts} />
-                  </span>
-                  <span className={e.kind === "error" ? "text-critical" : e.kind === "update" ? "text-text" : "text-muted"}>
+                  </Text>
+                  <Text as="span" size="sm" tone={e.kind === "update" || e.kind === "error" ? "default" : "subtle"} className={e.kind === "error" ? "text-danger" : undefined}>
                     {e.message}
-                  </span>
+                  </Text>
                 </li>
               ))}
             </ul>
           </TabsPanel>
+          {canEdit ? (
+            <TabsPanel value="manage">
+              <ManagePanel board={board} onDeleted={() => router.push("/")} />
+            </TabsPanel>
+          ) : null}
         </Tabs>
-      </aside>
+      </Card>
+    </aside>
+  );
 
-      <div className="min-w-0">
-        <Board
-          spec={partial ?? board.spec}
-          sources={board.sources}
-          events={board.events}
-          status={board.status}
-          connected={connected}
-          lastPolledAt={board.lastPolledAt}
-          onRefresh={refresh}
-        />
-      </div>
+  const main = (
+    <Board
+      spec={spec}
+      data={data}
+      specVersion={board.specVersion}
+      title={board.title}
+      prompt={board.prompt}
+      sources={board.sources}
+      events={board.events}
+      status={board.status}
+      tier={board.tier}
+      stage={partial?.stage}
+      connected={connected}
+      lastPolledAt={board.lastPolledAt}
+      onRefresh={offline ? undefined : refresh}
+    />
+  );
+
+  return (
+    <div className="pt-2">
+      {wide ? (
+        // Unframed: the cards inside each panel sit on the page canvas, as everywhere else.
+        <Resizable aria-label="Studio layout" framed={false} autoSaveId="faraday-studio" className="items-start">
+          <ResizablePanel id="studio-side" defaultSize={34} minSize={24} maxSize={50}>
+            <div className="pr-2">{side}</div>
+          </ResizablePanel>
+          <ResizableHandle aria-label="Resize the studio panels" />
+          <ResizablePanel id="studio-board" minSize={50}>
+            <div className="pl-2">{main}</div>
+          </ResizablePanel>
+        </Resizable>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {side}
+          {main}
+        </div>
+      )}
       <BoardToasts />
       <AgentBridge />
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function PanelSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div>
-      <div className="font-mono text-lg">{value}</div>
-      <div className="text-[10px] text-faint">{label}</div>
+    <div className="flex flex-col gap-2">
+      <h3 className="m-0 flex">
+        <Caption>{title}</Caption>
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+function ProgramPanel({ board, canEdit, building }: { board: BoardView; canEdit: boolean; building: boolean }) {
+  const [instruction, setInstruction] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  async function sendEdit() {
+    if (sending) return;
+    setError(null);
+    setSending(true);
+    try {
+      await post(`/api/boards/${board.id}/edit`, { instruction });
+      setInstruction("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ul className="grid gap-3">
+        {board.messages.map((m, i) => (
+          <li key={`${m.ts}-${m.role}-${i}`}>
+            <Card variant={m.role === "user" ? "muted" : "surface"} padding="sm" className="gap-1.5">
+              <Caption>{m.role === "user" ? "You" : "Faraday"}</Caption>
+              <Text size="sm" tone={m.role === "user" ? "default" : "subtle"}>
+                {m.content}
+              </Text>
+            </Card>
+          </li>
+        ))}
+      </ul>
+      {canEdit ? (
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void sendEdit();
+          }}
+        >
+          <Field label="Edit the program" error={error ?? undefined}>
+            <Textarea value={instruction} onValueChange={setInstruction} minRows={2} maxRows={8} placeholder="Add a table of road closures. Focus on the north of the city." />
+          </Field>
+          <Button type="submit" variant="accent" fullWidth loading={sending} disabled={instruction.trim().length < 3 || building || board.specVersion < 2}>
+            Recompile the board
+          </Button>
+        </form>
+      ) : (
+        <Text size="sm" tone="muted">
+          Only the person who built this board can edit it.
+        </Text>
+      )}
     </div>
   );
 }
@@ -208,15 +291,178 @@ function Stat({ label, value }: { label: string; value: number }) {
 function PlanList({ title, items }: { title: string; items?: string[] }) {
   if (!items?.length) return null;
   return (
-    <div>
-      <h3 className="text-xs font-semibold text-muted">{title}</h3>
-      <ul className="mt-1 grid gap-1">
-        {items.map((q) => (
-          <li key={q} className="font-mono text-xs">
+    <PanelSection title={title}>
+      <ul className="grid gap-1.5">
+        {items.map((q, i) => (
+          <li key={`${i}-${q}`} className="font-mono text-xs text-subtle">
             {q}
           </li>
         ))}
       </ul>
+    </PanelSection>
+  );
+}
+
+function PlanPanel({ board }: { board: BoardView }) {
+  const plan = board.plan!;
+  const triage = triageCounts(board.sources);
+  return (
+    <div className="grid gap-5">
+      <PanelSection title="Tracked figures">
+        <ul className="grid gap-1.5">
+          {plan.metrics.map((m) => (
+            <li key={m.key}>
+              <Text as="span" size="sm">
+                {m.label}
+              </Text>
+              {m.unit ? (
+                <Text as="span" size="sm" tone="muted">
+                  {" "}
+                  ({m.unit})
+                </Text>
+              ) : null}{" "}
+              <span className="font-mono text-xs text-muted-foreground">{m.key}</span>
+            </li>
+          ))}
+        </ul>
+      </PanelSection>
+      {plan.tables.length ? (
+        <PanelSection title="Tracked lists">
+          <ul className="grid gap-1.5">
+            {plan.tables.map((t) => (
+              <li key={t.key}>
+                <Text as="span" size="sm">
+                  {t.title}
+                </Text>
+                <Text as="span" size="sm" tone="muted">
+                  : {t.columns.map((c) => c.label).join(", ")}
+                </Text>
+              </li>
+            ))}
+          </ul>
+        </PanelSection>
+      ) : null}
+      {plan.statusGroups.length ? <PlanList title="Status groups" items={plan.statusGroups.map((g) => g.title)} /> : null}
+      <PanelSection title="Source triage">
+        <Text size="sm" tone="subtle">
+          {triage.kept} kept
+          {Object.entries(triage.counts).length ? `: ${Object.entries(triage.counts).map(([k, n]) => `${n} ${k}`).join(", ")}` : ""}
+          {triage.untriaged ? `, ${triage.untriaged} not triaged yet` : ""}
+        </Text>
+      </PanelSection>
+      <PlanList title="Questions the board answers" items={plan.questions.map((q) => q.text)} />
+      <PlanList title="News queries" items={plan.newsQueries} />
+      <PlanList title="Web queries" items={plan.webQueries} />
+      <PanelSection title="Search monitor (every 10 min)">
+        <p className="m-0 font-mono text-xs text-subtle">{plan.monitor.query}</p>
+        <Text size="sm" tone="muted">
+          {plan.monitor.instructions}
+        </Text>
+      </PanelSection>
+    </div>
+  );
+}
+
+const visibilityOptions: { value: Visibility; label: string }[] = [
+  { value: "public", label: "Public" },
+  { value: "unlisted", label: "Unlisted" },
+];
+
+function ManagePanel({ board, onDeleted }: { board: BoardView; onDeleted: () => void }) {
+  // What the owner just chose wins until the stream reports a different tier.
+  const [chosen, setChosen] = useState<{ base: BoardTier; tier: BoardTier } | null>(null);
+  const tier = chosen && chosen.base === board.tier ? chosen.tier : board.tier;
+  const setTier = (t: BoardTier) => setChosen({ base: board.tier, tier: t });
+  const [visibility, setVisibility] = useState<Visibility>(board.visibility);
+  const [error, setError] = useState<string | null>(null);
+  const [toggling, setToggling] = useState(false);
+  const paused = tier === "paused";
+
+  async function togglePause() {
+    if (toggling) return;
+    setError(null);
+    setToggling(true);
+    try {
+      const r = (await post(`/api/boards/${board.id}/${paused ? "resume" : "pause"}`)) as { tier?: BoardTier };
+      setTier(r.tier ?? (paused ? "warm" : "paused"));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  async function changeVisibility(v: Visibility) {
+    const prev = visibility;
+    setVisibility(v);
+    setError(null);
+    try {
+      await post(`/api/boards/${board.id}/visibility`, { visibility: v });
+    } catch (e) {
+      setVisibility(prev);
+      setError((e as Error).message);
+    }
+  }
+
+  async function remove() {
+    setError(null);
+    try {
+      await post(`/api/boards/${board.id}`, undefined, "DELETE");
+      onDeleted();
+    } catch (e) {
+      setError((e as Error).message);
+      throw e;
+    }
+  }
+
+  return (
+    <div className="grid gap-6">
+      <PanelSection title="Live updates">
+        <Text size="sm" tone="muted">
+          {paused ? "Paused. The board keeps what it has but stops reading the web." : "The board reads the web on its own while people are watching."}
+        </Text>
+        <div>
+          <Button variant="outline" size="sm" loading={toggling} onClick={() => void togglePause()}>
+            {paused ? "Resume live updates" : "Pause live updates"}
+          </Button>
+        </div>
+      </PanelSection>
+      <PanelSection title="Who can find it">
+        <div>
+          <SegmentedControl aria-label="Board visibility" size="sm" value={visibility} onValueChange={(v) => void changeVisibility(v)} options={visibilityOptions} />
+        </div>
+        <Text size="sm" tone="muted">
+          Unlisted boards work by link but are not shown on the home page.
+        </Text>
+      </PanelSection>
+      <PanelSection title="Delete">
+        <div>
+          <AlertDialog>
+            <AlertDialogTrigger variant="danger" size="sm">
+              Delete board
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this board?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {board.title ?? "This board"}, its sources and its web monitors are deleted for everyone. The link stops working.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep it</AlertDialogCancel>
+                <AlertDialogAction variant="danger" onClick={() => remove()}>
+                  Delete forever
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </PanelSection>
+      {error ? (
+        <Text size="sm" className="text-danger" role="alert">
+          {error}
+        </Text>
+      ) : null}
     </div>
   );
 }

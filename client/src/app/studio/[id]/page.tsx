@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { Studio } from "@/components/studio";
-import { getBoard } from "@/lib/engine";
+import { getBoard, getLatestRun } from "@/lib/engine";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudioPage({ params }: PageProps<"/studio/[id]">) {
   const { id } = await params;
-  const [board, session] = await Promise.all([getBoard(id), auth()]);
+  const [board, run, session] = await Promise.all([getBoard(id), getLatestRun(id), auth()]);
   if (!board) notFound();
-  return <Studio initial={board} canEdit={!!session?.user?.id && session.user.id === board.ownerId} />;
+  return <Studio initial={board} initialRun={run} canEdit={!!session?.user?.id && session.user.id === board.ownerId} />;
 }

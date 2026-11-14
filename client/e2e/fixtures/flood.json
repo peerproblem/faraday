@@ -1,0 +1,1387 @@
+{
+ "board": {
+  "visibility": "public",
+  "specVersion": 2,
+  "tier": "hot",
+  "status": "live",
+  "version": 7,
+  "ownerId": "u-demo",
+  "language": "en",
+  "createdAt": 1794549600000,
+  "updatedAt": 1794657240000,
+  "lastPolledAt": 1794657420000,
+  "messages": [
+   {
+    "role": "user",
+    "content": "Flood emergency in Valencia: deaths, evacuations, closed roads and shelters",
+    "ts": 1794549600000
+   },
+   {
+    "role": "assistant",
+    "content": "Built \"Valencia Floods\" from 10 live sources in 41.2s.",
+    "ts": 1794549960000
+   }
+  ],
+  "id": "fxflood0001",
+  "slug": "valencia-floods-fx01",
+  "prompt": "Flood emergency in Valencia: deaths, evacuations, closed roads and shelters",
+  "title": "Valencia Floods",
+  "sources": [
+   {
+    "id": "s1",
+    "url": "https://www.aemet.es/en/eltiempo/prediccion/avisos",
+    "title": "Weather warnings: Valencia",
+    "publisher": "aemet.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "Red warning for rainfall in the Valencia coast. Up to 180 l/m2 in 12 hours.",
+    "relevance": 0.97,
+    "sourceType": "official"
+   },
+   {
+    "id": "s2",
+    "url": "https://www.112cv.gva.es/es/inicio",
+    "title": "Emergencias 112 Comunitat Valenciana",
+    "publisher": "112cv.gva.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "Evacuation of 3,200 residents in Paiporta and Catarroja.",
+    "relevance": 0.95,
+    "sourceType": "official"
+   },
+   {
+    "id": "s3",
+    "url": "https://elpais.com/espana/2026-11-14/valencia-floods.html",
+    "title": "Floods in Valencia: 12 dead, 3,000 evacuated as rain continues",
+    "publisher": "El País",
+    "kind": "news",
+    "publishedAt": "2026-11-14T10:00:00.000Z",
+    "fetchedAt": 1794651120000,
+    "snippet": "At least 12 people have died, regional authorities said on Saturday morning.",
+    "relevance": 0.94,
+    "sourceType": "news"
+   },
+   {
+    "id": "s4",
+    "url": "https://www.reuters.com/world/europe/spain-floods-2026-11-14/",
+    "title": "Spain floods: death toll rises to 15",
+    "publisher": "Reuters",
+    "kind": "news",
+    "publishedAt": "2026-11-14T11:00:00.000Z",
+    "fetchedAt": 1794654720000,
+    "snippet": "The death toll rose to 15 on Saturday, the regional government said.",
+    "relevance": 0.93,
+    "sourceType": "news"
+   },
+   {
+    "id": "s5",
+    "url": "https://www.iberdrola.es/averias",
+    "title": "Power outages map",
+    "publisher": "iberdrola.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "41,000 customers without power in the province of Valencia.",
+    "relevance": 0.81,
+    "sourceType": "official"
+   },
+   {
+    "id": "s6",
+    "url": "https://www.dgt.es/el-trafico/",
+    "title": "Traffic incidents",
+    "publisher": "dgt.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "A-7 closed between km 330 and 345. V-31 closed in both directions.",
+    "relevance": 0.86,
+    "sourceType": "official"
+   },
+   {
+    "id": "s7",
+    "url": "https://www.lasprovincias.es/valencia/riada-albergues.html",
+    "title": "Where to find shelter tonight",
+    "publisher": "Las Provincias",
+    "kind": "news",
+    "publishedAt": "2026-11-14T09:00:00.000Z",
+    "fetchedAt": 1794647520000,
+    "snippet": "The Fuente de San Luis pavilion is open as a shelter for 400 people.",
+    "relevance": 0.88,
+    "sourceType": "news"
+   },
+   {
+    "id": "s8",
+    "url": "https://x.com/emergenciasCV/status/1",
+    "title": "Emergencias CV on X",
+    "publisher": "x.com",
+    "kind": "news",
+    "publishedAt": "2026-11-14T08:00:00.000Z",
+    "fetchedAt": 1794643920000,
+    "snippet": "Avoid all travel in l'Horta Sud.",
+    "relevance": 0.6,
+    "sourceType": "social"
+   },
+   {
+    "id": "s9",
+    "url": "https://www.cruzroja.es/donar",
+    "title": "Donate to the flood response",
+    "publisher": "cruzroja.es",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "Cruz Roja appeal for the Valencia floods.",
+    "relevance": 0.7,
+    "sourceType": "official"
+   },
+   {
+    "id": "s10",
+    "url": "https://www.bbc.com/news/world-europe-valencia",
+    "title": "Valencia rain: rescue teams reach cut-off towns",
+    "publisher": "BBC News",
+    "kind": "monitor",
+    "publishedAt": "2026-11-14T11:30:00.000Z",
+    "fetchedAt": 1794656520000,
+    "snippet": "Military emergency unit reached Chiva overnight.",
+    "relevance": 0.9,
+    "sourceType": "news"
+   }
+  ],
+  "events": [
+   {
+    "id": 9,
+    "ts": 1794655800000,
+    "kind": "update",
+    "message": "Death toll rose from 12 to 15 (Reuters, regional government).",
+    "data": null
+   },
+   {
+    "id": 8,
+    "ts": 1794653280000,
+    "kind": "change",
+    "message": "New development: rescue teams reach Chiva",
+    "data": null
+   },
+   {
+    "id": 7,
+    "ts": 1794646800000,
+    "kind": "update",
+    "message": "Two shelters added in Valencia city.",
+    "data": null
+   },
+   {
+    "id": 6,
+    "ts": 1794549960000,
+    "kind": "stage",
+    "message": "Board live in 41.2s",
+    "data": null
+   },
+   {
+    "id": 5,
+    "ts": 1794549600000,
+    "kind": "edit",
+    "message": "Added a table of shelters",
+    "data": null
+   }
+  ],
+  "plan": {
+   "title": "Valencia Floods",
+   "subtitle": "Comunitat Valenciana, Spain",
+   "crisisType": "flood",
+   "language": "en",
+   "location": {
+    "name": "Valencia, Spain",
+    "zoom": 9
+   },
+   "lookbackDays": 3,
+   "entities": [
+    "Valencia",
+    "Paiporta",
+    "Catarroja",
+    "Chiva",
+    "AEMET"
+   ],
+   "newsQueries": [
+    "Valencia floods deaths",
+    "Valencia flood evacuations",
+    "DANA Valencia rescue"
+   ],
+   "webQueries": [
+    "AEMET Valencia warnings",
+    "Valencia flood shelters"
+   ],
+   "monitor": {
+    "query": "Valencia floods latest",
+    "instructions": "Report new figures for deaths, evacuations, outages and road closures in Valencia. Ignore other regions."
+   },
+   "metrics": [
+    {
+     "key": "deaths",
+     "label": "Deaths",
+     "unit": null,
+     "why": "Most important figure"
+    },
+    {
+     "key": "evacuated",
+     "label": "People evacuated",
+     "unit": null,
+     "why": "Scale of displacement"
+    },
+    {
+     "key": "homes-without-power",
+     "label": "Customers without power",
+     "unit": null,
+     "why": "Infrastructure impact"
+    },
+    {
+     "key": "rainfall",
+     "label": "Rainfall in 12 hours",
+     "unit": "l/m²",
+     "why": "Drives the warning level"
+    }
+   ],
+   "tables": [
+    {
+     "key": "road-closures",
+     "title": "Road closures",
+     "columns": [
+      {
+       "key": "road",
+       "label": "Road",
+       "kind": "text"
+      },
+      {
+       "key": "section",
+       "label": "Section",
+       "kind": "text"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      },
+      {
+       "key": "since",
+       "label": "Since",
+       "kind": "time"
+      }
+     ]
+    },
+    {
+     "key": "shelters",
+     "title": "Shelters",
+     "columns": [
+      {
+       "key": "name",
+       "label": "Shelter",
+       "kind": "text"
+      },
+      {
+       "key": "capacity",
+       "label": "Capacity",
+       "kind": "number"
+      },
+      {
+       "key": "info",
+       "label": "Info",
+       "kind": "link"
+      }
+     ]
+    }
+   ],
+   "statusGroups": [],
+   "questions": [
+    {
+     "id": "q1",
+     "text": "How many people have died?"
+    },
+    {
+     "id": "q2",
+     "text": "Which roads are closed?"
+    },
+    {
+     "id": "q3",
+     "text": "Where are shelters?"
+    },
+    {
+     "id": "q4",
+     "text": "Is more rain coming?"
+    }
+   ],
+   "widgets": []
+  },
+  "spec": {
+   "version": 2,
+   "widgets": [
+    {
+     "id": "w1",
+     "type": "narrative",
+     "title": "Situation",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w2",
+     "type": "stat-grid",
+     "title": "Key figures",
+     "span": "full",
+     "bind": null,
+     "metrics": [
+      "deaths",
+      "evacuated",
+      "homes-without-power",
+      "rainfall"
+     ]
+    },
+    {
+     "id": "w3",
+     "type": "map",
+     "title": "Map",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w4",
+     "type": "trend",
+     "title": "Deaths over time",
+     "span": "half",
+     "bind": "deaths",
+     "metrics": []
+    },
+    {
+     "id": "w5",
+     "type": "timeline",
+     "title": "Timeline",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w6",
+     "type": "table",
+     "title": "Road closures",
+     "span": "full",
+     "bind": "road-closures",
+     "metrics": []
+    },
+    {
+     "id": "w7",
+     "type": "table",
+     "title": "Shelters",
+     "span": "full",
+     "bind": "shelters",
+     "metrics": []
+    },
+    {
+     "id": "w8",
+     "type": "alert-list",
+     "title": "Official advisories",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w9",
+     "type": "link-list",
+     "title": "Get help",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w10",
+     "type": "feed",
+     "title": "Latest coverage",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w11",
+     "type": "changelog",
+     "title": "What changed",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w12",
+     "type": "sources",
+     "title": "Sources",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w13",
+     "type": "gauge",
+     "title": "Unknown future widget",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    }
+   ]
+  },
+  "data": {
+   "header": {
+    "title": "Valencia Floods",
+    "subtitle": "Comunitat Valenciana, Spain",
+    "crisisType": "flood",
+    "accent": "blue",
+    "headline": {
+     "text": "15 people have died and 3,200 were evacuated as a red rain warning stays in force on the Valencia coast.",
+     "sources": [
+      "s4",
+      "s2",
+      "s1"
+     ]
+    },
+    "status": "developing",
+    "statusP": {
+     "developing": 0.82,
+     "ongoing": 0.15
+    },
+    "severity": 4.3,
+    "severityP": {
+     "3": 0.7,
+     "4": 0.25
+    },
+    "location": {
+     "name": "Valencia, Spain",
+     "lat": 39.47,
+     "lon": -0.376,
+     "zoom": 9
+    },
+    "asOf": "2026-11-14T11:30:00.000Z",
+    "language": "en"
+   },
+   "widgets": {
+    "w1": {
+     "sentences": [
+      {
+       "text": "Torrential rain has flooded towns south of Valencia since Friday night.",
+       "sources": [
+        "s3"
+       ]
+      },
+      {
+       "text": "The regional government says 15 people have died.",
+       "sources": [
+        "s4"
+       ]
+      },
+      {
+       "text": "AEMET keeps a red warning for up to 180 l/m² in 12 hours.",
+       "sources": [
+        "s1"
+       ]
+      }
+     ]
+    },
+    "w2": {
+     "items": [
+      {
+       "key": "deaths",
+       "label": "Deaths",
+       "valueText": "15",
+       "valueNum": 15,
+       "unit": null,
+       "delta": "+3 since 09:00 UTC",
+       "deltaNum": 3,
+       "tone": "critical",
+       "conflict": null,
+       "history": [
+        {
+         "t": "2026-11-13T16:00:00.000Z",
+         "v": 4
+        },
+        {
+         "t": "2026-11-14T04:00:00.000Z",
+         "v": 9
+        },
+        {
+         "t": "2026-11-14T10:00:00.000Z",
+         "v": 12
+        },
+        {
+         "t": "2026-11-14T11:00:00.000Z",
+         "v": 15
+        }
+       ],
+       "sources": [
+        "s4",
+        "s3"
+       ],
+       "asOf": "2026-11-14T11:00:00.000Z"
+      },
+      {
+       "key": "evacuated",
+       "label": "People evacuated",
+       "valueText": "3,200",
+       "valueNum": 3200,
+       "unit": null,
+       "delta": null,
+       "deltaNum": null,
+       "tone": "warning",
+       "conflict": [
+        {
+         "valueText": "3,000",
+         "sources": [
+          "s3"
+         ]
+        }
+       ],
+       "history": [],
+       "sources": [
+        "s2"
+       ],
+       "asOf": "2026-11-14T10:00:00.000Z"
+      },
+      {
+       "key": "homes-without-power",
+       "label": "Customers without power",
+       "valueText": "41,000",
+       "valueNum": 41000,
+       "unit": null,
+       "delta": "-9,000 since Nov 13",
+       "deltaNum": -9000,
+       "tone": "warning",
+       "conflict": null,
+       "history": [
+        {
+         "t": "2026-11-13T10:00:00.000Z",
+         "v": 50000
+        },
+        {
+         "t": "2026-11-14T09:00:00.000Z",
+         "v": 41000
+        }
+       ],
+       "sources": [
+        "s5"
+       ],
+       "asOf": "2026-11-13T06:00:00.000Z"
+      },
+      {
+       "key": "rainfall",
+       "label": "Rainfall in 12 hours",
+       "valueText": "180",
+       "valueNum": 180,
+       "unit": "l/m²",
+       "delta": null,
+       "deltaNum": null,
+       "tone": "info",
+       "conflict": null,
+       "history": [],
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T11:48:00.000Z"
+      }
+     ]
+    },
+    "w3": {
+     "center": {
+      "name": "Valencia, Spain",
+      "lat": 39.47,
+      "lon": -0.376,
+      "zoom": 9
+     },
+     "points": [
+      {
+       "id": "p1",
+       "name": "Paiporta",
+       "lat": 39.428,
+       "lon": -0.418,
+       "kind": "impact",
+       "note": "Worst hit town, 6 deaths",
+       "sources": [
+        "s3"
+       ],
+       "asOf": "2026-11-14T10:00:00.000Z"
+      },
+      {
+       "id": "p2",
+       "name": "Chiva",
+       "lat": 39.469,
+       "lon": -0.719,
+       "kind": "incident",
+       "note": "Cut off overnight",
+       "sources": [
+        "s10"
+       ],
+       "asOf": "2026-11-14T11:30:00.000Z"
+      },
+      {
+       "id": "p3",
+       "name": "Fuente de San Luis pavilion",
+       "lat": 39.452,
+       "lon": -0.366,
+       "kind": "shelter",
+       "note": "Shelter for 400 people",
+       "sources": [
+        "s7"
+       ],
+       "asOf": "2026-11-14T09:00:00.000Z"
+      },
+      {
+       "id": "p4",
+       "name": "A-7 km 330",
+       "lat": 39.38,
+       "lon": -0.46,
+       "kind": "closure",
+       "note": "Closed both ways",
+       "sources": [
+        "s6"
+       ],
+       "asOf": "2026-11-14T11:42:00.000Z"
+      }
+     ]
+    },
+    "w4": {
+     "metric": "deaths",
+     "label": "Deaths",
+     "unit": null,
+     "points": [
+      {
+       "t": "2026-11-13T16:00:00.000Z",
+       "v": 4,
+       "sources": [
+        "s3"
+       ]
+      },
+      {
+       "t": "2026-11-14T04:00:00.000Z",
+       "v": 9,
+       "sources": [
+        "s3"
+       ]
+      },
+      {
+       "t": "2026-11-14T10:00:00.000Z",
+       "v": 12,
+       "sources": [
+        "s3"
+       ]
+      },
+      {
+       "t": "2026-11-14T11:00:00.000Z",
+       "v": 15,
+       "sources": [
+        "s4"
+       ]
+      }
+     ]
+    },
+    "w5": {
+     "items": [
+      {
+       "id": "t1",
+       "at": "2026-11-14T11:30:00.000Z",
+       "title": "Rescue teams reach Chiva",
+       "detail": "The military emergency unit reached the town overnight.",
+       "importance": "high",
+       "sources": [
+        "s10"
+       ],
+       "asOf": "2026-11-14T11:30:00.000Z"
+      },
+      {
+       "id": "t2",
+       "at": "2026-11-14T11:00:00.000Z",
+       "title": "Death toll rises to 15",
+       "detail": "The regional government updated the figure.",
+       "importance": "high",
+       "sources": [
+        "s4"
+       ],
+       "asOf": "2026-11-14T11:00:00.000Z"
+      },
+      {
+       "id": "t3",
+       "at": "2026-11-14T07:00:00.000Z",
+       "title": "Shelter opens at Fuente de San Luis",
+       "detail": "Room for 400 people.",
+       "importance": "medium",
+       "sources": [
+        "s7"
+       ],
+       "asOf": "2026-11-14T07:00:00.000Z"
+      },
+      {
+       "id": "t4",
+       "at": null,
+       "title": "Red warning issued",
+       "detail": "AEMET raised the warning to red.",
+       "importance": "low",
+       "sources": [
+        "s1"
+       ],
+       "asOf": null
+      }
+     ]
+    },
+    "w6": {
+     "columns": [
+      {
+       "key": "road",
+       "label": "Road",
+       "kind": "text"
+      },
+      {
+       "key": "section",
+       "label": "Section",
+       "kind": "text"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "status"
+      },
+      {
+       "key": "since",
+       "label": "Since",
+       "kind": "time"
+      }
+     ],
+     "rows": [
+      {
+       "id": "r1",
+       "cells": {
+        "road": "A-7",
+        "section": "km 330 to 345",
+        "status": "Reopened",
+        "since": "2026-11-14T02:00:00.000Z"
+       },
+       "asOf": "2026-11-14T12:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r2",
+       "cells": {
+        "road": "V-31",
+        "section": "km 3 to 7",
+        "status": "Closed",
+        "since": "2026-11-14T03:00:00.000Z"
+       },
+       "asOf": "2026-11-14T11:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r3",
+       "cells": {
+        "road": "CV-402",
+        "section": "km 6 to 10",
+        "status": "Closed",
+        "since": "2026-11-14T04:00:00.000Z"
+       },
+       "asOf": "2026-11-14T10:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r4",
+       "cells": {
+        "road": "CV-403",
+        "section": "km 9 to 13",
+        "status": "Partial",
+        "since": "2026-11-14T05:00:00.000Z"
+       },
+       "asOf": "2026-11-14T09:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r5",
+       "cells": {
+        "road": "CV-404",
+        "section": "km 12 to 16",
+        "status": "Closed",
+        "since": "2026-11-14T06:00:00.000Z"
+       },
+       "asOf": "2026-11-14T12:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r6",
+       "cells": {
+        "road": "CV-405",
+        "section": "km 15 to 19",
+        "status": "Reopened",
+        "since": "2026-11-14T07:00:00.000Z"
+       },
+       "asOf": "2026-11-14T11:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r7",
+       "cells": {
+        "road": "CV-406",
+        "section": "km 18 to 22",
+        "status": "Partial",
+        "since": "2026-11-14T08:00:00.000Z"
+       },
+       "asOf": "2026-11-14T10:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r8",
+       "cells": {
+        "road": "CV-407",
+        "section": "km 21 to 25",
+        "status": "Closed",
+        "since": "2026-11-14T09:00:00.000Z"
+       },
+       "asOf": "2026-11-14T09:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r9",
+       "cells": {
+        "road": "CV-408",
+        "section": "km 24 to 28",
+        "status": "Closed",
+        "since": "2026-11-14T02:00:00.000Z"
+       },
+       "asOf": "2026-11-14T12:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r10",
+       "cells": {
+        "road": "CV-409",
+        "section": "km 27 to 31",
+        "status": "Partial",
+        "since": "2026-11-14T03:00:00.000Z"
+       },
+       "asOf": "2026-11-14T11:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r11",
+       "cells": {
+        "road": "CV-410",
+        "section": "km 30 to 34",
+        "status": "Reopened",
+        "since": "2026-11-14T04:00:00.000Z"
+       },
+       "asOf": "2026-11-14T10:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r12",
+       "cells": {
+        "road": "CV-411",
+        "section": "km 33 to 37",
+        "status": "Closed",
+        "since": "2026-11-14T05:00:00.000Z"
+       },
+       "asOf": "2026-11-14T09:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r13",
+       "cells": {
+        "road": "CV-412",
+        "section": "km 36 to 40",
+        "status": "Partial",
+        "since": "2026-11-14T06:00:00.000Z"
+       },
+       "asOf": "2026-11-14T12:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r14",
+       "cells": {
+        "road": "CV-413",
+        "section": "km 39 to 43",
+        "status": "Closed",
+        "since": "2026-11-14T07:00:00.000Z"
+       },
+       "asOf": "2026-11-14T11:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r15",
+       "cells": {
+        "road": "CV-414",
+        "section": "km 42 to 46",
+        "status": "Closed",
+        "since": "2026-11-14T08:00:00.000Z"
+       },
+       "asOf": "2026-11-14T10:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r16",
+       "cells": {
+        "road": "CV-415",
+        "section": "km 45 to 49",
+        "status": "Reopened",
+        "since": "2026-11-14T09:00:00.000Z"
+       },
+       "asOf": "2026-11-14T09:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r17",
+       "cells": {
+        "road": "CV-416",
+        "section": "km 48 to 52",
+        "status": "Closed",
+        "since": "2026-11-14T02:00:00.000Z"
+       },
+       "asOf": "2026-11-14T12:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r18",
+       "cells": {
+        "road": "CV-417",
+        "section": "km 51 to 55",
+        "status": "Closed",
+        "since": "2026-11-14T03:00:00.000Z"
+       },
+       "asOf": "2026-11-14T11:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r19",
+       "cells": {
+        "road": "CV-418",
+        "section": "km 54 to 58",
+        "status": "Partial",
+        "since": "2026-11-14T04:00:00.000Z"
+       },
+       "asOf": "2026-11-14T10:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r20",
+       "cells": {
+        "road": "CV-419",
+        "section": "km 57 to 61",
+        "status": "Closed",
+        "since": "2026-11-14T05:00:00.000Z"
+       },
+       "asOf": "2026-11-14T09:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r21",
+       "cells": {
+        "road": "CV-420",
+        "section": "km 60 to 64",
+        "status": "Reopened",
+        "since": "2026-11-14T06:00:00.000Z"
+       },
+       "asOf": "2026-11-14T12:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r22",
+       "cells": {
+        "road": "CV-421",
+        "section": "km 63 to 67",
+        "status": "Partial",
+        "since": "2026-11-14T07:00:00.000Z"
+       },
+       "asOf": "2026-11-14T11:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r23",
+       "cells": {
+        "road": "CV-422",
+        "section": "km 66 to 70",
+        "status": "Closed",
+        "since": "2026-11-14T08:00:00.000Z"
+       },
+       "asOf": "2026-11-14T10:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      },
+      {
+       "id": "r24",
+       "cells": {
+        "road": "CV-423",
+        "section": "km 69 to 73",
+        "status": "Closed",
+        "since": "2026-11-14T09:00:00.000Z"
+       },
+       "asOf": "2026-11-14T09:00:00.000Z",
+       "sources": [
+        "s6"
+       ]
+      }
+     ]
+    },
+    "w7": {
+     "columns": [
+      {
+       "key": "name",
+       "label": "Shelter",
+       "kind": "text"
+      },
+      {
+       "key": "capacity",
+       "label": "Capacity",
+       "kind": "number"
+      },
+      {
+       "key": "info",
+       "label": "Info",
+       "kind": "link"
+      }
+     ],
+     "rows": [
+      {
+       "id": "h1",
+       "cells": {
+        "name": "Fuente de San Luis pavilion",
+        "capacity": "400",
+        "info": "https://www.lasprovincias.es/valencia/riada-albergues.html"
+       },
+       "sources": [
+        "s7"
+       ],
+       "asOf": "2026-11-14T09:00:00.000Z"
+      },
+      {
+       "id": "h2",
+       "cells": {
+        "name": "Catarroja sports centre",
+        "capacity": "150",
+        "info": ""
+       },
+       "sources": [
+        "s7"
+       ],
+       "asOf": "2026-11-14T09:00:00.000Z"
+      }
+     ]
+    },
+    "w8": {
+     "items": [
+      {
+       "id": "a1",
+       "issuer": "AEMET",
+       "title": "Red warning: heavy rain on the Valencia coast",
+       "text": "Up to 180 l/m² in 12 hours. Avoid travel.",
+       "level": "warning",
+       "url": "https://www.aemet.es/en/eltiempo/prediccion/avisos",
+       "active": true,
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T11:48:00.000Z"
+      },
+      {
+       "id": "a2",
+       "issuer": "112 Comunitat Valenciana",
+       "title": "Stay away from riverbeds",
+       "text": "Do not cross flooded roads or ravines.",
+       "level": "watch",
+       "url": null,
+       "active": true,
+       "sources": [
+        "s2",
+        "s8"
+       ],
+       "asOf": "2026-11-14T08:00:00.000Z"
+      },
+      {
+       "id": "a3",
+       "issuer": "AEMET",
+       "title": "Orange warning for the interior",
+       "text": "Lifted on Saturday morning.",
+       "level": "info",
+       "url": null,
+       "active": false,
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T06:00:00.000Z"
+      }
+     ]
+    },
+    "w9": {
+     "items": [
+      {
+       "id": "l1",
+       "label": "Emergencias 112 CV",
+       "url": "https://www.112cv.gva.es/es/inicio",
+       "kind": "official",
+       "note": "Official emergency updates",
+       "sources": [
+        "s2"
+       ]
+      },
+      {
+       "id": "l2",
+       "label": "Cruz Roja appeal",
+       "url": "https://www.cruzroja.es/donar",
+       "kind": "donate",
+       "note": "Donations for affected families",
+       "sources": [
+        "s9"
+       ]
+      }
+     ]
+    },
+    "w10": {},
+    "w11": {},
+    "w12": {}
+   },
+   "hidden": [],
+   "generatedAt": 1794657240000
+  }
+ },
+ "run": {
+  "run": {
+   "id": 42,
+   "graph": "build",
+   "status": "done",
+   "startedAt": 1794549600000,
+   "finishedAt": 1794549641200,
+   "error": null
+  },
+  "steps": [
+   {
+    "node": "plan",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549600000,
+    "ms": 4100,
+    "model": "gemini-4-carbon",
+    "tokensIn": 1200,
+    "tokensOut": 900,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "gather",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549604100,
+    "ms": 5200,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 9,
+    "error": null
+   },
+   {
+    "node": "triage",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549609300,
+    "ms": 1800,
+    "model": "gemini-decision-1",
+    "tokensIn": 9000,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "read",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549609400,
+    "ms": 7400,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 6,
+    "error": null
+   },
+   {
+    "node": "extract",
+    "stepKey": "1",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549611100,
+    "ms": 6300,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 8000,
+    "tokensOut": 1500,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "extract",
+    "stepKey": "2",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549611150,
+    "ms": 7100,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 8200,
+    "tokensOut": 1600,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "verify",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549618300,
+    "ms": 40,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "merge",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549618340,
+    "ms": 900,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 2000,
+    "tokensOut": 300,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "coverage",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619240,
+    "ms": 700,
+    "model": "gemini-decision-1",
+    "tokensIn": 1500,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "narrative",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619950,
+    "ms": 8200,
+    "model": "gemini-4-carbon",
+    "tokensIn": 6000,
+    "tokensOut": 700,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "assess",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619960,
+    "ms": 600,
+    "model": "gemini-decision-1",
+    "tokensIn": 900,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "geocode",
+    "stepKey": "",
+    "status": "skipped",
+    "attempt": 1,
+    "startedAt": 1794549619970,
+    "ms": 4100,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "assemble",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549628160,
+    "ms": 30,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "watch",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549628200,
+    "ms": 13000,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 3,
+    "error": null
+   }
+  ],
+  "totals": {
+   "ms": 41200,
+   "llmCalls": 9,
+   "tokensIn": 36800,
+   "tokensOut": 5000,
+   "contextCalls": 18
+  }
+ }
+}

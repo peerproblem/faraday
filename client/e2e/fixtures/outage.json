@@ -1,0 +1,627 @@
+{
+ "board": {
+  "visibility": "public",
+  "specVersion": 2,
+  "tier": "warm",
+  "status": "live",
+  "version": 7,
+  "ownerId": "u-demo",
+  "language": "en",
+  "createdAt": 1794549600000,
+  "updatedAt": 1794657240000,
+  "lastPolledAt": 1794657420000,
+  "messages": [
+   {
+    "role": "user",
+    "content": "Microsoft 365 global outage: what is broken, since when, and is it fixed?",
+    "ts": 1794549600000
+   },
+   {
+    "role": "assistant",
+    "content": "Built \"Microsoft 365 Outage\" from 4 live sources in 41.2s.",
+    "ts": 1794549960000
+   }
+  ],
+  "id": "fxoutage001",
+  "slug": "microsoft-365-outage-fx02",
+  "prompt": "Microsoft 365 global outage: what is broken, since when, and is it fixed?",
+  "title": "Microsoft 365 Outage",
+  "sources": [
+   {
+    "id": "s1",
+    "url": "https://status.cloud.microsoft/",
+    "title": "Microsoft 365 Service health",
+    "publisher": "status.cloud.microsoft",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "Users may be unable to access Outlook and Teams. Copilot is degraded.",
+    "relevance": 0.98,
+    "sourceType": "official"
+   },
+   {
+    "id": "s2",
+    "url": "https://x.com/MSFT365Status/status/2",
+    "title": "Microsoft 365 Status on X",
+    "publisher": "x.com",
+    "kind": "news",
+    "publishedAt": "2026-11-14T11:00:00.000Z",
+    "fetchedAt": 1794654720000,
+    "snippet": "We're rerouting traffic to healthy infrastructure.",
+    "relevance": 0.95,
+    "sourceType": "official"
+   },
+   {
+    "id": "s3",
+    "url": "https://www.theverge.com/2026/11/14/microsoft-365-outage",
+    "title": "Microsoft 365 is down: Outlook, Teams and Copilot affected",
+    "publisher": "The Verge",
+    "kind": "news",
+    "publishedAt": "2026-11-14T10:00:00.000Z",
+    "fetchedAt": 1794651120000,
+    "snippet": "Downdetector shows more than 40,000 reports.",
+    "relevance": 0.92,
+    "sourceType": "news"
+   },
+   {
+    "id": "s4",
+    "url": "https://downdetector.com/status/microsoft-365/",
+    "title": "Microsoft 365 down? Current problems",
+    "publisher": "downdetector.com",
+    "kind": "web",
+    "publishedAt": null,
+    "fetchedAt": 1794658320000,
+    "snippet": "User reports indicate problems at Microsoft 365.",
+    "relevance": 0.7,
+    "sourceType": "aggregator"
+   }
+  ],
+  "events": [
+   {
+    "id": 4,
+    "ts": 1794656160000,
+    "kind": "update",
+    "message": "Teams moved from down to degraded.",
+    "data": null
+   },
+   {
+    "id": 3,
+    "ts": 1794648600000,
+    "kind": "stage",
+    "message": "Board live in 33.0s",
+    "data": null
+   }
+  ],
+  "plan": {
+   "title": "Microsoft 365 Outage",
+   "subtitle": null,
+   "crisisType": "outage",
+   "language": "en",
+   "location": null,
+   "lookbackDays": 1,
+   "entities": [
+    "Microsoft 365",
+    "Outlook",
+    "Teams",
+    "Copilot"
+   ],
+   "newsQueries": [
+    "Microsoft 365 outage"
+   ],
+   "webQueries": [
+    "Microsoft 365 service health"
+   ],
+   "monitor": {
+    "query": "Microsoft 365 outage update",
+    "instructions": "Report service state changes."
+   },
+   "metrics": [
+    {
+     "key": "reports",
+     "label": "Outage reports",
+     "unit": null,
+     "why": "User impact"
+    },
+    {
+     "key": "duration",
+     "label": "Hours since start",
+     "unit": "h",
+     "why": "Length"
+    }
+   ],
+   "tables": [],
+   "statusGroups": [
+    {
+     "key": "services",
+     "title": "Services"
+    }
+   ],
+   "questions": [
+    {
+     "id": "q1",
+     "text": "What is broken?"
+    },
+    {
+     "id": "q2",
+     "text": "Is it fixed?"
+    }
+   ],
+   "widgets": []
+  },
+  "spec": {
+   "version": 2,
+   "widgets": [
+    {
+     "id": "w1",
+     "type": "narrative",
+     "title": "Situation",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w2",
+     "type": "status-grid",
+     "title": "Services",
+     "span": "full",
+     "bind": "services",
+     "metrics": []
+    },
+    {
+     "id": "w3",
+     "type": "stat-grid",
+     "title": "Key figures",
+     "span": "full",
+     "bind": null,
+     "metrics": [
+      "reports",
+      "duration"
+     ]
+    },
+    {
+     "id": "w4",
+     "type": "timeline",
+     "title": "Timeline",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w5",
+     "type": "alert-list",
+     "title": "Official advisories",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w6",
+     "type": "link-list",
+     "title": "Get help",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w7",
+     "type": "feed",
+     "title": "Latest coverage",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w8",
+     "type": "changelog",
+     "title": "What changed",
+     "span": "half",
+     "bind": null,
+     "metrics": []
+    },
+    {
+     "id": "w9",
+     "type": "sources",
+     "title": "Sources",
+     "span": "full",
+     "bind": null,
+     "metrics": []
+    }
+   ]
+  },
+  "data": {
+   "header": {
+    "title": "Microsoft 365 Outage",
+    "subtitle": null,
+    "crisisType": "outage",
+    "accent": "violet",
+    "headline": {
+     "text": "Outlook is down and Teams and Copilot are degraded while Microsoft reroutes traffic.",
+     "sources": [
+      "s1",
+      "s2"
+     ]
+    },
+    "status": "ongoing",
+    "statusP": null,
+    "severity": 3,
+    "severityP": null,
+    "location": null,
+    "asOf": "2026-11-14T11:36:00.000Z",
+    "language": "en"
+   },
+   "widgets": {
+    "w1": {
+     "sentences": [
+      {
+       "text": "Microsoft 365 users worldwide cannot reach Outlook since about 09:00 UTC.",
+       "sources": [
+        "s1",
+        "s3"
+       ]
+      },
+      {
+       "text": "Microsoft says it is rerouting traffic to healthy infrastructure.",
+       "sources": [
+        "s2"
+       ]
+      }
+     ]
+    },
+    "w2": {
+     "items": [
+      {
+       "id": "x1",
+       "name": "Outlook",
+       "state": "down",
+       "note": "Mail cannot be sent or received",
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T11:36:00.000Z"
+      },
+      {
+       "id": "x2",
+       "name": "Teams",
+       "state": "degraded",
+       "note": "Messages delayed",
+       "sources": [
+        "s1",
+        "s2"
+       ],
+       "asOf": "2026-11-14T11:36:00.000Z"
+      },
+      {
+       "id": "x3",
+       "name": "Copilot",
+       "state": "degraded",
+       "note": "",
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T11:36:00.000Z"
+      },
+      {
+       "id": "x4",
+       "name": "SharePoint",
+       "state": "operational",
+       "note": "",
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T11:36:00.000Z"
+      },
+      {
+       "id": "x5",
+       "name": "Exchange Online admin centre",
+       "state": "unknown",
+       "note": "No update yet",
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-13T06:00:00.000Z"
+      }
+     ]
+    },
+    "w3": {
+     "items": [
+      {
+       "key": "reports",
+       "label": "Outage reports",
+       "valueText": "40,000+",
+       "valueNum": 40000,
+       "unit": null,
+       "delta": null,
+       "deltaNum": null,
+       "tone": "warning",
+       "conflict": null,
+       "history": [],
+       "sources": [
+        "s3"
+       ],
+       "asOf": "2026-11-14T10:00:00.000Z"
+      },
+      {
+       "key": "duration",
+       "label": "Hours since start",
+       "valueText": "3",
+       "valueNum": 3,
+       "unit": "h",
+       "delta": null,
+       "deltaNum": null,
+       "tone": "info",
+       "conflict": null,
+       "history": [],
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T11:36:00.000Z"
+      }
+     ]
+    },
+    "w4": {
+     "items": [
+      {
+       "id": "t1",
+       "at": "2026-11-14T09:00:00.000Z",
+       "title": "Outage begins",
+       "detail": "Users report Outlook errors.",
+       "importance": "high",
+       "sources": [
+        "s3"
+       ],
+       "asOf": "2026-11-14T09:00:00.000Z"
+      },
+      {
+       "id": "t2",
+       "at": "2026-11-14T11:00:00.000Z",
+       "title": "Microsoft reroutes traffic",
+       "detail": "",
+       "importance": "medium",
+       "sources": [
+        "s2"
+       ],
+       "asOf": "2026-11-14T11:00:00.000Z"
+      }
+     ]
+    },
+    "w5": {
+     "items": [
+      {
+       "id": "a1",
+       "issuer": "Microsoft",
+       "title": "Incident MO912345",
+       "text": "Users may be unable to access Outlook.",
+       "level": "warning",
+       "url": "https://status.cloud.microsoft/",
+       "active": true,
+       "sources": [
+        "s1"
+       ],
+       "asOf": "2026-11-14T11:36:00.000Z"
+      }
+     ]
+    },
+    "w6": {
+     "items": [
+      {
+       "id": "l1",
+       "label": "Service health",
+       "url": "https://status.cloud.microsoft/",
+       "kind": "official",
+       "note": "Live status from Microsoft",
+       "sources": [
+        "s1"
+       ]
+      }
+     ]
+    },
+    "w7": {},
+    "w8": {},
+    "w9": {}
+   },
+   "hidden": [],
+   "generatedAt": 1794656520000
+  }
+ },
+ "run": {
+  "run": {
+   "id": 42,
+   "graph": "build",
+   "status": "done",
+   "startedAt": 1794549600000,
+   "finishedAt": 1794549641200,
+   "error": null
+  },
+  "steps": [
+   {
+    "node": "plan",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549600000,
+    "ms": 4100,
+    "model": "gemini-4-carbon",
+    "tokensIn": 1200,
+    "tokensOut": 900,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "gather",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549604100,
+    "ms": 5200,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 9,
+    "error": null
+   },
+   {
+    "node": "triage",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549609300,
+    "ms": 1800,
+    "model": "gemini-decision-1",
+    "tokensIn": 9000,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "read",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549609400,
+    "ms": 7400,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 6,
+    "error": null
+   },
+   {
+    "node": "extract",
+    "stepKey": "1",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549611100,
+    "ms": 6300,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 8000,
+    "tokensOut": 1500,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "extract",
+    "stepKey": "2",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549611150,
+    "ms": 7100,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 8200,
+    "tokensOut": 1600,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "verify",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549618300,
+    "ms": 40,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "merge",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549618340,
+    "ms": 900,
+    "model": "gemini-4-hydrogen",
+    "tokensIn": 2000,
+    "tokensOut": 300,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "coverage",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619240,
+    "ms": 700,
+    "model": "gemini-decision-1",
+    "tokensIn": 1500,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "narrative",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619950,
+    "ms": 8200,
+    "model": "gemini-4-carbon",
+    "tokensIn": 6000,
+    "tokensOut": 700,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "assess",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549619960,
+    "ms": 600,
+    "model": "gemini-decision-1",
+    "tokensIn": 900,
+    "tokensOut": 0,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "geocode",
+    "stepKey": "",
+    "status": "skipped",
+    "attempt": 1,
+    "startedAt": 1794549619970,
+    "ms": 4100,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "assemble",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549628160,
+    "ms": 30,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 0,
+    "error": null
+   },
+   {
+    "node": "watch",
+    "stepKey": "",
+    "status": "done",
+    "attempt": 1,
+    "startedAt": 1794549628200,
+    "ms": 13000,
+    "model": null,
+    "tokensIn": null,
+    "tokensOut": null,
+    "contextCalls": 3,
+    "error": null
+   }
+  ],
+  "totals": {
+   "ms": 41200,
+   "llmCalls": 9,
+   "tokensIn": 36800,
+   "tokensOut": 5000,
+   "contextCalls": 18
+  }
+ }
+}

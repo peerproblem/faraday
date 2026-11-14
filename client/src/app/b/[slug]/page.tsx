@@ -11,8 +11,13 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const board = await getBoardBySlug(slug).catch(() => null);
-  if (!board?.spec) return { title: "Faraday board" };
-  return { title: `${board.spec.title} | live board`, description: board.spec.headline };
+  const header = board?.data?.header;
+  if (!header) return { title: board?.title ? `${board.title} | live board` : "Faraday board" };
+  return {
+    title: `${header.title} | live board`,
+    description: header.headline?.text ?? header.subtitle ?? undefined,
+    robots: board?.visibility === "unlisted" ? { index: false } : undefined,
+  };
 }
 
 export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {

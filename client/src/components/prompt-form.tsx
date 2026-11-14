@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@ui-sdk/react/button";
-import { Field, FieldError, FieldLabel } from "@ui-sdk/react/field";
-import { Textarea } from "@ui-sdk/react/textarea";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Caption, Text } from "@/components/ui/typography";
 import { api } from "@/lib/config";
 
 const examples = [
@@ -14,77 +15,82 @@ const examples = [
   "Kyiv blackouts after strikes on the power grid: outage schedules, heating and water status.",
 ];
 
+const MIN_LENGTH = 8;
+
 export function PromptForm({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const ready = prompt.trim().length >= MIN_LENGTH;
 
   async function submit() {
+    if (!ready || sending) return;
     setError(null);
     if (!signedIn) {
       router.push("/login?next=/");
       return;
     }
-    const res = await fetch(api("/api/boards"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    const data = (await res.json()) as { id?: string; error?: string };
-    if (!res.ok || !data.id) {
-      setError(data.error ?? "Something went wrong");
-      return;
+    setSending(true);
+    try {
+      const res = await fetch(api("/api/boards"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok || !data.id) {
+        setError(data.error ?? "Something went wrong");
+        return;
+      }
+      router.push(`/studio/${data.id}`);
+    } catch {
+      setError("Could not reach Faraday. Check your connection and try again.");
+    } finally {
+      setSending(false);
     }
-    router.push(`/studio/${data.id}`);
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        void submit();
-      }}
-      className="rounded-2xl border border-line-strong bg-panel p-3 shadow-[0_20px_60px_rgb(0_0_0/0.35)]"
-    >
-      <Field invalid={!!error}>
-        <FieldLabel className="sr-only">Describe the crisis</FieldLabel>
+    <Card padding="md" radius="xl" className="gap-5">
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
         <Textarea
+          label="Describe the crisis"
           value={prompt}
-          onValueChange={(v) => setPrompt(v)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          rows={3}
-          placeholder="Describe a crisis and what people need to know. Example: Wildfire near Athens, which areas are evacuating and where are shelters?"
-          className="w-full resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-faint"
+          onValueChange={setPrompt}
+          submitShortcut="mod+enter"
+          onSubmitShortcut={() => void submit()}
+          minRows={4}
+          maxRows={10}
+          error={error ?? undefined}
+          placeholder="Wildfire near Athens: which areas are evacuating and where are shelters?"
         />
-        <FieldError className="px-2 text-sm text-critical">{error}</FieldError>
-      </Field>
-      <div className="flex flex-wrap items-center gap-2 px-1 pt-2">
-        <span className="text-xs text-faint">The sentence is the program. The board is what it compiles to.</span>
-        <Button
-          type="submit"
-          disabled={prompt.trim().length < 8}
-          className="ml-auto rounded-lg bg-[#ef4444] px-4 py-2 text-sm font-medium text-white hover:bg-[#dc2626] disabled:opacity-40"
-        >
+        <Button type="submit" variant="accent" size="lg" fullWidth disabled={!ready} loading={sending}>
           Build the board
         </Button>
+        <Text size="sm" tone="muted">
+          The sentence is the program. The board is what it compiles to.
+        </Text>
+      </form>
+      <div className="flex flex-col gap-3 border-t border-hairline pt-5">
+        <Caption>Or start from an example</Caption>
+        <ul className="flex flex-wrap gap-2">
+          {examples.map((ex) => (
+            <li key={ex} className="min-w-0 max-w-full">
+              <Button variant="secondary" size="sm" radius="full" onClick={() => setPrompt(ex)} className="max-w-full">
+                <span className="truncate">{ex.split(":")[0]}</span>
+              </Button>
+            </li>
+          ))}
+        </ul>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2 border-t border-line px-1 pt-3">
-        {examples.map((ex) => (
-          <Button
-            key={ex}
-            onClick={() => setPrompt(ex)}
-            className="max-w-full truncate rounded-full border border-line px-3 py-1 text-xs text-muted hover:border-line-strong hover:text-text"
-          >
-            {ex.split(":")[0]}
-          </Button>
-        ))}
-      </div>
-    </form>
+    </Card>
   );
 }

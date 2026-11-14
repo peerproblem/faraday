@@ -1,0 +1,145 @@
+import "./jsdom-stubs";
+import "./mocks";
+import { act, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import { getFixture } from "../../../e2e/fixtures";
+import { LiveBoard } from "@/components/board/live-board";
+import type { BoardView } from "@/lib/spec";
+
+const NOW = Date.parse("2026-11-14T12:00:00Z");
+
+beforeAll(() => {
+  vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
+
+const board = (name: string, patch: Partial<BoardView> = {}) => ({ ...getFixture(name)!.board, ...patch });
+const section = (title: string) => screen.getByRole("region", { name: title });
+
+describe("board v2", () => {
+  test("renders the header from data.header", () => {
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Valencia Floods" })).toBeTruthy();
+    expect(screen.getByText(/15 people have died and 3,200 were evacuated/)).toBeTruthy();
+    expect(screen.getByText("Developing")).toBeTruthy();
+    expect(screen.getByRole("meter", { name: "Severity" }).getAttribute("aria-valuenow")).toBe("4.3");
+  });
+
+  test("draws every known widget and skips unknown types", () => {
+    const { container } = render(<LiveBoard initial={board("flood")} live={false} />);
+    const ids = [...container.querySelectorAll("[data-widget]")].map((el) => el.getAttribute("data-widget"));
+    expect(ids).toEqual(["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8", "w9", "w10", "w11", "w12"]);
+    expect(screen.queryByText("Unknown future widget")).toBeNull();
+  });
+
+  test("stat tiles show value, delta, conflict and a stale badge only for old figures", () => {
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    const stats = section("Key figures");
+    expect(within(stats).getByText("15")).toBeTruthy();
+    expect(within(stats).getByText("+3 since 09:00 UTC")).toBeTruthy();
+    expect(within(stats).getByText(/Sources disagree/)).toBeTruthy();
+    expect(within(stats).getAllByText("Stale")).toHaveLength(1);
+    expect(within(stats).getByText(/Deaths rose from 4 to 15/)).toBeTruthy();
+  });
+
+  test("no stale badges on a board that is not hot", () => {
+    render(<LiveBoard initial={board("flood", { tier: "warm" })} live={false} />);
+    expect(screen.queryByText("Stale")).toBeNull();
+  });
+
+  test("the trend has a text summary for screen readers", () => {
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    expect(within(section("Deaths over time")).getByRole("img", { name: /Deaths rose from 4 to 15/ })).toBeTruthy();
+  });
+
+  test("tables page at 20 rows and sort by column", async () => {
+    const user = userEvent.setup();
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    const t = section("Road closures");
+    expect(within(t).getAllByRole("row")).toHaveLength(21);
+    await user.click(within(t).getByRole("button", { name: "Next" }));
+    expect(within(t).getAllByRole("row")).toHaveLength(5);
+    await user.click(within(t).getByRole("button", { name: "Previous" }));
+    await user.click(within(t).getByRole("button", { name: "Sort Road closures by Road" }));
+    const first = within(t).getAllByRole("row")[1];
+    expect(within(first).getByText("A-7")).toBeTruthy();
+    expect(within(t).getByRole("columnheader", { name: /Road/ }).getAttribute("aria-sort")).toBe("ascending");
+  });
+
+  test("link cells show the host and status cells are not plain text", () => {
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    const t = section("Shelters");
+    expect(within(t).getByRole("link", { name: "lasprovincias.es" })).toBeTruthy();
+  });
+
+  test("the timeline filter shows only major events", async () => {
+    const user = userEvent.setup();
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    const tl = section("Timeline");
+    expect(within(tl).getAllByRole("listitem")).toHaveLength(4);
+    await user.click(within(tl).getByRole("radio", { name: "Major only" }));
+    expect(within(tl).getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  test("advisories put active ones first and mark lifted ones", () => {
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    const adv = section("Official advisories");
+    expect(within(adv).getByText("Lifted")).toBeTruthy();
+    expect(within(adv).getAllByRole("button")[0].textContent).toContain("Red warning");
+  });
+
+  test("feed, changelog and sources are computed from the board", () => {
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    expect(within(section("Latest coverage")).getByText("Spain floods: death toll rises to 15")).toBeTruthy();
+    expect(within(section("What changed")).getByText(/Death toll rose from 12 to 15/)).toBeTruthy();
+    expect(within(section("Sources")).getByText(/10 sources from the live web/)).toBeTruthy();
+  });
+
+  test("the map gets only valid points", () => {
+    render(<LiveBoard initial={board("flood")} live={false} />);
+    expect(screen.getByTestId("map-view").textContent).toBe("4 points");
+  });
+
+  test("an outage board shows service states, worst first", () => {
+    render(<LiveBoard initial={board("outage")} live={false} />);
+    const s = section("Services");
+    expect(within(s).getByText("1 down, 2 degraded, 1 unknown, 1 operational")).toBeTruthy();
+    expect(within(s).getAllByRole("listitem")[0].textContent).toContain("Outlook");
+    expect(screen.queryByTestId("map-view")).toBeNull();
+  });
+
+  test("a board without location has no map, and hidden widgets are skipped", () => {
+    render(<LiveBoard initial={board("cyber")} live={false} />);
+    expect(screen.queryByTestId("map-view")).toBeNull();
+    expect(screen.queryByRole("region", { name: "도움" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "서울 병원 랜섬웨어" })).toBeTruthy();
+  });
+
+  test("a v1 board shows that it is being rebuilt", () => {
+    const { container } = render(<LiveBoard initial={board("flood", { specVersion: 1, spec: null, data: null })} live={false} />);
+    expect(screen.getByText("Rebuilding this board")).toBeTruthy();
+    expect(container.querySelector("[data-widget]")).toBeNull();
+  });
+
+  test("while building, planned widgets show as skeletons", () => {
+    const b = board("flood", { status: "composing" });
+    b.data = { ...b.data!, widgets: {}, header: { ...b.data!.header, headline: null } };
+    const { container } = render(<LiveBoard initial={b} live={false} />);
+    expect(container.querySelectorAll("[data-widget]").length).toBe(12);
+    expect(screen.getByText(/Reading the sources and writing the board/)).toBeTruthy();
+  });
+
+  test("a widget that throws does not take the board down", () => {
+    const b = board("flood");
+    (b.data!.widgets as Record<string, unknown>).w2 = { items: [{ key: "x", valueText: "1", label: "x", tone: "info", history: null, sources: null }] };
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    act(() => {
+      render(<LiveBoard initial={b} live={false} />);
+    });
+    spy.mockRestore();
+    expect(screen.getByRole("heading", { level: 1, name: "Valencia Floods" })).toBeTruthy();
+  });
+});

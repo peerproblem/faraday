@@ -6,30 +6,41 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "bash ../scripts/sync-spec.sh --check && eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "e2e": "node e2e/sweep.mjs",
+    "postinstall": "node scripts/copy-map-worker.mjs"
   },
   "dependencies": {
-    "@ui-sdk/core": "^0.1.0-beta.1",
-    "@ui-sdk/react": "^0.1.0-beta.1",
-    "leaflet": "^1.9.4",
+    "@sw3/ui": "file:vendor/sw3-ui-0.1.0-2e087cc.tgz",
+    "@unovis/react": "^1.8.1",
+    "@unovis/ts": "^1.8.1",
+    "d3-hierarchy": "^3.1.3",
+    "maplibre-gl": "^6.18.0",
     "next": "16.4.6",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-leaflet": "^5.0.0",
     "server-only": "^0.0.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@next/env": "16.4.6",
     "@tailwindcss/turbopack": "4.3.3",
-    "@types/leaflet": "^1.9.22",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.10",
     "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "jsdom": "^31.0.1",
+    "playwright": "^1.65.1",
     "tailwindcss": "4.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.12"
   }
 }
