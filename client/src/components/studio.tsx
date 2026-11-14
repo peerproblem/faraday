@@ -20,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
-import { Link } from "@/components/ui/link";
 import { Resizable, ResizableHandle, ResizablePanel } from "@/components/ui/resizable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
@@ -121,21 +120,21 @@ export function Studio({
 
   const side = (
     <aside className="flex min-w-0 flex-col gap-4">
-      <Card padding="md">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Heading as="h2" size="sm">
-            Pipeline
-          </Heading>
-          {board.status === "live" ? (
-            <Text as="span" size="sm">
-              <Link href={boardUrl(board.slug)}>Open public board</Link>
-            </Text>
-          ) : null}
-        </div>
+      <Card
+        title="Pipeline"
+        headingLevel={2}
+        actions={
+          board.status === "live" ? (
+            <Button href={boardUrl(board.slug)} size="xs" variant="ghost">
+              Open public board
+            </Button>
+          ) : undefined
+        }
+      >
         <RunWaterfall view={run} />
       </Card>
 
-      <Card padding="md">
+      <Card title="Board studio" headingLevel={2}>
         <Tabs defaultValue="program" size="sm">
           <TabsList aria-label="Studio panels">
             <Tab value="program">Program</Tab>
@@ -254,12 +253,12 @@ function ProgramPanel({ board, canEdit, building }: { board: BoardView; canEdit:
       <ul className="grid gap-3">
         {board.messages.map((m, i) => (
           <li key={`${m.ts}-${m.role}-${i}`}>
-            <Card variant={m.role === "user" ? "muted" : "surface"} padding="sm" className="gap-1.5">
+            <div className="flex flex-col gap-1.5">
               <Caption>{m.role === "user" ? "You" : "Faraday"}</Caption>
               <Text size="sm" tone={m.role === "user" ? "default" : "subtle"}>
                 {m.content}
               </Text>
-            </Card>
+            </div>
           </li>
         ))}
       </ul>

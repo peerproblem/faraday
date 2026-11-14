@@ -164,10 +164,7 @@ export function AdminDashboard({ initialDiscover, initialTopics }: { initialDisc
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card padding="md" className="gap-3">
-          <Heading as="h2" size="sm">
-            Discovery
-          </Heading>
+        <Card title="Discovery" headingLevel={2}>
           <Switch
             label="Discover new topics automatically"
             checked={discover}
@@ -188,7 +185,7 @@ export function AdminDashboard({ initialDiscover, initialTopics }: { initialDisc
         />
       </div>
 
-      <Card padding="md">
+      <Card title="Topics" count={topics.length} headingLevel={2}>
         <Tabs defaultValue="topics" size="sm">
           <TabsList aria-label="Admin panels">
             <Tab value="topics">Topics</Tab>
@@ -251,10 +248,7 @@ function RegisterTopic({ onCreated }: { onCreated: (t: BoardCard) => void }) {
   }
 
   return (
-    <Card padding="md" className="gap-3">
-      <Heading as="h2" size="sm">
-        Register a topic
-      </Heading>
+    <Card title="Register a topic" headingLevel={2}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {

@@ -38,9 +38,10 @@ describe("personal dashboard", () => {
     expect(ids[0]).toBe(third.id);
     expect(ids).not.toContain(second.id);
     const frame = container.querySelector(`[data-widget="${first.id}"]`)!;
-    expect(frame.className).not.toContain("@4xl:col-span-2");
-    // Each widget has its own view-transition-name for the layout animation.
-    expect((frame as HTMLElement).style.viewTransitionName).toBe(`fd-w-${keyOf(b, first.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`);
+    // A half-width widget spans 6 of the grid's 12 columns. Each tile has its own view-transition-name for the layout animation.
+    const tile = frame.closest<HTMLElement>('[data-sw="dashboard-tile"]')!;
+    expect(tile.style.gridColumn).toBe("span 6");
+    expect(tile.style.viewTransitionName).toBe(`fd-w-${keyOf(b, first.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`);
   });
 
   test("hiding a widget shows at once and saves 300 ms later with the revision it builds on", async () => {
@@ -118,8 +119,8 @@ describe("shared board", () => {
     );
     const link = screen.getByRole("link", { name: "Add to my dashboard" });
     expect(link.getAttribute("href")).toContain("/login?next=");
-    const frame = container.querySelector("[data-widget]") as HTMLElement;
-    expect(frame.style.viewTransitionName).toBe("");
+    const tile = container.querySelector("[data-widget]")!.closest<HTMLElement>('[data-sw="dashboard-tile"]')!;
+    expect(tile.style.viewTransitionName).toBe("");
   });
 
   test("already added opens the personal dashboard", () => {
