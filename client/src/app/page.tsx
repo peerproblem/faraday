@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { BoardGrid } from "@/components/board-grid";
 import { PageIntro } from "@/components/page-intro";
 import { EmptyTopics, MyDashboards, TopicHero, TypeFilter } from "@/components/topic-cards";
-import { Caption } from "@/components/ui/typography";
+import { Heading } from "@/components/ui/typography";
 import { listMyViews, listTopics } from "@/lib/engine";
 import { crisisTypes } from "@/lib/spec";
 
@@ -19,24 +19,25 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return (
     <>
       <PageIntro
+        hero
         eyebrow="/live"
         title="Crises unfolding now"
         lede="Faraday finds them, reads the live web and keeps one shared board per topic true. Add a topic to your dashboards to shape it your way."
       />
 
       {session?.user ? (
-        <section aria-labelledby="mine" className="mb-10 flex flex-col gap-3">
-          <h2 id="mine" className="m-0 flex">
-            <Caption>My dashboards</Caption>
-          </h2>
+        <section aria-labelledby="mine" className="mb-12 flex flex-col gap-4">
+          <Heading as="h2" size="sm" id="mine">
+            My dashboards
+          </Heading>
           <MyDashboards views={views} compact />
         </section>
       ) : null}
 
       <section aria-labelledby="now" className="flex flex-col gap-4">
-        <h2 id="now" className="m-0 flex">
-          <Caption>Happening now</Caption>
-        </h2>
+        <Heading as="h2" size="sm" id="now">
+          Happening now
+        </Heading>
         <TypeFilter base="/" active={type} />
         {top ? (
           <>

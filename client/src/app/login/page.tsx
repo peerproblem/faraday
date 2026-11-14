@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth, demoLoginEnabled, googleEnabled, signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Caption, Display, Text } from "@/components/ui/typography";
+import { Caption, Heading, Text } from "@/components/ui/typography";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const session = await auth();
@@ -13,10 +13,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <div className="mx-auto max-w-md pt-8 sm:pt-16">
       <Card padding="lg" radius="xl" className="gap-6">
         <Caption>/sign-in</Caption>
-        <Display as="h1" size="md">
-          Sign in to Faraday
-        </Display>
-        <Text tone="subtle">Sign in to keep your own dashboards of shared topics. Anyone can view the topics.</Text>
+        <div className="flex flex-col gap-3">
+          <Heading as="h1" size="lg">
+            Sign in to Faraday
+          </Heading>
+          <Text tone="subtle">Sign in to keep your own dashboards of shared topics. Anyone can view the topics.</Text>
+        </div>
         <div className="grid gap-3">
           {googleEnabled ? (
             <form

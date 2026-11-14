@@ -1,37 +1,29 @@
-import Link from "next/link";
 import { Ago } from "@/components/ago";
-import { boardBadge } from "@/components/board-grid";
+import { BoardBadges } from "@/components/board-grid";
 import { SeverityMeter } from "@/components/severity-meter";
-import { ToneBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
-import { LinkCard } from "@/components/ui/link-card";
-import { Caption, Display, Text } from "@/components/ui/typography";
+import { EmptyState } from "@/components/ui/skeleton";
+import { Caption, Heading, Text } from "@/components/ui/typography";
 import { boardUrl } from "@/lib/config";
 import { crisisTypes, type BoardCard, type PersonalViewCard } from "@/lib/spec";
 
-/** The top ranked topic, drawn large on the home page. */
+/** The top ranked topic, drawn large on the home page. The page's Display is its h1, so this title is a Heading. */
 export function TopicHero({ topic }: { topic: BoardCard }) {
-  const s = boardBadge(topic);
+  const title = topic.title ?? "Untitled topic";
   return (
-    <LinkCard href={boardUrl(topic.slug)} padding="lg" radius="xl" className="gap-5">
+    <Card href={boardUrl(topic.slug)} aria-label={title} padding="lg" radius="xl" className="gap-5">
       <div className="flex flex-wrap items-center gap-2">
         <Caption>Top story now</Caption>
-        <ToneBadge tone={s.tone}>
-          {s.live ? <span aria-hidden="true" className="fd-live-dot" /> : null}
-          {s.text}
-        </ToneBadge>
-        {topic.crisisType ? (
-          <ToneBadge tone="neutral" mono>
-            {topic.crisisType}
-          </ToneBadge>
-        ) : null}
+        <BoardBadges board={topic} />
         <Text as="span" size="sm" tone="muted" className="ml-auto">
           updated <Ago t={topic.updatedAt} />
         </Text>
       </div>
-      <Display as="h2" size="md">
-        {topic.title ?? "Untitled topic"}
-      </Display>
+      <Heading as="h3" size="lg">
+        {title}
+      </Heading>
       {topic.locationName ? <Text tone="muted">{topic.locationName}</Text> : null}
       {topic.headline ? (
         <Text size="lg" tone="subtle" className="max-w-4xl">
@@ -43,13 +35,16 @@ export function TopicHero({ topic }: { topic: BoardCard }) {
           <SeverityMeter value={topic.severity} />
         </div>
       ) : null}
-    </LinkCard>
+    </Card>
   );
 }
 
 const typeLabel = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-/** Crisis type filter as links, so it works without JavaScript and keeps the page cacheable per type. */
+/**
+ * Crisis type filter. Each choice is a page of its own, so it is a row of links (sw3 Buttons with href) that works
+ * without JavaScript and keeps each type's page cacheable. The current one is marked with aria-current.
+ */
 export function TypeFilter({ base, active, extra = "" }: { base: string; active: string | null; extra?: string }) {
   const href = (t: string | null) => {
     const q = new URLSearchParams(extra);
@@ -59,18 +54,14 @@ export function TypeFilter({ base, active, extra = "" }: { base: string; active:
   };
   const item = (t: string | null, label: string) => (
     <li key={t ?? "all"}>
-      <Link
-        href={href(t)}
-        aria-current={active === t ? "page" : undefined}
-        className={`inline-flex rounded-full border px-3 py-1 text-sm ${active === t ? "border-accent text-foreground" : "border-hairline text-muted-foreground hover:text-foreground"}`}
-      >
+      <Button href={href(t)} size="sm" radius="full" variant={active === t ? "secondary" : "ghost"} aria-current={active === t ? "page" : undefined}>
         {label}
-      </Link>
+      </Button>
     </li>
   );
   return (
     <nav aria-label="Crisis type">
-      <ul className="flex flex-wrap gap-2">
+      <ul className="flex flex-wrap gap-1">
         {item(null, "All")}
         {crisisTypes.map((t) => item(t, typeLabel(t)))}
       </ul>
@@ -82,50 +73,69 @@ export function TypeFilter({ base, active, extra = "" }: { base: string; active:
 export function MyDashboards({ views, compact = false }: { views: PersonalViewCard[]; compact?: boolean }) {
   if (!views.length) {
     return (
-      <Text tone="muted">
-        {compact ? "Open a topic and add it to your dashboards to shape it your way." : "You have no dashboards yet. Open a topic and choose Add to my dashboard."}
-      </Text>
+      <Card variant="muted" padding={compact ? "md" : "lg"}>
+        <EmptyState
+          headingLevel={compact ? 3 : 2}
+          title="No dashboards yet"
+          description="Open a topic and choose Add to my dashboard to shape it your way."
+          action={
+            <Button href="/topics" variant="outline" size="sm">
+              Browse topics
+            </Button>
+          }
+        />
+      </Card>
     );
   }
   return (
     <ul className={compact ? "flex gap-3 overflow-x-auto pb-1" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
-      {views.map((v) => (
-        <li key={v.id} className={compact ? "w-72 max-w-[80vw] shrink-0" : "min-w-0"}>
-          <LinkCard href={`/me/${v.slug}`} padding="md" className="h-full gap-2">
-            <div className="flex items-center gap-2">
-              {v.changedSinceVisit ? (
-                <span className="inline-flex items-center gap-1.5 text-sm text-accent">
-                  <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent" />
-                  New updates
-                </span>
-              ) : (
-                <Text as="span" size="sm" tone="muted">
-                  No news since your last visit
+      {views.map((v) => {
+        const title = v.title ?? "Untitled topic";
+        return (
+          <li key={v.id} className={compact ? "w-72 max-w-[80vw] shrink-0" : "min-w-0"}>
+            <Card href={`/me/${v.slug}`} aria-label={title} padding="md" className="h-full gap-2">
+              <div className="flex items-center gap-2">
+                {v.changedSinceVisit ? (
+                  <Badge variant="accent">New updates</Badge>
+                ) : (
+                  <Text as="span" size="sm" tone="muted">
+                    No news since your last visit
+                  </Text>
+                )}
+                <Text as="span" size="sm" tone="muted" className="ml-auto">
+                  <Ago t={v.updatedAt} />
                 </Text>
-              )}
-              <Text as="span" size="sm" tone="muted" className="ml-auto">
-                <Ago t={v.updatedAt} />
-              </Text>
-            </div>
-            <CardTitle as="h3">{v.title ?? "Untitled topic"}</CardTitle>
-            {!compact && v.headline ? (
-              <Text size="sm" tone="muted" className="line-clamp-2">
-                {v.headline}
-              </Text>
-            ) : null}
-          </LinkCard>
-        </li>
-      ))}
+              </div>
+              <CardTitle as="h3">{title}</CardTitle>
+              {!compact && v.headline ? (
+                <Text size="sm" tone="muted" className="line-clamp-2">
+                  {v.headline}
+                </Text>
+              ) : null}
+            </Card>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
 export function EmptyTopics({ type }: { type: string | null }) {
   return (
-    <Card padding="md">
-      <Text tone="muted">
-        {type ? `No ${type} topics right now.` : "No topics yet. Faraday scans the news every half hour and adds crises as they are confirmed."}
-      </Text>
+    <Card variant="muted" padding="lg">
+      <EmptyState
+        title={type ? `No ${type} topics right now` : "No topics yet"}
+        description={
+          type ? "Faraday is not following a crisis of this type at the moment." : "Faraday scans the news every half hour and adds crises as they are confirmed."
+        }
+        action={
+          type ? (
+            <Button href="/" variant="outline" size="sm">
+              Show all topics
+            </Button>
+          ) : undefined
+        }
+      />
     </Card>
   );
 }
