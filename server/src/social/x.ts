@@ -14,10 +14,19 @@ export type XResponse = {
 
 /** Operators of the X website's search box that API v2 recent search rejects with HTTP 400 ("invalid operator").
  * Planning models write them from habit (-filter:retweets, min_faves:10, since:2026-11-01), and one of them fails the whole request. */
-const WEB_ONLY_OPERATOR = /(?<![\w:])-?(?:filter|include|min_faves|min_retweets|min_replies|since|until|near|within|geocode):\S+/gi;
+const WEB_ONLY_OPERATOR = /(?<![\w:])-?(?:filter|include|min_faves|min_retweets|min_replies|since|until|near|within|geocode):[^\s()]+/gi;
 
 export function xQuery(queries: string[]): string | null {
-  const clean = (q: string) => q.replace(WEB_ONLY_OPERATOR, "").replace(/(?<![\w:])-?is:retweet\b/gi, "").replace(/\s+/g, " ").trim();
+  const clean = (q: string) => {
+    let s = q.replace(WEB_ONLY_OPERATOR, "").replace(/(?<![\w:])-?is:retweet\b/gi, "").replace(/\s+/g, " ").trim();
+    // A removed operator can leave an OR with nothing on one side, or an empty group: both fail the request.
+    for (let prev = ""; prev !== s; ) {
+      prev = s;
+      s = s.replace(/\(\s*\)/g, "").replace(/\(\s*OR\s+/g, "(").replace(/\s+OR\s*\)/g, ")").replace(/\bOR\s+OR\b/g, "OR")
+        .replace(/^\s*OR\s+|\s+OR\s*$/g, "").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/\s+/g, " ").trim();
+    }
+    return s;
+  };
   const parts = queries.map(clean).filter(Boolean).slice(0, 2);
   if (!parts.length) return null;
   const q = `(${parts.map((p) => `(${p})`).join(" OR ")}) -is:retweet`;
@@ -32,7 +41,7 @@ export async function searchX(query: string, opts: { sinceId?: string; signal?: 
     if (!token) throw new Error("X_API_BEARER_TOKEN is not set");
     const url = new URL("https://api.x.com/2/tweets/search/recent");
     url.search = new URLSearchParams({ query, max_results: String(X_BATCH_SIZE),
-      "post.fields": "author_id,created_at,note_post", expansions: "author_id", "user.fields": "username,name", sort_order: "recency",
+      "tweet.fields": "author_id,created_at,note_tweet", expansions: "author_id", "user.fields": "username,name", sort_order: "recency",
       ...(opts.sinceId ? { since_id: opts.sinceId } : {}) }).toString();
     let res: Response;
     try {

@@ -58,6 +58,29 @@ export function sourceLine(s: Source, text: string | null, maxChars: number): st
   return `[${s.id}] ${s.publisher ?? hostOf(s.url) ?? ""} | ${s.publishedAt ?? "date unknown"} | ${s.title ?? s.url}\n${s.url}\n${body}`;
 }
 
+/**
+ * The `n` most recent facts: newest asOf first, undated last, then the newest row. Facts come from the store in id
+ * order (oldest first), so a plain slice would feed a long-running board's prompts its oldest facts.
+ */
+export function newestFacts<T extends Pick<Fact, "id" | "asOf">>(facts: T[], n: number): T[] {
+  const t = (f: T) => {
+    const ms = f.asOf ? Date.parse(f.asOf) : NaN;
+    return Number.isFinite(ms) ? ms : null;
+  };
+  return [...facts]
+    .sort((a, b) => {
+      const ta = t(a);
+      const tb = t(b);
+      if (ta !== tb) {
+        if (ta === null) return 1;
+        if (tb === null) return -1;
+        return tb - ta;
+      }
+      return b.id - a.id;
+    })
+    .slice(0, Math.max(0, n));
+}
+
 /** One line per fact, cited by fact id, for prompts and decision state. */
 export function factLine(f: Fact): string {
   const p = f.payload as unknown as Record<string, unknown>;

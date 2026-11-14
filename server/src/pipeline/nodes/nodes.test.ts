@@ -24,7 +24,8 @@ const { triage, untriaged } = await import("./triage");
 const { assess, materiality } = await import("./assess");
 const { geocode, geocodeBoard } = await import("./geocode");
 const { pickReadTargets, readSources } = await import("./read");
-const { slugify, programOf, pool } = await import("./util");
+const { slugify, programOf, pool, newestFacts } = await import("./util");
+const { makeRoom } = await import("./plan");
 
 const use = { llm: vi.fn(), context: vi.fn() };
 const signal = new AbortController().signal;
@@ -99,6 +100,9 @@ describe("toExtracted", () => {
     expect(toExtracted(raw({ valueText: "12", valueNum: 12 }), plan)).toMatchObject({ kind: "metric", key: "deaths", payload: { valueText: "12", valueNum: 12 } });
     expect(toExtracted(raw({ key: "Missing People", valueText: "40" }), plan)?.key).toBe("new:missing-people");
     expect(toExtracted(raw({ key: "new:Missing", valueText: "40" }), plan)?.key).toBe("new:missing");
+    // A plan key written in another case or with spaces is still that key.
+    expect(toExtracted(raw({ key: "Deaths", valueText: "12" }), plan)?.key).toBe("deaths");
+    expect(toExtracted(raw({ key: " DEATHS ", valueText: "12" }), plan)?.key).toBe("deaths");
   });
   it("drops facts without a quote or value", () => {
     expect(toExtracted(raw({ quote: " " , valueText: "1"}), plan)).toBeNull();
@@ -219,6 +223,18 @@ describe("plan", () => {
     expect(next.newsQueries).toContain("n-new");
     expect(next.questions.at(-1)).toEqual({ id: "q2", text: "Where?" });
   });
+  it("keeps added metrics and tables when the plan is already full", () => {
+    const m = (k: string) => ({ key: k, label: k, unit: null, why: "" });
+    const full = { ...plan, metrics: ["a", "b", "c", "d", "e", "f", "g", "h"].map(m) } as Plan;
+    const { plan: next, newKeys } = applyPlanPatch(full, {
+      reply: "ok", addMetrics: [m("missing"), m("Missing"), m("a")], removeMetricKeys: [], addTables: [], removeTableKeys: [], addStatusGroups: [],
+      addWidgets: [], removeWidgetTitles: [], newsQueries: [], webQueries: [], addQuestions: [], monitor: null,
+    });
+    expect(next.metrics.map((x) => x.key)).toEqual(["a", "b", "c", "d", "e", "f", "g", "missing"]);
+    expect(newKeys.metrics).toEqual(["missing"]);
+    expect(makeRoom([m("x"), m("y")], [m("z")], 3).map((x) => x.key)).toEqual(["x", "y", "z"]);
+    expect(makeRoom([m("x"), m("y")], [m("p"), m("q"), m("r"), m("s")], 3).map((x) => x.key)).toEqual(["p", "q", "r"]);
+  });
   it("builds the program from messages", () => {
     expect(programOf([{ role: "user", content: "a" }, { role: "assistant", content: "x" }, { role: "user", content: "b" }])).toContain("- b");
   });
@@ -323,5 +339,17 @@ describe("util", () => {
     });
     expect(out).toEqual([2, 4, 6, 8, 10]);
     expect(peak).toBe(2);
+  });
+});
+
+describe("newestFacts", () => {
+  it("takes the newest facts first, undated last, then the newest row", () => {
+    const f = (id: number, asOf: string | null) => ({ id, asOf });
+    const facts = [f(1, "2026-11-01T00:00:00Z"), f(2, null), f(3, "2026-11-10T00:00:00Z"), f(4, "2026-11-05T00:00:00Z"), f(5, null), f(6, "2026-11-10T00:00:00Z")];
+    expect(newestFacts(facts, 3).map((x) => x.id)).toEqual([6, 3, 4]);
+    expect(newestFacts(facts, 10).map((x) => x.id)).toEqual([6, 3, 4, 1, 5, 2]);
+    expect(newestFacts(facts, 0)).toEqual([]);
+    // Input order is left alone.
+    expect(facts.map((x) => x.id)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });

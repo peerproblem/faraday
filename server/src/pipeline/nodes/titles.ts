@@ -27,8 +27,11 @@ const schema = z.object({
  * the host instead).
  */
 export async function englishTitles(sources: Source[], use: Usage, signal: AbortSignal): Promise<SourceTitle[]> {
-  const targets = sources.filter((s) => s.kind !== "social").slice(0, MAX_TITLES);
+  const pages = sources.filter((s) => s.kind !== "social");
+  const targets = pages.slice(0, MAX_TITLES);
   const social = sources.filter((s) => s.kind === "social").map((s) => ({ id: s.id, lang: "und", titleEn: null }));
+  // Sources past the cap get no title, but are still marked non-English so their own words stay hidden.
+  const untitled = pages.slice(MAX_TITLES).map((s) => ({ id: s.id, lang: "und", titleEn: null }));
   if (!targets.length) return social;
   const llm = fastLlm();
   const r = await generateText({
@@ -53,5 +56,5 @@ export async function englishTitles(sources: Source[], use: Usage, signal: Abort
   }
   // Sources the model skipped are still marked non-English, so the UI hides their own words.
   for (const s of targets) if (!seen.has(s.id)) out.push({ id: s.id, lang: "und", titleEn: null });
-  return [...out, ...social];
+  return [...out, ...untitled, ...social];
 }

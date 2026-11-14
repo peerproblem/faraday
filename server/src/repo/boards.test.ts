@@ -133,6 +133,13 @@ describe.skipIf(!enabled)("repo/boards", () => {
     expect((await listSources(id))[1]).toMatchObject({ lang: "en", titleEn: null });
   });
 
+  it("only stores http(s) sources, so a link on the board can never run script", async () => {
+    const { id } = await createBoard("Unsafe source urls", null);
+    const doc = (url: string) => ({ url, title: url, publisher: "p", publishedAt: null, snippet: "s", kind: "web" as const });
+    const added = await addSources(id, [doc("javascript:alert(1)//a.example"), doc("data:text/html,hi"), doc("not a url"), doc("http://b.example/ok")]);
+    expect(added.map((s) => s.url)).toEqual(["http://b.example/ok"]);
+  });
+
   it("dedupes sources by url without fragment and continues ids", async () => {
     const { id } = await createBoard("Sources board here", null);
     const doc = (url: string) => ({ url, title: url, publisher: "p", publishedAt: null, snippet: "s", kind: "news" as const });

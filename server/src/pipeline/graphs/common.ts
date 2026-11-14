@@ -120,11 +120,20 @@ async function languageRound(ctx: RunCtx, round: string, targets: Source[], res:
       { key: round, timeoutMs: 45_000, optional: true, fallback: foreignKept.map((s) => ({ id: s.id, lang: "und", titleEn: null })) },
     );
   }
-  await setSourceLanguage(ctx.boardId, [...english, ...foreignDropped, ...titles]);
+  await setSourceLanguage(ctx.boardId, [...english, ...foreignDropped, ...withLanguageRows(foreignKept, titles)]);
   if (foreignKept.length) {
     const updated = await getSources(ctx.boardId, foreignKept.map((s) => s.id));
     if (updated.length) ctx.emit({ type: "sources", added: updated, discarded: [] });
   }
+}
+
+/**
+ * Every kept non-English source needs a language row: one left without it (lang NULL) would be shown in its own
+ * language, since only its script is checked then. Sources the titles step skipped are marked "und".
+ */
+export function withLanguageRows(foreignKept: Pick<Source, "id">[], titles: SourceTitle[]): SourceTitle[] {
+  const have = new Set(titles.map((t) => t.id));
+  return [...titles, ...foreignKept.filter((s) => !have.has(s.id)).map((s) => ({ id: s.id, lang: "und", titleEn: null }))];
 }
 
 /**

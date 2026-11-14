@@ -3,7 +3,7 @@ import { z } from "zod";
 import { smartLlm } from "../../llm/models";
 import type { Usage } from "../../graph/runner";
 import type { Fact, Plan } from "../../spec";
-import { call, factLine } from "./util";
+import { call, factLine, newestFacts } from "./util";
 
 const cited = z.object({ text: z.string(), facts: z.array(z.string()).describe("Fact ids like f12 that support this text") });
 const schema = z.object({
@@ -51,7 +51,7 @@ export async function writeNarrative(
     system: `You write the situation summary of a live crisis board. Now: ${now.toISOString()}.
 Write in English, plain and calm, for people affected and for responders.
 Use only the facts given. Every sentence cites the fact ids it relies on. Prefer the newest figures. When facts disagree, say so. Never estimate.`,
-    prompt: `BOARD: ${plan.title}${plan.location ? ` (${plan.location.name})` : ""}\n\nFACTS:\n${facts.slice(0, 150).map(factLine).join("\n")}`,
+    prompt: `BOARD: ${plan.title}${plan.location ? ` (${plan.location.name})` : ""}\n\nFACTS:\n${newestFacts(facts, 150).map(factLine).join("\n")}`,
     abortSignal: signal,
   });
   let last = 0;

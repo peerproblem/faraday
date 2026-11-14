@@ -51,6 +51,9 @@ export async function makePlan(program: string, use: Usage, signal: AbortSignal,
   return normalizePlan(r.output);
 }
 
+const MAX_METRICS = 8;
+const MAX_TABLES = 3;
+
 /** Keeps keys unique and kebab-case, and caps list lengths, whatever the model returned. */
 export function normalizePlan(plan: Plan): Plan {
   const kebab = (s: string) =>
@@ -64,9 +67,9 @@ export function normalizePlan(plan: Plan): Plan {
       .map((x) => ({ ...x, key: kebab(x.key) }))
       .filter((x) => (seen.has(x.key) ? false : (seen.add(x.key), true)));
   };
-  const metrics = uniq(plan.metrics).slice(0, 8);
+  const metrics = uniq(plan.metrics).slice(0, MAX_METRICS);
   const tables = uniq(plan.tables)
-    .slice(0, 3)
+    .slice(0, MAX_TABLES)
     .map((t) => ({ ...t, columns: uniq(t.columns).slice(0, 5) }))
     .filter((t) => t.columns.length >= 1);
   const statusGroups = uniq(plan.statusGroups).slice(0, 3);
@@ -128,6 +131,29 @@ stat-grid lists metric keys in metrics; trend binds a metric key; table binds a 
   return r.output;
 }
 
+const kebabKey = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "item";
+
+/**
+ * Existing items plus additions, within the cap normalizePlan applies. Additions the user asked for always survive:
+ * when the list is full, the last existing items make room (a dropped widget binding is removed by specFromPlan).
+ */
+export function makeRoom<T extends { key: string }>(existing: T[], added: T[], cap: number): T[] {
+  const have = new Set(existing.map((x) => kebabKey(x.key)));
+  const seen = new Set<string>();
+  const fresh = added.filter((x) => {
+    const k = kebabKey(x.key);
+    if (have.has(k) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const keep = Math.max(0, cap - fresh.length);
+  return [...existing.slice(0, keep), ...fresh.slice(0, cap)];
+}
+
 export function applyPlanPatch(plan: Plan, patch: PlanPatch): { plan: Plan; newKeys: { metrics: string[]; tables: string[]; statusGroups: string[] } } {
   const drop = (keys: string[]) => new Set(keys.map((k) => k.toLowerCase()));
   const dropM = drop(patch.removeMetricKeys);
@@ -138,8 +164,8 @@ export function applyPlanPatch(plan: Plan, patch: PlanPatch): { plan: Plan; newK
   const existingS = new Set(plan.statusGroups.map((s) => s.key));
   const next = normalizePlan({
     ...plan,
-    metrics: [...plan.metrics.filter((m) => !dropM.has(m.key)), ...patch.addMetrics],
-    tables: [...plan.tables.filter((t) => !dropT.has(t.key)), ...patch.addTables],
+    metrics: makeRoom(plan.metrics.filter((m) => !dropM.has(m.key)), patch.addMetrics, MAX_METRICS),
+    tables: makeRoom(plan.tables.filter((t) => !dropT.has(t.key)), patch.addTables, MAX_TABLES),
     statusGroups: [...plan.statusGroups, ...patch.addStatusGroups],
     socialQueries: [...new Set([...(plan.socialQueries ?? []), ...(patch.socialQueries ?? [])])],
     newsQueries: [...new Set([...plan.newsQueries, ...patch.newsQueries])],

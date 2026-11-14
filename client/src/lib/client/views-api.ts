@@ -12,9 +12,11 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+async function call<T>(path: string, init: { method?: string; body?: unknown; keepalive?: boolean } = {}): Promise<T> {
   const res = await fetch(api(path), {
     method: init.method ?? "GET",
+    // keepalive lets a save sent while the page is closing finish.
+    keepalive: init.keepalive,
     credentials: "include",
     cache: "no-store",
     headers: init.body !== undefined ? { "Content-Type": "application/json" } : undefined,
@@ -36,7 +38,7 @@ async function call<T>(path: string, init: { method?: string; body?: unknown } =
 const path = (boardId: string, rest = "") => `/api/me/views/${encodeURIComponent(boardId)}${rest}`;
 
 export const saveView = (boardId: string, layout: PersonalLayout, rev: number) =>
-  call<ViewSaveResult>(path(boardId), { method: "POST", body: { layout, rev } });
+  call<ViewSaveResult>(path(boardId), { method: "POST", body: { layout, rev }, keepalive: true });
 
 export const editView = (boardId: string, instruction: string) =>
   call<ViewEditResult>(path(boardId, "/edit"), { method: "POST", body: { instruction } });

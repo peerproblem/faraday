@@ -75,20 +75,23 @@ export async function geocode(
   return hit;
 }
 
-const countryMemo = new Map<string, string | null>();
+const countryMemo = new Map<string, { code: string | null; at: number }>();
+/** A place without a country (a miss or a cached hit without one) is asked again after this, not only after a restart. */
+const MISS_MEMO_MS = 10 * 60_000;
 
 /**
  * ISO 3166-1 alpha-2 country (upper case) of a place name, from the geocoder, never from a model. Used to route local
- * search. A cached hit stored before country codes were recorded is fetched again once; results are memoised per process.
+ * search. A cached hit stored before country codes were recorded is fetched again once; hits are memoised per process, misses for 10 minutes.
  */
 export async function placeCountry(name: string, signal?: AbortSignal, fetchImpl: typeof fetch = fetch): Promise<string | null> {
   const key = normQuery(name);
   if (!key) return null;
-  if (countryMemo.has(key)) return countryMemo.get(key) ?? null;
+  const memo = countryMemo.get(key);
+  if (memo && (memo.code !== null || Date.now() - memo.at < MISS_MEMO_MS)) return memo.code;
   let hit = await geocode(name, signal, fetchImpl);
   if (hit && !hit.countryCode) hit = await geocode(name, signal, fetchImpl, { skipCache: true });
   const code = hit?.countryCode ?? null;
-  countryMemo.set(key, code);
+  countryMemo.set(key, { code, at: Date.now() });
   return code;
 }
 

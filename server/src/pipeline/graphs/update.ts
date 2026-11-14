@@ -46,7 +46,8 @@ export const updateGraph: GraphFn = async (ctx) => {
   const reason = (payload.reason ?? "schedule") as Reason;
   const board = await loadBoard(ctx);
   if (!board.plan || !board.spec || board.specVersion !== 2 || board.status !== "live") return;
-  if (board.tier === "paused" && reason === "schedule") return;
+  // A paused board only reads the web for monitor webhooks, discovery matches and the build's follow-up.
+  if (board.tier === "paused" && (reason === "schedule" || reason === "manual")) return;
   const plan = board.plan;
   const now = Date.now();
   // A follow-up (queued by the build for questions it could not answer) searches its own queries over the plan's window.

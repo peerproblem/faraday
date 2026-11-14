@@ -53,7 +53,7 @@ vi.mock("../users", async (orig) => ({ ...(await orig<typeof import("../users")>
 vi.mock("../db/pool", () => ({ one: vi.fn(async () => ({ ok: 1 })), all: vi.fn(async () => []) }));
 vi.mock("@hono/node-server/conninfo", () => ({ getConnInfo: () => ({ remote: { address: conn.address } }) }));
 
-const { createApp } = await import("./app");
+const { createApp, sseState } = await import("./app");
 const { publish } = await import("../bus");
 const { sign } = await import("./signature");
 const { issueAdminToken } = await import("./admin-auth");
@@ -117,6 +117,38 @@ describe("board views", () => {
     const r = await app.request("/api/boards/b1", { headers: { "If-None-Match": '"v3-live-hot"' } });
     expect(r.status).toBe(200);
     expect(((await r.json()) as BoardView).version).toBe(4);
+    app.dispose();
+  });
+
+  it("hides the owner, plan and edit history from everyone but admins", async () => {
+    const app = createApp();
+    const full = view({ ownerId: "u1", plan: { title: "Flood" } as BoardView["plan"], messages: [{ role: "user", content: "secret", ts: 1 }] });
+    boards.getBoardView.mockResolvedValue(full);
+    boards.boardIdForSlug.mockResolvedValue("b1");
+    for (const path of ["/api/boards/b1", "/api/boards/by-slug/flood-abc12"]) {
+      const r = await app.request(path);
+      expect(r.headers.get("vary")).toContain("Cookie");
+      const body = (await r.json()) as BoardView;
+      expect(body.ownerId).toBeNull();
+      expect(body.plan).toBeNull();
+      expect(body.messages).toEqual([]);
+    }
+    session.sessionUserId.mockResolvedValue("admin");
+    const admin = (await (await app.request("/api/boards/b1")).json()) as BoardView;
+    expect(admin.ownerId).toBe("u1");
+    expect(admin.messages).toHaveLength(1);
+    app.dispose();
+  });
+
+  it("serves the latest run to admins only", async () => {
+    const app = createApp();
+    boards.getBoard.mockResolvedValue(row());
+    runs.latestRunView.mockResolvedValue({ run: null, steps: [], totals: {} });
+    expect((await app.request("/api/boards/b1/runs/latest")).status).toBe(401);
+    session.sessionUserId.mockResolvedValue("u1");
+    expect((await app.request("/api/boards/b1/runs/latest")).status).toBe(403);
+    session.sessionUserId.mockResolvedValue("admin");
+    expect((await app.request("/api/boards/b1/runs/latest")).status).toBe(200);
     app.dispose();
   });
 
@@ -442,6 +474,15 @@ describe("admin login, session and settings", () => {
     app.dispose();
   });
 
+  it("refuses even the right password from a blocked address", async () => {
+    const app = createApp();
+    for (let i = 0; i < 5; i++) expect((await login(app, "tester", "wrong")).status).toBe(401);
+    const r = await login(app, "tester", PASSWORD);
+    expect(r.status).toBe(429);
+    expect(r.headers.get("set-cookie")).toBeNull();
+    app.dispose();
+  });
+
   it("rejects a tampered or expired cookie", async () => {
     const app = createApp();
     const good = cookieOf(await login(app, "tester", PASSWORD));
@@ -552,6 +593,18 @@ describe("refresh", () => {
     expect((await app.request("/api/boards/b1/refresh", { method: "POST" })).status).toBe(409);
     app.dispose();
   });
+
+  it("refuses paused boards and shared topics that are not active", async () => {
+    const app = createApp();
+    boards.getBoard.mockResolvedValueOnce(row({ tier: "paused" }));
+    expect((await app.request("/api/boards/b1/refresh", { method: "POST" })).status).toBe(409);
+    boards.getBoard.mockResolvedValueOnce(topic({ topicState: "archived", tier: "warm" }));
+    const r = await app.request("/api/boards/b2/refresh", { method: "POST" });
+    expect(r.status).toBe(409);
+    expect(await r.json()).toEqual({ error: "Live updates are paused for this board" });
+    expect(jobs.enqueue).not.toHaveBeenCalled();
+    app.dispose();
+  });
 });
 
 describe("owner actions", () => {
@@ -598,7 +651,9 @@ describe("owner actions", () => {
     session.sessionUserId.mockResolvedValue("u1");
     expect((await app.request("/api/boards/b1", { method: "DELETE" })).status).toBe(200);
     expect(monitors.removeBoardMonitors).toHaveBeenCalledWith("b1");
+    expect(boards.addEvent).toHaveBeenCalledWith("b1", "info", "This board was deleted.", null);
     expect(boards.deleteBoard).toHaveBeenCalledWith("b1");
+    expect(boards.addEvent.mock.invocationCallOrder[0]).toBeLessThan(boards.deleteBoard.mock.invocationCallOrder[0]);
     app.dispose();
   });
 });
@@ -730,6 +785,23 @@ describe("SSE stream", () => {
       ["13", "e13"],
     ]);
     expect(boards.touchViewed).toHaveBeenCalledWith("b1", expect.any(Number));
+    app.dispose();
+  });
+
+  it("cleans up a viewer that leaves while the replay is still loading", async () => {
+    const app = createApp({ pingMs: 60_000 });
+    boards.getBoard.mockResolvedValue(row());
+    let release!: (v: BoardEvent[]) => void;
+    boards.listEvents.mockReturnValue(new Promise<BoardEvent[]>((r) => (release = r)));
+    const before = sseState.connections;
+    const res = await app.request("/api/boards/b1/stream", { headers: { "Last-Event-ID": "10" } });
+    const reader = res.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+    await new Promise((r) => setTimeout(r, 20));
+    release([ev(11)]);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sseState.connections).toBe(before);
     app.dispose();
   });
 
