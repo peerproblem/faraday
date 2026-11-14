@@ -215,6 +215,7 @@ beforeEach(() => {
   routeLlm();
   vi.mocked(boards.getBoard).mockResolvedValue(board() as never);
   vi.mocked(boards.listMonitors).mockResolvedValue([{ id: "m1" }] as never);
+  vi.mocked(boards.listSources).mockResolvedValue([]);
   vi.mocked(searchNews).mockResolvedValue([]);
   vi.mocked(searchWeb).mockResolvedValue([]);
 });
@@ -302,6 +303,27 @@ describe("updateGraph", () => {
     // The judge's summary is shown as the change, not stored as a source.
     const ev = emitted.find((m) => m.type === "event" && m.event.kind === "change");
     expect(ev).toMatchObject({ event: { message: "Monitor: Service restored", data: { summary: "All 500 sites are operational." } } });
+  });
+
+  it("triages sources stored before the poll (discovery evidence) even when the poll finds nothing new", async () => {
+    const waiting = source("s1", { relevance: null });
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    vi.mocked(boards.listSources).mockImplementation((async () => [{ ...waiting, relevance: vi.mocked(decide).mock.calls.length ? 0.9 : null }]) as never);
+    const { ctx, steps, emitted } = fakeCtx("poll", { reason: "discover" });
+    await updateGraph(ctx);
+    expect(steps).toContain("triage[u1]");
+    expect(vi.mocked(decide).mock.calls.some(([, q]) => "onTopic" in (q as object))).toBe(true);
+    expect(emitted.some((m) => m.type === "event" && m.event.message.includes("nothing new"))).toBe(false);
+  });
+
+  it("posts no 'nothing new' event for a discover poll with nothing to do", async () => {
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    vi.mocked(boards.listSources).mockResolvedValue([source("s1", { relevance: 0.8 })] as never);
+    const { ctx, steps, emitted } = fakeCtx("poll", { reason: "discover" });
+    await updateGraph(ctx);
+    expect(steps).toEqual(["collect"]);
+    expect(emitted.some((m) => m.type === "event")).toBe(false);
+    expect(boards.markPolled).toHaveBeenCalledWith("b1");
   });
 
   it("acknowledges collected changes when nothing new came of them", async () => {

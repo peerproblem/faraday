@@ -49,7 +49,7 @@ export async function writeNarrative(
     ...call(llm),
     output: Output.object({ schema }),
     system: `You write the situation summary of a live crisis board. Now: ${now.toISOString()}.
-Write in ${plan.language}, plain and calm, for people affected and for responders.
+Write in English, plain and calm, for people affected and for responders.
 Use only the facts given. Every sentence cites the fact ids it relies on. Prefer the newest figures. When facts disagree, say so. Never estimate.`,
     prompt: `BOARD: ${plan.title}${plan.location ? ` (${plan.location.name})` : ""}\n\nFACTS:\n${facts.slice(0, 150).map(factLine).join("\n")}`,
     abortSignal: signal,

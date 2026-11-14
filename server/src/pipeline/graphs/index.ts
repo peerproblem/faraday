@@ -3,3 +3,4 @@
 export { buildGraph } from "./build";
 export { editGraph } from "./edit";
 export { updateGraph } from "./update";
+export { discoverGraph } from "./discover";

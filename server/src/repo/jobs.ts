@@ -1,7 +1,7 @@
 // OWNER: F-RUNTIME. Durable job queue on MariaDB (guide P2-1).
 import { json, one, run, tx, all } from "../db/pool";
 
-export type JobKind = "build" | "edit" | "poll" | "cleanup";
+export type JobKind = "build" | "edit" | "poll" | "cleanup" | "discover";
 export type Job = {
   id: number;
   kind: JobKind;
@@ -41,7 +41,9 @@ const toJob = (r: JobRow): Job => ({
   createdAt: Number(r.created_at),
 });
 
-const DEFAULT_PRIORITY: Record<JobKind, number> = { build: 30, edit: 20, poll: 10, cleanup: 0 };
+const DEFAULT_PRIORITY: Record<JobKind, number> = { build: 30, edit: 20, poll: 10, discover: 5, cleanup: 0 };
+/** Jobs on the SYSTEM board, which has no boards row and so no board lock. */
+const UNLOCKED: ReadonlySet<JobKind> = new Set<JobKind>(["cleanup", "discover"]);
 /** How long a claimed job waits when its board is busy with another job. */
 export const BOARD_BUSY_DELAY_MS = 5_000;
 const BACKOFF_BASE_MS = 10_000;
@@ -102,8 +104,8 @@ export async function claim(workerId: string, kinds: JobKind[], now = Date.now()
       );
       if (!row) return { done: true as const, job: null };
       const jobId = Number(row.id);
-      // cleanup jobs are not tied to a real board's lock.
-      if (row.kind !== "cleanup") {
+      // cleanup and discover jobs are not tied to a real board's lock.
+      if (!UNLOCKED.has(row.kind)) {
         const lock = await db.run(`UPDATE boards SET running_job_id = ? WHERE id = ? AND running_job_id IS NULL`, [
           jobId,
           row.board_id,
@@ -199,7 +201,7 @@ export async function jobById(jobId: number): Promise<Job | null> {
 }
 
 export async function queueStats(): Promise<{ queued: Record<JobKind, number>; running: number; failedLastHour: number }> {
-  const queued: Record<JobKind, number> = { build: 0, edit: 0, poll: 0, cleanup: 0 };
+  const queued: Record<JobKind, number> = { build: 0, edit: 0, poll: 0, cleanup: 0, discover: 0 };
   for (const r of await all<{ kind: JobKind; n: number }>(`SELECT kind, COUNT(*) AS n FROM jobs WHERE status = 'queued' GROUP BY kind`)) {
     queued[r.kind] = Number(r.n);
   }

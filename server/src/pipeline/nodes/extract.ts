@@ -105,7 +105,7 @@ ${focused ? "Extract ONLY the metrics, table rows and statuses listed below." : 
 - advisory: an official warning or instruction.
 - resource: an official page, hotline, shelter or donation link that appears in the source.
 - row: one row of a table below. status: the state of a service or system in a status group below.`}
-Write title, detail, note, label and text in ${plan.language}. The quote stays in the source language.
+Write title, detail, note, label and text in English. The quote stays in the source language.
 
 ${schemaText(plan, opts.focus)}`,
     prompt: `SOURCES:\n${batch.map((s) => sourceLine(s, texts.get(s.id) ?? null, LIMITS.maxTextChars)).join("\n\n")}`,

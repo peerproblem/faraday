@@ -20,6 +20,7 @@ import { assess, materiality, type Assessment, type Materiality } from "../nodes
 import { dedupeDocs, gather, rotateQueries } from "../nodes/gather";
 import { writeNarrative, type Narrative } from "../nodes/narrative";
 import { changeNote } from "../nodes/note";
+import { untriaged } from "../nodes/triage";
 import { factLine, POLL_INTERVAL_MS } from "../nodes/util";
 import {
   composeData,
@@ -35,7 +36,7 @@ import {
   triageRound,
 } from "./common";
 
-type Reason = "schedule" | "manual" | "webhook" | "followup";
+type Reason = "schedule" | "manual" | "webhook" | "followup" | "discover";
 
 export const emptyDiff = (d: FactDiff) => d.added.length === 0 && d.changed.length === 0;
 
@@ -131,13 +132,17 @@ export const updateGraph: GraphFn = async (ctx) => {
     );
     for (const a of r.alerts) await ctx.event("info", a);
   };
-  if (added.length === 0 && refreshed.length === 0) return finish("Checked the web: nothing new");
+  // Sources stored before this poll but never triaged (discovery adds its evidence, then queues this poll) still count.
+  const waiting = added.length === 0 && refreshed.length === 0 ? untriaged(await listSources(ctx.boardId)).length : 0;
+  if (added.length === 0 && refreshed.length === 0 && waiting === 0) {
+    return finish(reason === "discover" ? null : "Checked the web: nothing new");
+  }
 
   const tr = await triageRound(ctx, plan, "u1");
   const refreshedIds = new Set(refreshed.map((s) => s.id));
   // Refreshed sources keep their triage unless they had been discarded (those are triaged again above).
   const keptIds = new Set([...tr.kept, ...refreshed.filter((s) => (s.relevance ?? 0) > 0).map((s) => s.id)]);
-  const found = added.length + refreshed.length;
+  const found = added.length + refreshed.length + waiting;
   if (keptIds.size === 0) return finish(`Checked the web: ${found} new or changed results, none about this crisis`);
   const hasFacts = hasFactsMap(tr.rows);
   const fresh = (await listSources(ctx.boardId)).filter((s) => keptIds.has(s.id));

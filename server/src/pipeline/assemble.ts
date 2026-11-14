@@ -1,6 +1,7 @@
 // OWNER: F-PIPE-CORE. Pure functions: plan -> spec, facts -> data (guide P3-9).
 import {
   accentFor,
+  singleWidgetTypes,
   widgetTypes,
   type AlertListData,
   type BoardData,
@@ -63,10 +64,10 @@ const DEFAULT_SPAN: Record<WidgetType, "full" | "half"> = {
 };
 
 /** Types that appear at most once on a board. table, status-grid and trend are unique per binding. */
-const SINGLE = new Set<WidgetType>(["on-the-ground", "narrative", "stat-grid", "timeline", "map", "alert-list", "link-list", "feed", "changelog", "sources"]);
+const SINGLE = new Set<WidgetType>(singleWidgetTypes);
 const TAIL: WidgetType[] = ["feed", "changelog", "sources"];
 
-type Draft = Omit<Widget, "id">;
+type Draft = Omit<Widget, "id" | "key">;
 
 const uniq = <T>(xs: T[]) => [...new Set(xs)];
 const sigOf = (w: Draft) => (SINGLE.has(w.type) ? w.type : `${w.type}:${w.bind}`);
@@ -135,7 +136,7 @@ export function specFromPlan(plan: Plan): BoardSpecV2 {
 
   const body = drafts.filter((w) => !TAIL.includes(w.type));
   const tail = TAIL.map((t) => drafts.find((w) => w.type === t)!).filter(Boolean);
-  const widgets = [...body, ...tail].map((w, i) => ({ id: `w${i + 1}`, ...w }));
+  const widgets = [...body, ...tail].map((w, i) => ({ id: `w${i + 1}`, key: sigOf(w), ...w }));
   return { version: 2, widgets };
 }
 

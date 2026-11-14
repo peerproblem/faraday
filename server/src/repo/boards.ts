@@ -7,6 +7,7 @@ import type {
   BoardData,
   BoardEvent,
   BoardMessage,
+  BoardOrigin,
   BoardSpecV2,
   BoardStatus,
   BoardTier,
@@ -14,6 +15,7 @@ import type {
   Plan,
   Source,
   SourceType,
+  TopicState,
   Visibility,
 } from "../spec";
 
@@ -54,6 +56,13 @@ export type BoardRow = {
   lastChangedAt: number | null;
   runningJobId: number | null;
   monitorsSyncedAt: number | null;
+  origin: BoardOrigin;
+  topicState: TopicState | null;
+  entities: string[];
+  locationName: string | null;
+  rankScore: number | null;
+  mergedInto: string | null;
+  discoveredAt: number | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -79,6 +88,13 @@ type DbBoard = {
   last_changed_at: number | null;
   running_job_id: number | null;
   monitors_synced_at: number | null;
+  origin: string;
+  topic_state: string | null;
+  entities: string | null;
+  location_name: string | null;
+  rank_score: number | null;
+  merged_into: string | null;
+  discovered_at: number | null;
   created_at: number;
   updated_at: number;
 };
@@ -86,7 +102,15 @@ type DbBoard = {
 const newId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 12);
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 const BOARD_COLS = `id, slug, owner_id, prompt, title, status, tier, visibility, plan, spec_version, spec, data, version, language,
-  last_polled_at, next_poll_at, last_viewed_at, last_changed_at, running_job_id, monitors_synced_at, created_at, updated_at`;
+  last_polled_at, next_poll_at, last_viewed_at, last_changed_at, running_job_id, monitors_synced_at,
+  origin, topic_state, entities, location_name, rank_score, merged_into, discovered_at, created_at, updated_at`;
+
+const asOrigin = (v: unknown): BoardOrigin => (v === "system" ? "system" : "user");
+const asTopicState = (v: unknown): TopicState | null => (v === "active" || v === "archived" || v === "merged" ? v : null);
+function asEntities(v: string | null): string[] {
+  const parsed = json<unknown>(v);
+  return Array.isArray(parsed) ? parsed.filter((e): e is string => typeof e === "string") : [];
+}
 
 export const urlKey = (url: string) => url.split("#")[0];
 export const urlHash = (url: string) => createHash("sha256").update(urlKey(url)).digest("hex");
@@ -128,20 +152,49 @@ function toRow(r: DbBoard): BoardRow {
     lastChangedAt: num(r.last_changed_at),
     runningJobId: num(r.running_job_id),
     monitorsSyncedAt: num(r.monitors_synced_at),
+    origin: asOrigin(r.origin),
+    topicState: asTopicState(r.topic_state),
+    entities: asEntities(r.entities),
+    locationName: r.location_name,
+    rankScore: num(r.rank_score),
+    mergedInto: r.merged_into,
+    discoveredAt: num(r.discovered_at),
     createdAt: Number(r.created_at),
     updatedAt: Number(r.updated_at),
   };
 }
 
-export async function createBoard(prompt: string, ownerId: string | null): Promise<{ id: string; slug: string }> {
+export type CreateBoardOpts = {
+  /** Default "user". System boards are shared topics: topic_state starts 'active'. */
+  origin?: BoardOrigin;
+  entities?: string[];
+  locationName?: string | null;
+  discoveredAt?: number | null;
+};
+
+export async function createBoard(prompt: string, ownerId: string | null, opts: CreateBoardOpts = {}): Promise<{ id: string; slug: string }> {
   const id = newId();
   const slug = slugify(prompt);
   const now = Date.now();
+  const origin = opts.origin ?? "user";
   await tx(async (db) => {
     await db.run(
-      `INSERT INTO boards (id, slug, owner_id, prompt, status, spec_version, tier, visibility, version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'queued', 2, 'hot', 'public', 0, ?, ?)`,
-      [id, slug, ownerId, prompt, now, now],
+      `INSERT INTO boards (id, slug, owner_id, prompt, status, spec_version, tier, visibility, version, origin, topic_state,
+         entities, location_name, discovered_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'queued', 2, 'hot', 'public', 0, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        slug,
+        ownerId,
+        prompt,
+        origin,
+        origin === "system" ? "active" : null,
+        opts.entities?.length ? JSON.stringify(opts.entities.slice(0, 20)) : null,
+        opts.locationName?.slice(0, 255) ?? null,
+        opts.discoveredAt ?? null,
+        now,
+        now,
+      ],
     );
     await db.run(`INSERT INTO messages (board_id, role, content, ts) VALUES (?, 'user', ?, ?)`, [id, prompt, now]);
   });
@@ -184,6 +237,52 @@ export async function getBoardView(id: string): Promise<BoardView | null> {
     plan: b.plan,
     messages,
     language: b.language,
+    origin: b.origin,
+    topicState: b.topicState,
+  };
+}
+
+type DbCard = {
+  id: string;
+  slug: string;
+  title: string | null;
+  prompt: string;
+  status: BoardStatus;
+  tier: BoardTier;
+  updated_at: number;
+  crisis_type: string | null;
+  severity: number | null;
+  headline: string | null;
+  accent: string | null;
+  origin: string;
+  topic_state: string | null;
+  rank_score: number | null;
+  location_name: string | null;
+};
+
+/** List columns for BoardCard, with an optional table alias. */
+export const cardCols = (a = "") =>
+  ["id", "slug", "title", "prompt", "status", "tier", "updated_at", "crisis_type", "severity", "headline", "accent", "origin", "topic_state", "rank_score", "location_name"]
+    .map((c) => `${a}${c}`)
+    .join(", ");
+
+export function toCard(r: DbCard): BoardCard {
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    prompt: r.prompt,
+    status: r.status,
+    tier: r.tier,
+    updatedAt: Number(r.updated_at),
+    crisisType: r.crisis_type,
+    severity: num(r.severity),
+    headline: r.headline,
+    accent: r.accent,
+    origin: asOrigin(r.origin),
+    topicState: asTopicState(r.topic_state),
+    rankScore: num(r.rank_score),
+    locationName: r.location_name,
   };
 }
 
@@ -197,51 +296,51 @@ export async function listBoards(opts: { limit: number; ownerId?: string; public
   }
   if (opts.publicOnly) where.push("visibility = 'public'");
   params.push(Math.max(1, Math.min(200, Math.floor(opts.limit))));
-  const rows = await all<{
-    id: string;
-    slug: string;
-    title: string | null;
-    prompt: string;
-    status: BoardStatus;
-    tier: BoardTier;
-    updated_at: number;
-    crisis_type: string | null;
-    severity: number | null;
-    headline: string | null;
-    accent: string | null;
-  }>(
-    `SELECT id, slug, title, prompt, status, tier, updated_at, crisis_type, severity, headline, accent
-     FROM boards WHERE ${where.join(" AND ")} ORDER BY updated_at DESC LIMIT ?`,
+  const rows = await all<DbCard>(`SELECT ${cardCols()} FROM boards WHERE ${where.join(" AND ")} ORDER BY updated_at DESC LIMIT ?`, params);
+  return rows.map(toCard);
+}
+
+/**
+ * Shared topics for the home page and /topics: public system boards in a state (default active), best ranked first.
+ * Unscored topics sort after scored ones, newest first. Boards that have not finished their first build are left out.
+ */
+export async function listTopics(opts: { state?: TopicState; crisisType?: string | null; limit: number }): Promise<BoardCard[]> {
+  const where = ["deleted_at IS NULL", "origin = 'system'", "visibility = 'public'", "topic_state = ?", "spec_version = 2", "status <> 'error'"];
+  const params: Param[] = [opts.state ?? "active"];
+  if ((opts.state ?? "active") === "active") where.push("spec IS NOT NULL");
+  if (opts.crisisType) {
+    where.push("crisis_type = ?");
+    params.push(opts.crisisType);
+  }
+  params.push(Math.max(1, Math.min(100, Math.floor(opts.limit))));
+  const rows = await all<DbCard>(
+    `SELECT ${cardCols()} FROM boards WHERE ${where.join(" AND ")}
+     ORDER BY rank_score IS NULL, rank_score DESC, updated_at DESC LIMIT ?`,
     params,
   );
-  return rows.map((r) => ({
-    id: r.id,
-    slug: r.slug,
-    title: r.title,
-    prompt: r.prompt,
-    status: r.status,
-    tier: r.tier,
-    updatedAt: Number(r.updated_at),
-    crisisType: r.crisis_type,
-    severity: num(r.severity),
-    headline: r.headline,
-    accent: r.accent,
-  }));
+  return rows.map(toCard);
 }
 
 export async function setStatus(id: string, status: BoardStatus): Promise<void> {
   await run(`UPDATE boards SET status = ?, updated_at = ? WHERE id = ?`, [status, Date.now(), id]);
 }
 
+/** Also copies plan.entities and the plan location into the list columns topic matching reads. */
 export async function savePlan(id: string, plan: Plan): Promise<void> {
-  await run(`UPDATE boards SET plan = ?, title = ?, language = ?, crisis_type = ?, updated_at = ? WHERE id = ?`, [
-    JSON.stringify(plan),
-    plan.title.slice(0, 500),
-    plan.language?.slice(0, 16) ?? null,
-    plan.crisisType,
-    Date.now(),
-    id,
-  ]);
+  await run(
+    `UPDATE boards SET plan = ?, title = ?, language = ?, crisis_type = ?, entities = ?, location_name = COALESCE(?, location_name),
+       updated_at = ? WHERE id = ?`,
+    [
+      JSON.stringify(plan),
+      plan.title.slice(0, 500),
+      plan.language?.slice(0, 16) ?? null,
+      plan.crisisType,
+      JSON.stringify((plan.entities ?? []).slice(0, 20)),
+      plan.location?.name?.slice(0, 255) ?? null,
+      Date.now(),
+      id,
+    ],
+  );
 }
 
 const KEEP_VERSIONS = 50;
@@ -770,21 +869,6 @@ export async function deleteMonitorRow(id: string): Promise<void> {
 }
 
 // limits
-
-/** Counts deleted boards too, so deleting does not reset the hourly allowance. */
-export async function countRecentBoards(ownerId: string, sinceMs: number): Promise<number> {
-  const r = await one<{ n: number }>(`SELECT COUNT(*) AS n FROM boards WHERE owner_id = ? AND created_at >= ?`, [ownerId, sinceMs]);
-  return Number(r?.n ?? 0);
-}
-
-/** Boards of this owner that are not paused. */
-export async function countActiveBoards(ownerId: string): Promise<number> {
-  const r = await one<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM boards WHERE owner_id = ? AND deleted_at IS NULL AND tier <> 'paused'`,
-    [ownerId],
-  );
-  return Number(r?.n ?? 0);
-}
 
 /** For Caddy on-demand TLS: true when the slug exists and the board is not deleted. */
 export async function slugExists(slug: string): Promise<boolean> {

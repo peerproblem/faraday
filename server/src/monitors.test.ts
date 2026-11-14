@@ -6,6 +6,8 @@ import { quoteInText } from "./pipeline/verify";
 
 const rows: MonitorRow[] = [];
 const seen = new Set<string>();
+const allowance = { search: true, page: true };
+vi.mock("./repo/topics", () => ({ monitorAllowance: vi.fn(async () => allowance) }));
 vi.mock("./repo/boards", () => ({
   listMonitors: vi.fn(async (boardId?: string) => rows.filter((r) => !boardId || r.boardId === boardId)),
   saveMonitor: vi.fn(async (m: Partial<MonitorRow> & Pick<MonitorRow, "id" | "boardId" | "kind" | "target" | "webhookSecret">) => {

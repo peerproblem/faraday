@@ -12,6 +12,7 @@ import {
   type FoundDoc,
   type MonitorRow,
 } from "./repo/boards";
+import { monitorAllowance, type MonitorAllowance } from "./repo/topics";
 import type { BoardTier, Plan } from "./spec";
 
 const MAX_PAGE_MONITORS = 2;
@@ -91,7 +92,8 @@ const label = (m: Pick<MonitorRow, "kind" | "target">) => (m.kind === "search" ?
  * account allowance (hot boards first is the caller's job: pass allowPage=false for non-hot boards). A URL whose
  * monitor was given up on ('dead') is not watched again. Attaches the webhook
  * (https://api.<FARADAY_DOMAIN>/api/webhooks/context, with retries) and stores each monitor's secret.
- * Returns a short note for the run log.
+ * Shared topics are also limited by rank (monitorAllowance): only the top topics get a search monitor, fewer get
+ * page monitors. Returns a short note for the run log.
  */
 export async function ensureBoardMonitors(
   boardId: string,
@@ -100,11 +102,19 @@ export async function ensureBoardMonitors(
   opts?: { allowPage?: boolean; tier?: BoardTier },
 ): Promise<string> {
   if (monitorsDisabled()) return "monitors disabled";
+  let allow: MonitorAllowance;
+  try {
+    allow = await monitorAllowance(boardId);
+  } catch (e) {
+    return `monitor allowance unavailable: ${errText(e)}`;
+  }
+  if (!allow.search) return "not in the monitored topics, news polling only";
   const existing = await listMonitors(boardId);
   const active = live(existing);
   const needSearch = !active.some((m) => m.kind === "search");
   const watched = new Set(existing.filter((m) => m.kind === "page").map((m) => m.target));
-  const pageSlots = opts?.allowPage === false ? 0 : Math.max(0, MAX_PAGE_MONITORS - active.filter((m) => m.kind === "page").length);
+  const pageSlots =
+    opts?.allowPage === false || !allow.page ? 0 : Math.max(0, MAX_PAGE_MONITORS - active.filter((m) => m.kind === "page").length);
   const pages: string[] = [];
   for (const raw of officialUrls) {
     const u = normalizeUrl(raw);
@@ -301,12 +311,12 @@ export async function setBoardMonitorSchedule(boardId: string, tier: BoardTier):
   return n;
 }
 
-/** Deletes the board's monitors at Context.dev and their rows. Never throws. */
-export async function removeBoardMonitors(boardId: string): Promise<number> {
+/** Deletes the board's monitors (or only those of one kind) at Context.dev and their rows. Never throws. */
+export async function removeBoardMonitors(boardId: string, opts?: { kind?: MonitorRow["kind"] }): Promise<number> {
   let removed = 0;
   let rows: MonitorRow[] = [];
   try {
-    rows = await listMonitors(boardId);
+    rows = (await listMonitors(boardId)).filter((m) => !opts?.kind || m.kind === opts.kind);
   } catch (e) {
     console.error("[faraday] removeBoardMonitors: list failed", boardId, errText(e));
     return 0;

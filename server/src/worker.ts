@@ -1,17 +1,19 @@
 // OWNER: F-RUNTIME. Worker entry point: queue consumers, scheduler and tiering, stale job reclaim, cleanup, heartbeat.
-// Graph registry: build -> buildGraph, edit -> editGraph, poll -> updateGraph (from ./pipeline/graphs), cleanup -> local.
+// Graph registry: build -> buildGraph, edit -> editGraph, poll -> updateGraph, discover -> discoverGraph
+// (from ./pipeline/graphs), cleanup -> local.
 import { hostname } from "node:os";
 import { pathToFileURL } from "node:url";
 import { flushRemote, publish, setBusMode } from "./bus";
 import { closePool } from "./db/pool";
 import { runGraph, type GraphFn } from "./graph/runner";
 import { removeBoardMonitors, setBoardMonitorSchedule } from "./monitors";
-import { buildGraph, editGraph, updateGraph } from "./pipeline/graphs";
+import { buildGraph, discoverGraph, editGraph, updateGraph } from "./pipeline/graphs";
 import {
   addEvent,
   getBoard,
   listDueBoards,
   listLiveBoardsForTiering,
+  listMonitors,
   pruneOldData,
   setSchedule,
   setStatus,
@@ -21,6 +23,7 @@ import {
   complete,
   enqueue,
   fail,
+  hasPendingJob,
   lastJobCreatedAt,
   orphanedBuildingBoards,
   pruneJobs,
@@ -29,7 +32,9 @@ import {
   type Job,
   type JobKind,
 } from "./repo/jobs";
+import { discoverEnabled } from "./repo/settings";
 import { pruneStepOutputs, writeWorkerHeartbeat, type GraphName } from "./repo/runs";
+import { allowanceAt, archivePausedTopics, rankedTopicIds, recomputeRanks } from "./repo/topics";
 import type { BoardStatus, BoardTier } from "./spec";
 
 const MIN = 60_000;
@@ -66,7 +71,16 @@ const GRAPHS: Record<Exclude<JobKind, "cleanup">, { name: GraphName; fn: GraphFn
   build: { name: "build", fn: buildGraph },
   edit: { name: "edit", fn: editGraph },
   poll: { name: "update", fn: updateGraph },
+  discover: { name: "discover", fn: discoverGraph },
 };
+
+/**
+ * How often the discover job looks for new crises. It runs only when an admin turned discovery on in /admin
+ * (app_settings.discover_enabled, off by default); DISCOVER_ENABLED=0 turns it off regardless.
+ */
+export const DISCOVER_INTERVAL_MS = Number(process.env.DISCOVER_INTERVAL_MS ?? 30 * MIN);
+const TOPIC_UPKEEP_MS = Number(process.env.TOPIC_UPKEEP_MS ?? 5 * MIN);
+const discoverEnvOn = () => !/^(0|off|false|no)$/i.test(process.env.DISCOVER_ENABLED ?? "");
 
 const log = (level: "info" | "warn" | "error", msg: string, extra: Record<string, unknown> = {}) => {
   const line = JSON.stringify({ ts: new Date().toISOString(), level, msg, proc: "worker", ...extra });
@@ -162,6 +176,46 @@ export async function maybeEnqueueCleanup(now = Date.now()) {
   return true;
 }
 
+/**
+ * Queues a discover run unless one is queued or running, or one was queued less than an interval ago (the timer also
+ * fires at startup, so a restart does not start an extra run).
+ */
+export async function maybeEnqueueDiscover(now = Date.now()) {
+  if (!discoverEnvOn()) return false;
+  if (!(await discoverEnabled())) return false;
+  if (await hasPendingJob(SYSTEM_BOARD, ["discover"])) return false;
+  const last = await lastJobCreatedAt("discover");
+  if (last !== null && now - last < DISCOVER_INTERVAL_MS - MIN) return false;
+  await enqueue("discover", SYSTEM_BOARD, null, { maxAttempts: 1 });
+  return true;
+}
+
+/**
+ * Shared topic upkeep: paused system topics become archived, active ones are ranked again, and topics that fell out
+ * of the monitored top lose their monitors (search and pages below MONITORED_TOPICS, pages below
+ * PAGE_MONITORED_TOPICS). Monitors are created by the graphs, which ask monitorAllowance first.
+ */
+export async function topicUpkeepOnce(now = Date.now()) {
+  const archived = await archivePausedTopics();
+  await recomputeRanks(now);
+  const ranked = await rankedTopicIds();
+  const position = new Map(ranked.map((id, i) => [id, i]));
+  const byBoard = new Map<string, Set<string>>();
+  for (const m of await listMonitors()) {
+    if (!position.has(m.boardId) || m.remoteStatus === "dead") continue;
+    if (!byBoard.has(m.boardId)) byBoard.set(m.boardId, new Set());
+    byBoard.get(m.boardId)!.add(m.kind);
+  }
+  let released = 0;
+  for (const [boardId, kinds] of byBoard) {
+    const allow = allowanceAt(position.get(boardId)!);
+    if (!allow.search) released += await removeBoardMonitors(boardId);
+    else if (!allow.page && kinds.has("page")) released += await removeBoardMonitors(boardId, { kind: "page" });
+  }
+  if (archived.length || released) log("info", "topic upkeep", { archived: archived.length, monitorsReleased: released, ranked: ranked.length });
+  return { archived: archived.length, released, ranked: ranked.length };
+}
+
 export async function reclaimOnce(now = Date.now()) {
   const n = await reclaimStale(60_000, now);
   if (n) log("warn", "reclaimed stale jobs", { count: n });
@@ -181,7 +235,7 @@ export function startWorker() {
   const running = new Set<Promise<void>>();
   const pools: Pool[] = [
     { name: "build", kinds: ["build", "edit"], size: Math.max(1, Number(process.env.BUILD_CONCURRENCY ?? 3)) },
-    { name: "poll", kinds: ["poll", "cleanup"], size: Math.max(1, Number(process.env.POLL_CONCURRENCY ?? 4)) },
+    { name: "poll", kinds: ["poll", "discover", "cleanup"], size: Math.max(1, Number(process.env.POLL_CONCURRENCY ?? 4)) },
   ];
 
   const idle = (ms: number) =>
@@ -234,6 +288,8 @@ export function startWorker() {
     every(20_000, "reclaim", () => reclaimOnce()),
     every(30_000, "heartbeat", () => writeWorkerHeartbeat(workerId)),
     every(HOUR, "cleanup enqueue", () => maybeEnqueueCleanup()),
+    every(DISCOVER_INTERVAL_MS, "discover enqueue", () => maybeEnqueueDiscover()),
+    every(TOPIC_UPKEEP_MS, "topic upkeep", () => topicUpkeepOnce()),
   ];
 
   log("info", "worker started", { workerId, pools: pools.map((p) => `${p.name}x${p.size}`).join(" ") });

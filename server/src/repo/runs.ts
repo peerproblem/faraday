@@ -2,7 +2,7 @@
 import { all, one, run } from "../db/pool";
 import type { RunStepView, RunView } from "../spec";
 
-export type GraphName = "build" | "edit" | "update";
+export type GraphName = "build" | "edit" | "update" | "discover";
 
 type RunRow = {
   id: number;

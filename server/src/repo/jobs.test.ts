@@ -129,6 +129,17 @@ describe.skipIf(!t.enabled)("jobs", () => {
     expect((await orphanedBuildingBoards(2 * 60_000)).map((s) => s.id)).not.toContain(a);
   });
 
+  it("claims cleanup and discover jobs on the system board without a board lock", async () => {
+    const id = await enqueue("discover", "__system__", null, { maxAttempts: 1 });
+    const j = await claim("w1", ["discover"]);
+    expect(j?.id).toBe(id);
+    expect(j?.status).toBe("running");
+    expect((await jobRow(id))?.status).toBe("running");
+    await complete(id);
+    expect((await jobRow(id))?.status).toBe("done");
+    expect((await queueStats()).queued).toHaveProperty("discover");
+  });
+
   it("reports queue stats", async () => {
     const s = await queueStats();
     expect(typeof s.running).toBe("number");

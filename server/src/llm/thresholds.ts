@@ -8,4 +8,8 @@ export const THRESHOLDS = {
   material: 0.5,
   /** edit routing: gather new data when P(needs new data) >= this */
   needsNewData: 0.5,
+  /** discover: a candidate joins an existing topic when P(same event) >= this */
+  sameEvent: 0.7,
+  /** discover: a new candidate becomes a topic when P(ongoing crisis that needs a live board) >= this */
+  newTopic: 0.75,
 } as const;

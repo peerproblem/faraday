@@ -8,8 +8,6 @@ import {
   addMessage,
   addSources,
   boardIdForSlug,
-  countActiveBoards,
-  countRecentBoards,
   createBoard,
   deleteBoard,
   deleteMonitorRow,
@@ -163,9 +161,7 @@ describe.skipIf(!enabled)("repo/boards", () => {
     await touchViewed(id, now);
     const t = (await listLiveBoardsForTiering()).find((b) => b.id === id)!;
     expect(t).toMatchObject({ tier: "warm", lastViewedAt: now, situation: "ongoing" });
-    expect(await countActiveBoards("u3")).toBe(1);
     await setSchedule(id, { tier: "paused" });
-    expect(await countActiveBoards("u3")).toBe(0);
     expect((await listDueBoards(now + 120_000, 100)).map((b) => b.id)).not.toContain(id);
     await setStatus(id, "error");
     expect((await listLiveBoardsForTiering()).some((b) => b.id === id)).toBe(false);
@@ -176,14 +172,12 @@ describe.skipIf(!enabled)("repo/boards", () => {
     await setVisibility(id, "unlisted");
     expect((await listBoards({ limit: 100, publicOnly: true })).some((b) => b.id === id)).toBe(false);
     expect((await listBoards({ limit: 100, ownerId: "u4" })).some((b) => b.id === id)).toBe(true);
-    expect(await countRecentBoards("u4", Date.now() - 60_000)).toBe(1);
     await deleteBoard(id);
     expect(await getBoard(id)).toBeNull();
     expect(await getBoardView(id)).toBeNull();
     expect(await boardIdForSlug(slug)).toBeNull();
     expect(await slugExists(slug)).toBe(false);
     expect((await listBoards({ limit: 100, ownerId: "u4" })).length).toBe(0);
-    expect(await countRecentBoards("u4", Date.now() - 60_000)).toBe(1);
   });
 
   it("stores monitors with targets and secrets", async () => {

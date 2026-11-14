@@ -27,6 +27,12 @@ export type WidgetType = (typeof widgetTypes)[number];
  */
 export const widgetSchema = z.object({
   id: z.string(),
+  /**
+   * Stable identity across baseline versions (ids are positions and shift when widgets are added or removed).
+   * The type for single widgets, `${type}:${bind}` for bound ones (table, status-grid, trend). Set by specFromPlan;
+   * specs saved before keys existed lack it, so read it with widgetKeyOf.
+   */
+  key: z.string().optional(),
   type: z.enum(widgetTypes),
   title: z.string(),
   span: z.enum(["full", "half"]),
@@ -36,6 +42,26 @@ export const widgetSchema = z.object({
 export type Widget = z.infer<typeof widgetSchema>;
 
 export type BoardSpecV2 = { version: 2; widgets: Widget[] };
+
+/** Widget types that appear at most once on a board. table, status-grid and trend are unique per binding. */
+export const singleWidgetTypes: readonly WidgetType[] = [
+  "on-the-ground",
+  "narrative",
+  "stat-grid",
+  "timeline",
+  "map",
+  "alert-list",
+  "link-list",
+  "feed",
+  "changelog",
+  "sources",
+];
+
+/** The stable key of a widget (see Widget.key), computed the same way for specs that predate keys. */
+export function widgetKeyOf(w: Pick<Widget, "type" | "bind"> & { key?: string }): string {
+  if (w.key) return w.key;
+  return singleWidgetTypes.includes(w.type) ? w.type : `${w.type}:${w.bind}`;
+}
 
 export type Cited = { sources: string[]; asOf: string | null };
 

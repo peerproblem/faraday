@@ -6,7 +6,7 @@ const key = z.string().describe("kebab-case key, unique in its list, e.g. deaths
 
 export const metricSpecSchema = z.object({
   key,
-  label: z.string().describe("Short label in the board language"),
+  label: z.string().describe("Short label in English"),
   unit: z.string().nullable(),
   why: z.string().describe("Why this figure matters for this crisis"),
 });
@@ -28,10 +28,10 @@ export const widgetPlanSchema = z.object({
 });
 
 export const planSchema = z.object({
-  title: z.string().describe("Short board title in the board language, e.g. 'Valencia Floods'"),
+  title: z.string().describe("Short board title in English, e.g. 'Valencia Floods'"),
   subtitle: z.string().nullable(),
   crisisType: z.enum(crisisTypes),
-  language: z.string().describe("BCP 47 code of the language the user wrote in, e.g. en, ko, es"),
+  language: z.string().describe("Always en: boards are English only"),
   location: z
     .object({ name: z.string().describe("Geocodable place name, e.g. 'Valencia, Spain'"), zoom: z.number().describe("Leaflet zoom, 4 country to 12 city") })
     .nullable()

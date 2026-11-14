@@ -61,6 +61,7 @@ const DEFAULT_DEADLINES: Record<GraphName, number> = {
   build: Number(process.env.BUILD_DEADLINE_MS ?? 150_000),
   edit: 120_000,
   update: 60_000,
+  discover: Number(process.env.DISCOVER_DEADLINE_MS ?? 240_000),
 };
 const HEARTBEAT_MS = 10_000;
 const RETRY_BASE_MS = Number(process.env.STEP_RETRY_BASE_MS ?? 500);

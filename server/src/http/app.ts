@@ -11,14 +11,13 @@ import {
   addEvent,
   addMessage,
   boardIdForSlug,
-  countActiveBoards,
-  countRecentBoards,
   createBoard,
   deleteBoard,
   getBoard,
   getBoardView,
   listBoards,
   listEvents,
+  listTopics,
   forgetWebhookEvent,
   monitorById,
   recordWebhookEvent,
@@ -29,10 +28,26 @@ import {
   type BoardRow,
 } from "../repo/boards";
 import { enqueue, hasPendingJob, queueStats } from "../repo/jobs";
+import {
+  addTopicRequests,
+  countViews,
+  deleteView,
+  getView,
+  listCandidates,
+  listTopicRequests,
+  listViews,
+  saveView,
+  undoView,
+} from "../repo/views";
 import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
+import { discoverEnabled, setDiscoverEnabled } from "../repo/settings";
+import { listAdminTopics, setTopicState } from "../repo/topics";
 import { sessionUserId } from "../session";
-import type { BoardEvent, BoardView, StreamMsg } from "../spec";
-import { upsertUser } from "../users";
+import { crisisTypes, emptyLayout, type BoardEvent, type BoardView, type MeView, type StreamMsg, type ViewEditResult, type ViewSaveResult } from "../spec";
+import { getUser, isAdminEmail, upsertUser } from "../users";
+import { defaultLayoutModel, editLayout, type LayoutModel } from "../views/edit-layout";
+import { layoutInputSchema, sanitizeLayout } from "../views/sanitize";
+import { ADMIN_COOKIE, ADMIN_SESSION_MS, adminCookie, checkAdminLogin, issueAdminToken, readCookie, verifyAdminToken } from "./admin-auth";
 import { errMessage, log } from "./log";
 import { createLimiter } from "./rate-limit";
 import { bearerOk, verifySignature } from "./signature";
@@ -42,11 +57,16 @@ const num = (v: string | undefined, d: number) => (v && Number.isFinite(Number(v
 
 export type AppOptions = {
   domain?: string;
-  boardsPerHour?: number;
-  maxActiveBoards?: number;
-  maxQueuedBuilds?: number;
   editsPerHour?: number;
   pingMs?: number;
+  /** Prompt edits of a personal view per user per hour (VIEW_EDITS_PER_HOUR, default 30). */
+  viewEditsPerHour?: number;
+  /** Direct saves of a personal view per user per hour (VIEW_SAVES_PER_HOUR, default 120). */
+  viewSavesPerHour?: number;
+  /** Personal views per user (MAX_PERSONAL_VIEWS, default 20). */
+  maxViews?: number;
+  viewEditTimeoutMs?: number;
+  layoutModel?: LayoutModel;
 };
 
 /** Tracks SSE connections and when each board was last recorded as viewed. */
@@ -56,16 +76,22 @@ const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 
 export function createApp(opts: AppOptions = {}) {
   const DOMAIN = opts.domain ?? process.env.FARADAY_DOMAIN ?? "";
-  const BOARDS_PER_HOUR = opts.boardsPerHour ?? num(process.env.BOARDS_PER_HOUR, 10);
-  const MAX_ACTIVE = opts.maxActiveBoards ?? num(process.env.MAX_ACTIVE_BOARDS, 5);
-  const MAX_QUEUED_BUILDS = opts.maxQueuedBuilds ?? num(process.env.MAX_QUEUED_BUILDS, 20);
   const EDITS_PER_HOUR = opts.editsPerHour ?? num(process.env.EDITS_PER_HOUR, 20);
   const PING_MS = opts.pingMs ?? 20_000;
+  const VIEW_EDITS_PER_HOUR = opts.viewEditsPerHour ?? num(process.env.VIEW_EDITS_PER_HOUR, 30);
+  const VIEW_SAVES_PER_HOUR = opts.viewSavesPerHour ?? num(process.env.VIEW_SAVES_PER_HOUR, 120);
+  const MAX_VIEWS = opts.maxViews ?? num(process.env.MAX_PERSONAL_VIEWS, 20);
+  const VIEW_EDIT_TIMEOUT_MS = opts.viewEditTimeoutMs ?? 15_000;
+  const layoutModel = opts.layoutModel ?? defaultLayoutModel;
 
   const refreshPerBoard = createLimiter({ windowMs: 60_000, max: 1 });
   const refreshPerIp = createLimiter({ windowMs: 60_000, max: 5 });
   const editsPerUser = createLimiter({ windowMs: 3_600_000, max: EDITS_PER_HOUR });
+  const viewEditsPerUser = createLimiter({ windowMs: 3_600_000, max: VIEW_EDITS_PER_HOUR });
+  const viewSavesPerUser = createLimiter({ windowMs: 3_600_000, max: VIEW_SAVES_PER_HOUR });
   const writesPerIp = createLimiter({ windowMs: 60_000, max: 60 });
+  // Failed admin logins per IP. The password is short, so this is the main guard against guessing.
+  const adminLoginFailures = createLimiter({ windowMs: 15 * 60_000, max: 5 });
   const cache = createViewCache(5_000);
   const unsubscribeCache = subscribeAll(({ boardId }) => cache.invalidate(boardId));
 
@@ -99,12 +125,41 @@ export function createApp(opts: AppOptions = {}) {
 
   const uid = (c: Context) => sessionUserId(c.req.header("cookie"));
 
+  const hasAdminCookie = (c: Context) => verifyAdminToken(readCookie(c.req.header("cookie"), ADMIN_COOKIE));
+
+  async function isAdminUser(user: string | null): Promise<boolean> {
+    if (!user || !process.env.ADMIN_EMAILS) return false;
+    const u = await getUser(user);
+    return isAdminEmail(u?.email);
+  }
+
+  /** An admin is a valid /admin session cookie, or a signed-in user listed in ADMIN_EMAILS. */
+  async function isAdmin(c: Context, user?: string | null): Promise<boolean> {
+    if (hasAdminCookie(c)) return true;
+    return isAdminUser(user === undefined ? await uid(c) : user);
+  }
+
+  /** Shared topics (origin system) are changed by admins only; legacy prompt boards by their owner. */
   async function ownedBoard(c: Context): Promise<{ row: BoardRow; uid: string } | Response> {
     const id = c.req.param("id") ?? "";
     const [user, row] = await Promise.all([uid(c), getBoard(id)]);
     if (!row) return c.json({ error: "Not found" }, 404);
+    if (row.origin === "system") {
+      if (!(await isAdmin(c, user))) return c.json({ error: "Only an admin can change a shared topic" }, 403);
+      // A password admin has no user id; "admin" keys the per-user edit limit.
+      return { row, uid: user ?? "admin" };
+    }
     if (!user || user !== row.ownerId) return c.json({ error: "Only the owner can change this board" }, 403);
     return { row, uid: user };
+  }
+
+  /** "admin" for a password session, else the admin user's id. 401 with no session at all, 403 for other users. */
+  async function adminOnly(c: Context): Promise<string | Response> {
+    if (hasAdminCookie(c)) return "admin";
+    const user = await uid(c);
+    if (!user) return c.json({ error: "Sign in first" }, 401);
+    if (!(await isAdminUser(user))) return c.json({ error: "Admins only" }, 403);
+    return user;
   }
 
   async function emitEvent(boardId: string, kind: BoardEvent["kind"], message: string, data: Record<string, unknown> | null = null) {
@@ -238,31 +293,14 @@ export function createApp(opts: AppOptions = {}) {
     return c.json({ boards: await listBoards({ limit: limitOf(c, 50), ownerId: user }) });
   });
 
-  const createBody = z.object({ prompt: z.string().trim().min(8).max(2000) });
+  const topicStates = new Set(["active", "archived"]);
 
-  app.post("/api/boards", async (c) => {
-    const user = await uid(c);
-    if (!user) return c.json({ error: "Sign in to create a board" }, 401);
-    const parsed = createBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: "Describe the crisis in at least a few words" }, 400);
-    const [recent, active, queue] = await Promise.all([
-      countRecentBoards(user, Date.now() - 3_600_000),
-      countActiveBoards(user),
-      queueStats(),
-    ]);
-    if (recent >= BOARDS_PER_HOUR) {
-      return c.json({ error: "You have built a lot of boards in the last hour. Try again a bit later." }, 429);
-    }
-    if (active >= MAX_ACTIVE) {
-      return c.json({ error: `You can keep ${MAX_ACTIVE} live boards at a time. Pause or delete one first.` }, 429);
-    }
-    if ((queue.queued.build ?? 0) > MAX_QUEUED_BUILDS) {
-      return c.json({ error: "Faraday is busy building other boards. Try again in a few minutes." }, 503);
-    }
-    const { id, slug } = await createBoard(parsed.data.prompt, user);
-    await enqueue("build", id, {});
-    log("info", "board created", { boardId: id, slug });
-    return c.json({ id, slug });
+  app.get("/api/topics", async (c) => {
+    const state = c.req.query("state") ?? "active";
+    if (!topicStates.has(state)) return c.json({ error: "state must be active or archived" }, 400);
+    const type = c.req.query("type") || null;
+    if (type && !(crisisTypes as readonly string[]).includes(type)) return c.json({ error: "Unknown crisis type" }, 400);
+    return c.json({ topics: await listTopics({ state: state as "active" | "archived", crisisType: type, limit: limitOf(c, 50) }) });
   });
 
   app.get("/api/boards/by-slug/:slug", async (c) => {
@@ -339,6 +377,227 @@ export function createApp(opts: AppOptions = {}) {
     });
   });
 
+  app.get("/api/me", async (c) => {
+    const user = await uid(c);
+    if (!user) return c.json({ error: "Sign in first" }, 401);
+    const u = await getUser(user);
+    if (!u) return c.json({ error: "Sign in first" }, 401);
+    const me: MeView = { id: u.id, email: u.email, name: u.name, image: u.image, isAdmin: isAdminEmail(u.email) || hasAdminCookie(c) };
+    return c.json(me);
+  });
+
+  /** The signed-in user and the board for a /api/me/views/:boardId route. */
+  async function viewTarget(c: Context): Promise<{ user: string; row: BoardRow } | Response> {
+    const user = await uid(c);
+    if (!user) return c.json({ error: "Sign in to use My dashboards" }, 401);
+    const row = await getBoard(c.req.param("boardId") ?? "");
+    if (!row) return c.json({ error: "Not found" }, 404);
+    return { user, row };
+  }
+
+  const tooMany = (c: Context, retryAfterMs: number, error: string) => {
+    c.header("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    return c.json({ error }, 429);
+  };
+
+  app.get("/api/me/views", async (c) => {
+    const user = await uid(c);
+    if (!user) return c.json({ error: "Sign in to use My dashboards" }, 401);
+    return c.json({ views: await listViews(user, MAX_VIEWS) });
+  });
+
+  app.get("/api/me/views/:boardId", async (c) => {
+    const t = await viewTarget(c);
+    if (t instanceof Response) return t;
+    const v = await getView(t.user, t.row.id);
+    return c.json(v ? { layout: v.layout, rev: v.rev } : { layout: null, rev: 0 });
+  });
+
+  const saveBody = z.object({ layout: layoutInputSchema, rev: z.number().int().min(0) });
+
+  app.post("/api/me/views/:boardId", async (c) => {
+    const t = await viewTarget(c);
+    if (t instanceof Response) return t;
+    const parsed = saveBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "That layout is not valid" }, 400);
+    if (!t.row.spec) return c.json({ error: "This topic is still being built" }, 409);
+    if (parsed.data.rev === 0 && (await countViews(t.user)) >= MAX_VIEWS) {
+      return c.json({ error: `You can keep ${MAX_VIEWS} dashboards. Remove one first.` }, 429);
+    }
+    const hit = viewSavesPerUser.hit(t.user);
+    if (!hit.ok) return tooMany(c, hit.retryAfterMs, "That is a lot of changes for one hour. Try again later.");
+    const layout = sanitizeLayout(parsed.data.layout, t.row.spec, t.row.plan);
+    const r = await saveView(t.user, t.row.id, layout, parsed.data.rev);
+    if (!r.ok) {
+      return c.json({ error: "Your dashboard changed in another tab", layout: r.current?.layout ?? null, rev: r.current?.rev ?? 0 }, 409);
+    }
+    const out: ViewSaveResult = { layout, rev: r.rev };
+    return c.json(out);
+  });
+
+  const viewEditBody = z.object({ instruction: z.string().trim().min(3).max(500) });
+
+  app.post("/api/me/views/:boardId/edit", async (c) => {
+    const t = await viewTarget(c);
+    if (t instanceof Response) return t;
+    const parsed = viewEditBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Describe the change in 3 to 500 characters" }, 400);
+    if (!t.row.spec) return c.json({ error: "This topic is still being built" }, 409);
+    const current = await getView(t.user, t.row.id);
+    if (!current && (await countViews(t.user)) >= MAX_VIEWS) {
+      return c.json({ error: `You can keep ${MAX_VIEWS} dashboards. Remove one first.` }, 429);
+    }
+    const hit = viewEditsPerUser.hit(t.user);
+    if (!hit.ok) return tooMany(c, hit.retryAfterMs, "That is a lot of edits for one hour. Try again later.");
+    const base = current?.layout ?? emptyLayout(t.row.version);
+    let result;
+    try {
+      result = await editLayout(
+        { spec: t.row.spec, plan: t.row.plan, layout: base, instruction: parsed.data.instruction, baseVersion: t.row.version },
+        AbortSignal.timeout(VIEW_EDIT_TIMEOUT_MS),
+        layoutModel,
+      );
+    } catch (e) {
+      const timedOut = (e as Error)?.name === "TimeoutError" || (e as Error)?.name === "AbortError";
+      log("warn", "view edit failed", { boardId: t.row.id, error: errMessage(e) });
+      return c.json({ error: timedOut ? "That took too long. Try again." : "Could not change the layout. Try again." }, timedOut ? 504 : 502);
+    }
+    const saved = await saveView(t.user, t.row.id, result.layout, current?.rev ?? 0, { instruction: parsed.data.instruction, reply: result.reply });
+    if (!saved.ok) {
+      return c.json({ error: "Your dashboard changed in another tab", layout: saved.current?.layout ?? null, rev: saved.current?.rev ?? 0 }, 409);
+    }
+    if (result.requests.length) await addTopicRequests(t.row.id, t.user, result.requests);
+    const out: ViewEditResult = { layout: result.layout, rev: saved.rev, reply: result.reply, unsupported: result.unsupported };
+    return c.json(out);
+  });
+
+  app.post("/api/me/views/:boardId/undo", async (c) => {
+    const t = await viewTarget(c);
+    if (t instanceof Response) return t;
+    const r = await undoView(t.user, t.row.id);
+    if (!r) return c.json({ error: "Nothing to undo" }, 404);
+    // The restored layout may name widgets the baseline has since dropped.
+    const out: ViewSaveResult = { layout: sanitizeLayout(r.layout, t.row.spec, t.row.plan), rev: r.rev };
+    return c.json(out);
+  });
+
+  app.delete("/api/me/views/:boardId", async (c) => {
+    const t = await viewTarget(c);
+    if (t instanceof Response) return t;
+    await deleteView(t.user, t.row.id);
+    return c.json({ ok: true });
+  });
+
+  const loginBody = z.object({ username: z.string().max(200), password: z.string().max(200) });
+
+  app.post("/api/admin/login", async (c) => {
+    const ip = clientIp(c);
+    const parsed = loginBody.safeParse(await c.req.json().catch(() => null));
+    const ok = parsed.success && checkAdminLogin(parsed.data.username, parsed.data.password);
+    if (!ok) {
+      const r = adminLoginFailures.hit(ip);
+      if (!r.ok) {
+        c.header("Retry-After", String(Math.ceil(r.retryAfterMs / 1000)));
+        return c.json({ error: "Too many failed attempts. Try again later." }, 429);
+      }
+      log("warn", "admin login failed", { ip });
+      return c.json({ error: "Wrong username or password" }, 401);
+    }
+    const token = issueAdminToken();
+    if (!token) return c.json({ error: "Wrong username or password" }, 401);
+    c.header("Set-Cookie", adminCookie(token, { domain: DOMAIN, maxAgeMs: ADMIN_SESSION_MS }));
+    c.header("Cache-Control", "no-store");
+    log("info", "admin signed in", { ip });
+    return c.json({ admin: true });
+  });
+
+  app.post("/api/admin/logout", (c) => {
+    c.header("Set-Cookie", adminCookie("", { domain: DOMAIN, maxAgeMs: 0 }));
+    c.header("Cache-Control", "no-store");
+    return c.json({ ok: true });
+  });
+
+  app.get("/api/admin/session", async (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json({ admin: await isAdmin(c) });
+  });
+
+  app.get("/api/admin/settings", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    return c.json({ discoverEnabled: await discoverEnabled() });
+  });
+
+  const settingsBody = z.object({ discoverEnabled: z.boolean() });
+
+  app.post("/api/admin/settings", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = settingsBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "discoverEnabled must be true or false" }, 400);
+    await setDiscoverEnabled(parsed.data.discoverEnabled);
+    log("info", "discovery setting changed", { discoverEnabled: parsed.data.discoverEnabled, by: admin === "admin" ? "password" : "email" });
+    return c.json({ discoverEnabled: await discoverEnabled() });
+  });
+
+  app.get("/api/admin/topics", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    return c.json({ topics: await listAdminTopics() });
+  });
+
+  const topicStateBody = z.object({ state: z.enum(["active", "archived"]) });
+
+  app.post("/api/admin/topics/:id/state", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = topicStateBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "state must be active or archived" }, 400);
+    const id = c.req.param("id");
+    const now = Date.now();
+    if (!(await setTopicState(id, parsed.data.state, now))) return c.json({ error: "Not found" }, 404);
+    if (parsed.data.state === "active") {
+      await enqueue("poll", id, { reason: "manual" });
+    } else {
+      await removeBoardMonitors(id);
+    }
+    const row = await getBoard(id);
+    if (row) publish(id, { type: "status", status: row.status, tier: row.tier });
+    cache.invalidate(id);
+    return c.json({ ok: true });
+  });
+
+  const adminTopicBody = z.object({ prompt: z.string().trim().min(8).max(2000) });
+
+  app.post("/api/admin/topics", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = adminTopicBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Describe the crisis in at least a few words" }, 400);
+    const { id, slug } = await createBoard(parsed.data.prompt, null, { origin: "system" });
+    await enqueue("build", id, {});
+    log("info", "topic created by an admin", { boardId: id, slug });
+    return c.json({ id, slug });
+  });
+
+  app.get("/api/admin/candidates", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    return c.json({ candidates: await listCandidates(limitOf(c, 100)) });
+  });
+
+  const requestStatuses = new Set(["open", "accepted", "rejected"]);
+
+  app.get("/api/admin/requests", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const status = c.req.query("status") || null;
+    if (status && !requestStatuses.has(status)) return c.json({ error: "status must be open, accepted or rejected" }, 400);
+    return c.json({
+      requests: await listTopicRequests({ boardId: c.req.query("boardId") || null, status: status as "open" | "accepted" | "rejected" | null, limit: limitOf(c, 100) }),
+    });
+  });
+
   const editBody = z.object({ instruction: z.string().trim().min(3).max(1000) });
 
   app.post("/api/boards/:id/edit", async (c) => {
@@ -372,7 +631,8 @@ export function createApp(opts: AppOptions = {}) {
       c.header("Retry-After", String(Math.ceil(byBoard.retryAfterMs / 1000)));
       return c.json({ error: "This board was just checked. Try again in a minute." }, 429);
     }
-    const owner = !!user && user === row.ownerId;
+    // Running monitors now costs credits: legacy board owners and, for shared topics, admins only.
+    const owner = row.origin === "system" ? await isAdmin(c, user) : !!user && user === row.ownerId;
     if (owner) void runBoardMonitors(id);
     await enqueue("poll", id, { reason: "manual" });
     return c.json({ ok: true, queued: true, monitors: owner });
@@ -385,7 +645,8 @@ export function createApp(opts: AppOptions = {}) {
     await setSchedule(id, { tier: "paused", nextPollAt: null });
     const removed = await removeBoardMonitors(id);
     publish(id, { type: "status", status: owned.row.status, tier: "paused" });
-    await emitEvent(id, "info", "Paused by the owner. The board stops reading the web until it is resumed.", { monitorsRemoved: removed });
+    const who = owned.row.origin === "system" ? "an admin" : "the owner";
+    await emitEvent(id, "info", `Paused by ${who}. The board stops reading the web until it is resumed.`, { monitorsRemoved: removed });
     return c.json({ ok: true, tier: "paused" });
   });
 
@@ -394,7 +655,11 @@ export function createApp(opts: AppOptions = {}) {
     if (owned instanceof Response) return owned;
     const id = owned.row.id;
     const now = Date.now();
-    await setSchedule(id, { tier: "warm", nextPollAt: now });
+    // A paused shared topic may have been archived by topic upkeep meanwhile: resuming makes it active again.
+    if (owned.row.origin === "system") {
+      await setTopicState(id, "active", now);
+      cache.invalidate(id);
+    } else await setSchedule(id, { tier: "warm", nextPollAt: now });
     await enqueue("poll", id, { reason: "manual" });
     publish(id, { type: "status", status: owned.row.status, tier: "warm" });
     await emitEvent(id, "info", "Resumed. The board is reading the web again.");

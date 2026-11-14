@@ -9,7 +9,7 @@ const SYSTEM = (now: Date) => `You plan live crisis dashboards ("situation board
 You decide what the board tracks, how to find it on the live web with a news search API and a web search API, and which widgets show it.
 Today is ${now.toISOString().slice(0, 10)}.
 
-Language: set language to the language the user wrote in. Write title, subtitle, labels and widget titles in that language. Queries may mix the local language and English when that finds more.
+Language: the board is always in English, whatever language the request is written in. Set language to "en" and write title, subtitle, labels and widget titles in English. Queries may mix the local language and English when that finds more.
 
 What to track:
 - metrics: the 4 to 8 figures that matter most for this crisis type (deaths, injured, evacuated, area burned, customers without power, systems affected...). Keys are kebab-case and stable.
@@ -70,7 +70,8 @@ export function normalizePlan(plan: Plan): Plan {
   const statusGroups = uniq(plan.statusGroups).slice(0, 3);
   return {
     ...plan,
-    language: (plan.language || "en").slice(0, 8),
+    // Boards are English only.
+    language: "en",
     entities: plan.entities.slice(0, 8),
     newsQueries: plan.newsQueries.filter(Boolean).slice(0, 5),
     socialQueries: (plan.socialQueries ?? []).filter(Boolean).slice(0, 2),
@@ -88,7 +89,7 @@ export function normalizePlan(plan: Plan): Plan {
 }
 
 export const planPatchSchema = z.object({
-  reply: z.string().describe("One or two sentences to the user, in the board language, about what will change"),
+  reply: z.string().describe("One or two sentences to the user, in English, about what will change"),
   addMetrics: z.array(metricSpecSchema),
   removeMetricKeys: z.array(z.string()),
   addTables: z.array(tableSpecSchema),

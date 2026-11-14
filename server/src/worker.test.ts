@@ -1,10 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./pipeline/graphs", () => ({ buildGraph: async () => {}, editGraph: async () => {}, updateGraph: async () => {} }));
+const jobs = vi.hoisted(() => ({ hasPendingJob: vi.fn(async () => false), lastJobCreatedAt: vi.fn(async () => null), enqueue: vi.fn(async () => 1) }));
+const settings = vi.hoisted(() => ({ discoverEnabled: vi.fn(async () => false) }));
+vi.mock("./repo/jobs", async (orig) => ({ ...(await orig<typeof import("./repo/jobs")>()), ...jobs }));
+vi.mock("./repo/settings", () => settings);
+
+vi.mock("./pipeline/graphs", () => ({ buildGraph: async () => {}, editGraph: async () => {}, updateGraph: async () => {}, discoverGraph: async () => {} }));
 vi.mock("./monitors", () => ({ removeBoardMonitors: async () => 0, setBoardMonitorSchedule: async () => 0 }));
 vi.mock("./bus", () => ({ publish: () => {}, setBusMode: () => {}, flushRemote: async () => {} }));
 
-import { computeTier } from "./worker";
+import { computeTier, maybeEnqueueDiscover } from "./worker";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -33,5 +38,34 @@ describe("computeTier", () => {
   });
   it("keeps paused boards paused", () => {
     expect(computeTier({ ...base, tier: "paused", lastViewedAt: now }, now)).toBe("paused");
+  });
+});
+
+describe("maybeEnqueueDiscover", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.DISCOVER_ENABLED;
+  });
+  afterEach(() => {
+    delete process.env.DISCOVER_ENABLED;
+  });
+
+  it("queues nothing while discovery is off in /admin (the default)", async () => {
+    settings.discoverEnabled.mockResolvedValue(false);
+    expect(await maybeEnqueueDiscover(now)).toBe(false);
+    expect(jobs.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("queues a run when an admin turned discovery on", async () => {
+    settings.discoverEnabled.mockResolvedValue(true);
+    expect(await maybeEnqueueDiscover(now)).toBe(true);
+    expect(jobs.enqueue).toHaveBeenCalledWith("discover", expect.any(String), null, { maxAttempts: 1 });
+  });
+
+  it("DISCOVER_ENABLED=0 wins over the setting", async () => {
+    settings.discoverEnabled.mockResolvedValue(true);
+    process.env.DISCOVER_ENABLED = "0";
+    expect(await maybeEnqueueDiscover(now)).toBe(false);
+    expect(jobs.enqueue).not.toHaveBeenCalled();
   });
 });

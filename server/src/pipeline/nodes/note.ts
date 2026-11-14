@@ -19,7 +19,7 @@ export async function changeNote(plan: Plan, diff: FactDiff, lines: string[], us
   const llm = fastLlm();
   const r = await generateText({
     ...call(llm),
-    system: `Write one short sentence in ${plan.language} for the change log of a live crisis board: what is new. No preamble, no quotes.`,
+    system: `Write one short sentence in English for the change log of a live crisis board: what is new. No preamble, no quotes.`,
     prompt: `ADDED: ${JSON.stringify(diff.added)}\nCHANGED: ${JSON.stringify(diff.changed)}\nNEW FACTS:\n${lines.slice(0, 30).join("\n")}`,
     abortSignal: signal,
   });
