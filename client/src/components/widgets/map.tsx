@@ -31,9 +31,17 @@ const marker: Record<MapPoint["emphasis"], string> = {
   default: "bg-foreground",
 };
 
-export function MapWidget({ data, sources, tier, building }: WidgetProps<"map">) {
+export function MapWidget({ data, sources, tier, building, filter }: WidgetProps<"map">) {
+  const kinds = filter?.pointKinds?.length ? new Set(filter.pointKinds) : null;
   const points = (data?.points ?? []).filter(
-    (p) => p && typeof p.id === "string" && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180,
+    (p) =>
+      p &&
+      typeof p.id === "string" &&
+      Number.isFinite(p.lat) &&
+      Number.isFinite(p.lon) &&
+      Math.abs(p.lat) <= 90 &&
+      Math.abs(p.lon) <= 180 &&
+      (!kinds || kinds.has(p.kind)),
   );
   const c = data?.center ?? null;
   const center = c && Number.isFinite(c.lat) && Number.isFinite(c.lon) && Number.isFinite(c.zoom) ? c : null;

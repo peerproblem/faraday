@@ -149,7 +149,7 @@ export function Studio({
               <PlanPanel board={board} />
             ) : (
               <Text size="sm" tone="muted">
-                The plan appears once the prompt is compiled.
+                The plan appears once the topic is planned.
               </Text>
             )}
           </TabsPanel>
@@ -281,7 +281,7 @@ function ProgramPanel({ board, canEdit, building }: { board: BoardView; canEdit:
         </form>
       ) : (
         <Text size="sm" tone="muted">
-          Only the person who built this board can edit it.
+          Only admins can edit the shared board. Everyone can shape their own dashboard.
         </Text>
       )}
     </div>
@@ -466,3 +466,4 @@ function ManagePanel({ board, onDeleted }: { board: BoardView; onDeleted: () => 
     </div>
   );
 }
+

@@ -5,3 +5,20 @@
   --sw-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --sw-font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
+
+/* Faraday motion. Layout changes on a personal dashboard glide (View Transitions); data updates only highlight. */
+:root {
+  --fd-motion-move: 320ms;
+  --fd-motion-enter: 220ms;
+  --fd-motion-exit: 160ms;
+  --fd-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --fd-motion-highlight: 1.2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fd-motion-move: 0ms;
+    --fd-motion-enter: 0ms;
+    --fd-motion-exit: 0ms;
+  }
+}

@@ -13,13 +13,9 @@ export function boardBadge(b: Pick<BoardCard, "status" | "tier">): { text: strin
   return { text: "Live", tone: "success", live: true };
 }
 
-export function BoardGrid({ boards }: { boards: BoardCard[] }) {
+export function BoardGrid({ boards, empty = "No topics yet. Faraday adds them as crises are detected." }: { boards: BoardCard[]; empty?: string }) {
   if (!boards.length) {
-    return (
-      <Text tone="muted">
-        No boards yet. Build the first one above.
-      </Text>
-    );
+    return <Text tone="muted">{empty}</Text>;
   }
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -27,7 +23,7 @@ export function BoardGrid({ boards }: { boards: BoardCard[] }) {
         const s = boardBadge(b);
         return (
           <li key={b.id} data-tier={b.tier} className="min-w-0">
-            <LinkCard href={b.status === "live" ? boardUrl(b.slug) : `/studio/${b.id}`} padding="md" className="gap-3">
+            <LinkCard href={boardUrl(b.slug)} padding="md" className="gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <ToneBadge tone={s.tone}>
                   {s.live ? <span aria-hidden="true" className="fd-live-dot" /> : null}
@@ -42,7 +38,12 @@ export function BoardGrid({ boards }: { boards: BoardCard[] }) {
                   <Ago t={b.updatedAt} />
                 </Text>
               </div>
-              <CardTitle as="h3">{b.title ?? "Untitled board"}</CardTitle>
+              <CardTitle as="h3">{b.title ?? "Untitled topic"}</CardTitle>
+              {b.locationName ? (
+                <Text size="sm" tone="muted">
+                  {b.locationName}
+                </Text>
+              ) : null}
               <Text size="sm" tone="muted" className="line-clamp-3">
                 {b.headline ?? b.prompt}
               </Text>

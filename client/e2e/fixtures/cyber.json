@@ -6,48 +6,48 @@
   "status": "live",
   "version": 7,
   "ownerId": "u-demo",
-  "language": "ko",
+  "language": "en",
   "createdAt": 1794549600000,
   "updatedAt": 1794657240000,
   "lastPolledAt": 1794657420000,
   "messages": [
    {
     "role": "user",
-    "content": "서울 대형 병원 랜섬웨어 공격: 어떤 병원이 피해를 입었고 진료는 가능한가?",
+    "content": "Ransomware attack on major Seoul hospitals: which hospitals are hit and can they still treat patients?",
     "ts": 1794549600000
    },
    {
     "role": "assistant",
-    "content": "Built \"서울 병원 랜섬웨어\" from 3 live sources in 41.2s.",
+    "content": "Built \"Seoul Hospital Ransomware\" from 3 live sources in 41.2s.",
     "ts": 1794549960000
    }
   ],
   "id": "fxcyber0001",
   "slug": "hospital-ransomware-fx03",
-  "prompt": "서울 대형 병원 랜섬웨어 공격: 어떤 병원이 피해를 입었고 진료는 가능한가?",
-  "title": "서울 병원 랜섬웨어",
+  "prompt": "Ransomware attack on major Seoul hospitals: which hospitals are hit and can they still treat patients?",
+  "title": "Seoul Hospital Ransomware",
   "sources": [
    {
     "id": "s1",
     "url": "https://www.boho.or.kr/kr/bbs/view.do?bbsId=B0000133&nttId=1",
-    "title": "KISA 보안 공지: 랜섬웨어 피해 주의",
+    "title": "KISA security notice: ransomware warning",
     "publisher": "boho.or.kr",
     "kind": "web",
     "publishedAt": null,
     "fetchedAt": 1794658320000,
-    "snippet": "병원 정보시스템을 노린 랜섬웨어 공격이 확인되었습니다.",
+    "snippet": "A ransomware attack targeting hospital information systems has been confirmed.",
     "relevance": 0.96,
     "sourceType": "official"
    },
    {
     "id": "s2",
     "url": "https://www.yna.co.kr/view/AKR20261114000100017",
-    "title": "대형 병원 3곳 랜섬웨어 피해…진료 차질",
-    "publisher": "연합뉴스",
+    "title": "Three major hospitals hit by ransomware, care disrupted",
+    "publisher": "Yonhap News",
     "kind": "news",
     "publishedAt": "2026-11-14T09:00:00.000Z",
     "fetchedAt": 1794647520000,
-    "snippet": "서울 시내 대형 병원 3곳에서 전산 장애가 발생했다.",
+    "snippet": "Three major hospitals in Seoul suffered IT outages.",
     "relevance": 0.93,
     "sourceType": "news"
    },
@@ -69,49 +69,49 @@
     "id": 2,
     "ts": 1794654000000,
     "kind": "update",
-    "message": "피해 병원이 2곳에서 3곳으로 늘었습니다.",
+    "message": "Hospitals affected rose from 2 to 3.",
     "data": null
    }
   ],
   "plan": {
-   "title": "서울 병원 랜섬웨어",
+   "title": "Seoul Hospital Ransomware",
    "subtitle": null,
    "crisisType": "cyberattack",
-   "language": "ko",
+   "language": "en",
    "location": null,
    "lookbackDays": 2,
    "entities": [
     "KISA",
-    "서울"
+    "Seoul"
    ],
    "newsQueries": [
-    "서울 병원 랜섬웨어"
+    "Seoul Hospital Ransomware"
    ],
    "webQueries": [
-    "KISA 랜섬웨어 공지"
+    "KISA ransomware notice"
    ],
    "monitor": {
-    "query": "병원 랜섬웨어 피해",
-    "instructions": "피해 병원과 진료 상황 변화를 보고."
+    "query": "hospital ransomware damage",
+    "instructions": "Report changes in affected hospitals and patient care."
    },
    "metrics": [
     {
      "key": "hospitals-affected",
-     "label": "피해 병원",
-     "unit": "곳",
-     "why": "규모"
+     "label": "Hospitals affected",
+     "unit": "hospitals",
+     "why": "Scale"
     },
     {
      "key": "patients-diverted",
-     "label": "이송된 환자",
-     "unit": "명",
-     "why": "진료 영향"
+     "label": "Patients transferred",
+     "unit": "patients",
+     "why": "Impact on care"
     }
    ],
    "tables": [
     {
      "key": "cves",
-     "title": "관련 취약점",
+     "title": "Related vulnerabilities",
      "columns": [
       {
        "key": "cve",
@@ -135,7 +135,7 @@
    "questions": [
     {
      "id": "q1",
-     "text": "어느 병원이 피해를 입었나?"
+     "text": "Which hospitals are affected?"
     }
    ],
    "widgets": []
@@ -146,7 +146,7 @@
     {
      "id": "w1",
      "type": "narrative",
-     "title": "상황",
+     "title": "Situation",
      "span": "full",
      "bind": null,
      "metrics": []
@@ -154,7 +154,7 @@
     {
      "id": "w2",
      "type": "stat-grid",
-     "title": "주요 수치",
+     "title": "Key figures",
      "span": "full",
      "bind": null,
      "metrics": [
@@ -165,7 +165,7 @@
     {
      "id": "w3",
      "type": "table",
-     "title": "관련 취약점",
+     "title": "Related vulnerabilities",
      "span": "full",
      "bind": "cves",
      "metrics": []
@@ -173,7 +173,7 @@
     {
      "id": "w4",
      "type": "timeline",
-     "title": "타임라인",
+     "title": "Timeline",
      "span": "half",
      "bind": null,
      "metrics": []
@@ -181,7 +181,7 @@
     {
      "id": "w5",
      "type": "alert-list",
-     "title": "공식 공지",
+     "title": "Official advisories",
      "span": "half",
      "bind": null,
      "metrics": []
@@ -189,7 +189,7 @@
     {
      "id": "w6",
      "type": "link-list",
-     "title": "도움",
+     "title": "Help",
      "span": "half",
      "bind": null,
      "metrics": []
@@ -197,7 +197,7 @@
     {
      "id": "w7",
      "type": "feed",
-     "title": "최신 보도",
+     "title": "Latest coverage",
      "span": "half",
      "bind": null,
      "metrics": []
@@ -205,7 +205,7 @@
     {
      "id": "w8",
      "type": "changelog",
-     "title": "변경 내역",
+     "title": "Changes",
      "span": "half",
      "bind": null,
      "metrics": []
@@ -213,7 +213,7 @@
     {
      "id": "w9",
      "type": "sources",
-     "title": "출처",
+     "title": "Sources",
      "span": "full",
      "bind": null,
      "metrics": []
@@ -222,12 +222,12 @@
   },
   "data": {
    "header": {
-    "title": "서울 병원 랜섬웨어",
+    "title": "Seoul Hospital Ransomware",
     "subtitle": null,
     "crisisType": "cyberattack",
     "accent": "violet",
     "headline": {
-     "text": "서울 대형 병원 3곳이 랜섬웨어 공격으로 전산이 멈춰 응급 환자를 다른 병원으로 보내고 있습니다.",
+     "text": "Three major Seoul hospitals have lost their IT systems to a ransomware attack and are sending emergency patients to other hospitals.",
      "sources": [
       "s2"
      ]
@@ -238,19 +238,19 @@
     "severityP": null,
     "location": null,
     "asOf": "2026-11-13T06:00:00.000Z",
-    "language": "ko"
+    "language": "en"
    },
    "widgets": {
     "w1": {
      "sentences": [
       {
-       "text": "서울 시내 대형 병원 3곳에서 전산 장애가 발생했습니다.",
+       "text": "Three major hospitals in Seoul suffered IT outages.",
        "sources": [
         "s2"
        ]
       },
       {
-       "text": "KISA는 병원 정보시스템을 노린 랜섬웨어라고 밝혔습니다.",
+       "text": "KISA said the attack was ransomware targeting hospital information systems.",
        "sources": [
         "s1"
        ]
@@ -261,10 +261,10 @@
      "items": [
       {
        "key": "hospitals-affected",
-       "label": "피해 병원",
+       "label": "Hospitals affected",
        "valueText": "3",
        "valueNum": 3,
-       "unit": "곳",
+       "unit": "hospitals",
        "delta": "+1 since Nov 13",
        "deltaNum": 1,
        "tone": "critical",
@@ -324,8 +324,8 @@
       {
        "id": "t1",
        "at": "2026-11-13T06:00:00.000Z",
-       "title": "세 번째 병원 피해 확인",
-       "detail": "응급실 운영 중단.",
+       "title": "Third hospital confirmed affected",
+       "detail": "Emergency room closed.",
        "importance": "high",
        "sources": [
         "s2"
@@ -339,8 +339,8 @@
       {
        "id": "a1",
        "issuer": "KISA",
-       "title": "랜섬웨어 피해 주의 공지",
-       "text": "의료기관은 EMR 게이트웨이를 즉시 패치하십시오.",
+       "title": "Ransomware warning notice",
+       "text": "Medical institutions should patch their EMR gateways immediately.",
        "level": "warning",
        "url": "https://www.boho.or.kr/kr/bbs/view.do?bbsId=B0000133&nttId=1",
        "active": true,

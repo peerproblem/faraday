@@ -1,55 +1,52 @@
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { BoardGrid } from "@/components/board-grid";
-import { PromptForm } from "@/components/prompt-form";
-import { SectionIntro } from "@/components/section-intro";
-import { Card } from "@/components/ui/card";
-import { Caption, Display, Outline, Text } from "@/components/ui/typography";
-import { listBoards } from "@/lib/engine";
+import { PageIntro } from "@/components/page-intro";
+import { EmptyTopics, MyDashboards, TopicHero, TypeFilter } from "@/components/topic-cards";
+import { Caption } from "@/components/ui/typography";
+import { listMyViews, listTopics } from "@/lib/engine";
+import { crisisTypes } from "@/lib/spec";
 
 export const dynamic = "force-dynamic";
 
-const steps = [
-  { n: "01", t: "Compile", d: "Your sentence becomes a plan: what to show, what to search, what counts as a change." },
-  { n: "02", t: "Read the web", d: "Context.dev searches news and the web in parallel and returns clean text with sources." },
-  { n: "03", t: "Compose", d: "The board is written from those sources only. Every figure links to where it came from." },
-  { n: "04", t: "Keep watching", d: "Monitors and news polling feed new sources in. The board updates itself and says what changed." },
-];
-
-export default async function Home() {
-  const [session, boards] = await Promise.all([auth(), listBoards(9)]);
+export default async function Home({ searchParams }: PageProps<"/">) {
+  const sp = await searchParams;
+  const type = typeof sp.type === "string" && (crisisTypes as readonly string[]).includes(sp.type) ? sp.type : null;
+  const cookie = (await headers()).get("cookie");
+  const [session, topics] = await Promise.all([auth(), listTopics({ state: "active", type, limit: 25 })]);
+  const views = session?.user ? await listMyViews(cookie) : [];
+  const [top, ...rest] = topics;
   return (
     <>
-      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        <Card padding="lg" radius="xl" className="gap-6">
-          <Caption>/software-3.0 for crises</Caption>
-          <Display as="h1" size="lg">
-            One sentence in. A live <Outline>situation board</Outline> out.
-          </Display>
-          <Text size="lg" tone="subtle" className="max-w-xl">
-            When a flood, fire, blackout or cyberattack hits, the facts are scattered across hundreds of pages that change by the
-            minute. Describe the crisis. Faraday reads the live web and builds a board that keeps itself true.
-          </Text>
-        </Card>
-        <PromptForm signedIn={!!session?.user} />
+      <PageIntro
+        eyebrow="/live"
+        title="Crises unfolding now"
+        lede="Faraday finds them, reads the live web and keeps one shared board per topic true. Add a topic to your dashboards to shape it your way."
+      />
+
+      {session?.user ? (
+        <section aria-labelledby="mine" className="mb-10 flex flex-col gap-3">
+          <h2 id="mine" className="m-0 flex">
+            <Caption>My dashboards</Caption>
+          </h2>
+          <MyDashboards views={views} compact />
+        </section>
+      ) : null}
+
+      <section aria-labelledby="now" className="flex flex-col gap-4">
+        <h2 id="now" className="m-0 flex">
+          <Caption>Happening now</Caption>
+        </h2>
+        <TypeFilter base="/" active={type} />
+        {top ? (
+          <>
+            <TopicHero topic={top} />
+            {rest.length ? <BoardGrid boards={rest} /> : null}
+          </>
+        ) : (
+          <EmptyTopics type={type} />
+        )}
       </section>
-
-      <SectionIntro title="How a sentence becomes a board" lede="Four steps, and the last one never stops." />
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map((s) => (
-          <li key={s.n} className="min-w-0">
-            <Card padding="md" className="h-full gap-3">
-              <Caption>{s.n}</Caption>
-              <Text className="font-medium">{s.t}</Text>
-              <Text size="sm" tone="muted">
-                {s.d}
-              </Text>
-            </Card>
-          </li>
-        ))}
-      </ol>
-
-      <SectionIntro title="Live boards" lede="Every board keeps reading the web while people are watching." />
-      <BoardGrid boards={boards} />
     </>
   );
 }

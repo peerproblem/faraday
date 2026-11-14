@@ -16,9 +16,14 @@ export async function SiteHeader() {
           Faraday
         </Link>
         <nav aria-label="Main" className="ml-auto flex items-center gap-1 sm:gap-2">
-          <Button href={`${SITE_URL}/boards`} variant="ghost" size="sm">
-            Boards
+          <Button href={`${SITE_URL}/topics`} variant="ghost" size="sm">
+            Topics
           </Button>
+          {session?.user ? (
+            <Button href={`${SITE_URL}/me`} variant="ghost" size="sm">
+              My dashboards
+            </Button>
+          ) : null}
           {session?.user ? (
             <form
               action={async () => {

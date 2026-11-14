@@ -3,6 +3,7 @@
 import { OverlayHost } from "@/components/ui/toast";
 import { useBoard } from "@/lib/client/use-board";
 import { api } from "@/lib/config";
+import type { ReactNode } from "react";
 import type { BoardView } from "@/lib/spec";
 import { AgentBridge } from "./agent-bridge";
 import { Board } from "./board";
@@ -24,8 +25,9 @@ export function BoardToasts() {
   return <OverlayHost />;
 }
 
-export function LiveBoard({ initial, live = true }: { initial: BoardView; live?: boolean }) {
-  const { board, partial, spec, data, connected, refresh } = useLiveBoard(initial, { live });
+/** The shared (baseline) board: data updates are highlighted, the layout never animates. */
+export function LiveBoard({ initial, live = true, actions }: { initial: BoardView; live?: boolean; actions?: ReactNode }) {
+  const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
   return (
     <>
       <Board
@@ -42,6 +44,8 @@ export function LiveBoard({ initial, live = true }: { initial: BoardView; live?:
         connected={connected}
         lastPolledAt={board.lastPolledAt}
         onRefresh={live ? refresh : undefined}
+        updatedAt={updatedAt}
+        actions={actions}
       />
       <BoardToasts />
       <AgentBridge />

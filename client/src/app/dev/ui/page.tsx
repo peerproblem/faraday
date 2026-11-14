@@ -30,6 +30,10 @@ export default function UiGallery() {
       crisisType: b.data?.header.crisisType ?? null,
       headline: b.data?.header.headline?.text ?? null,
       updatedAt: b.updatedAt,
+      origin: "system",
+      topicState: "active",
+      rankScore: null,
+      locationName: b.plan?.location?.name ?? null,
     } as BoardCard;
   });
   return (

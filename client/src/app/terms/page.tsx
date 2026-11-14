@@ -14,10 +14,10 @@ export default function Terms() {
           official instructions from emergency services and local authorities.
         </P>
         <P>
-          You are responsible for the prompts you write. Do not use Faraday to harass people, spread false information or break
-          the law. We may remove boards or accounts that do.
+          You are responsible for the instructions you type. Do not use Faraday to harass people, spread false information or
+          break the law. We may remove accounts that do.
         </P>
-        <P>Every board is public. Anyone with its link can view it.</P>
+        <P>Every shared topic board is public. Anyone with its link can view it. Your own dashboards are private to you.</P>
         <P>We may change or stop the service at any time.</P>
       </Prose>
     </>

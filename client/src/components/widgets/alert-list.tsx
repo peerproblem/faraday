@@ -12,9 +12,11 @@ import { Empty } from "./widget-frame";
 const levelTone: Record<string, Tone> = { warning: "danger", watch: "warning", info: "accent" };
 const levelLabel: Record<string, string> = { warning: "Warning", watch: "Watch", info: "Info" };
 
-export function AlertListWidget({ widget, data, sources, tier, building }: WidgetProps<"alert-list">) {
-  const items = (data?.items ?? []).filter((a) => a && typeof a.id === "string" && a.title);
-  if (!items.length) return <Empty building={building}>No official advisories found in the sources.</Empty>;
+export function AlertListWidget({ widget, data, sources, tier, building, filter }: WidgetProps<"alert-list">) {
+  const all = (data?.items ?? []).filter((a) => a && typeof a.id === "string" && a.title);
+  const items = filter?.activeOnly ? all.filter((a) => a.active) : all;
+  if (!items.length)
+    return <Empty building={building}>{all.length ? "No advisories are in force." : "No official advisories found in the sources."}</Empty>;
   const sorted = [...items].sort((a, b) => Number(b.active) - Number(a.active));
   const firstActive = sorted.find((a) => a.active)?.id;
   return (

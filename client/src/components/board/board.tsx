@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
 import { ToneBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,9 @@ import { Caption, Display, Text } from "@/components/ui/typography";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { SourceChips } from "@/components/widgets/source-chips";
 import { WidgetFrame } from "@/components/widgets/widget-frame";
-import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, Source, Widget } from "@/lib/spec";
+import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
+import { transitionName } from "@/lib/client/view-transition";
+import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, PersonalLayout, Source, Widget } from "@/lib/spec";
 import { newest } from "@/lib/time";
 
 export type BoardProps = {
@@ -30,11 +32,23 @@ export type BoardProps = {
   connected: boolean;
   lastPolledAt: number | null;
   onRefresh?: () => Promise<unknown>;
+  /** A personal dashboard's layout over this baseline. Null or absent draws the baseline as it is. */
+  layout?: PersonalLayout | null;
+  /** Baseline version on screen, for the New badge of a personal layout. */
+  version?: number;
+  /** Give every widget a view-transition-name, so layout changes animate (personal dashboards only). */
+  animate?: boolean;
+  /** When the stream last changed each widget's data, by widget id. */
+  updatedAt?: Record<string, number>;
+  /** Extra controls in the header (for example "Add to my dashboard"). */
+  actions?: ReactNode;
+  /** Edit-mode controls for one widget. */
+  tools?: (w: LaidOutWidget) => ReactNode;
 };
 
 const stageText: Record<string, string> = {
   queued: "Queued",
-  planning: "Compiling the prompt into a plan",
+  planning: "Planning what to track",
   gathering: "Reading the live web through Context.dev",
   composing: "Reading the sources and writing the board",
   watching: "Setting up live monitoring",
@@ -77,7 +91,10 @@ export function Board(props: BoardProps) {
   const [refreshing, setRefreshing] = useState(false);
   const building = isBuilding(status);
   const header = data?.header ?? null;
-  const widgets = visibleWidgets(spec, data, building);
+  const visible = visibleWidgets(spec, data, building);
+  const laid = applyLayout({ version: 2, widgets: visible }, data, props.layout ?? null, { version: props.version });
+  const widgets = laid.widgets;
+  const compact = laid.compactHeader;
   const newestSource = useMemo(() => newest(sources.map((s) => s.publishedAt)), [sources]);
   const title = header?.title ?? props.title;
   const live = !building && connected && tier !== "paused";
@@ -136,9 +153,9 @@ export function Board(props: BoardProps) {
         ) : (
           <Skeleton className="h-12 w-2/3" />
         )}
-        {header?.subtitle ? <Text tone="muted">{header.subtitle}</Text> : null}
+        {header?.subtitle && !compact ? <Text tone="muted">{header.subtitle}</Text> : null}
 
-        {header?.headline?.text ? (
+        {compact ? null : header?.headline?.text ? (
           <Text size="lg" tone="subtle" className="max-w-4xl">
             {header.headline.text} <SourceChips ids={header.headline.sources} sources={byId} />
           </Text>
@@ -151,6 +168,8 @@ export function Board(props: BoardProps) {
             </Text>
           </>
         ) : null}
+
+        {props.actions ? <div className="flex flex-wrap items-center gap-2">{props.actions}</div> : null}
 
         <div className="flex flex-wrap items-end gap-x-8 gap-y-4 border-t border-hairline pt-5">
           {typeof header?.severity === "number" ? (
@@ -203,14 +222,27 @@ export function Board(props: BoardProps) {
 
       {widgets.length ? (
         <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-2">
-          {widgets.map((w) => {
+          {widgets.map((lw) => {
+            const w = lw.widget;
             const Comp = widgetComponent(w.type)!;
-            const d = data?.widgets[w.id];
+            const d = lw.data ?? data?.widgets[w.id];
+            // Keyed by the stable widget key, so a moved map or chart is not remounted.
             return (
-              <WidgetFrame key={w.id} id={w.id} title={w.title} span={w.span} resetKey={d}>
+              <WidgetFrame
+                key={lw.key}
+                id={w.id}
+                title={w.title}
+                span={w.span}
+                resetKey={d}
+                transitionName={props.animate ? transitionName(lw.key) : undefined}
+                updatedAt={lw.extra ? undefined : props.updatedAt?.[w.id]}
+                isNew={lw.isNew}
+                tools={props.tools?.(lw)}
+              >
                 <Comp
                   widget={w}
                   data={d as never}
+                  filter={lw.filter as never}
                   sources={byId}
                   allSources={sources}
                   events={events}

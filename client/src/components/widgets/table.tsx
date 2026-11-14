@@ -60,11 +60,20 @@ export function sortRows(data: TableData, sort: { key: string; dir: 1 | -1 } | n
   return rows.sort((a, b) => sort.dir * compare(col.kind, a.cells[col.key] ?? "", b.cells[col.key] ?? ""));
 }
 
-export function TableWidget({ widget, data, sources, tier, building }: WidgetProps<"table">) {
+/** Rows whose cells contain the text, ignoring case. */
+export function matchRows(rows: TableData["rows"], query: string | null | undefined) {
+  const q = query?.trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter((r) => Object.values(r.cells).some((v) => (v ?? "").toLowerCase().includes(q)));
+}
+
+export function TableWidget({ widget, data, sources, tier, building, filter }: WidgetProps<"table">) {
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
   const [page, setPage] = useState(1);
-  const rows = useMemo(() => (data ? sortRows(data, sort) : []), [data, sort]);
+  const query = filter?.query ?? null;
+  const rows = useMemo(() => (data ? matchRows(sortRows(data, sort), query) : []), [data, sort, query]);
   if (!data?.columns?.length || !data.rows?.length) return <Empty building={building}>No rows yet.</Empty>;
+  if (!rows.length) return <Empty building={false}>No rows match “{query}”.</Empty>;
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = Math.min(page, pageCount);
   const shown = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);

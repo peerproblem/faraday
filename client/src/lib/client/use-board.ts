@@ -15,6 +15,8 @@ export function useBoard(initial: BoardView, opts?: { live?: boolean }) {
   const live = opts?.live ?? true;
   const [state, setState] = useState<BoardState>({ board: initial, partial: null });
   const [connected, setConnected] = useState(false);
+  // When the stream last changed each widget's data (by widget id). Drives the "Updated" highlight; never the layout.
+  const [updatedAt, setUpdatedAt] = useState<Record<string, number>>({});
   // The stream handler needs the latest state to decide on a refetch, so it keeps its own copy in step with setState.
   const stateRef = useRef<BoardState>({ board: initial, partial: null });
 
@@ -41,7 +43,15 @@ export function useBoard(initial: BoardView, opts?: { live?: boolean }) {
         return;
       }
       if (msg.type === "hello") setConnected(true);
-      const r = applyMessage(stateRef.current, msg);
+      const before = stateRef.current;
+      const r = applyMessage(before, msg);
+      if (msg.type === "data" && r.state !== before) {
+        const ids = Object.keys(msg.widgets);
+        if (ids.length) {
+          const at = Date.now();
+          setUpdatedAt((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, at])) }));
+        }
+      }
       stateRef.current = r.state;
       setState(r.state);
       if (r.refetch) void refetch();
@@ -54,5 +64,5 @@ export function useBoard(initial: BoardView, opts?: { live?: boolean }) {
   }, [initial.id, live, refetch]);
 
   const shown = useMemo(() => visible(state), [state]);
-  return { board: state.board, partial: state.partial, spec: shown.spec, data: shown.data, connected, refetch };
+  return { board: state.board, partial: state.partial, spec: shown.spec, data: shown.data, connected, refetch, updatedAt };
 }

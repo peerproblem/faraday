@@ -16,7 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <Display as="h1" size="md">
           Sign in to Faraday
         </Display>
-        <Text tone="subtle">You need an account to build boards. Anyone can view them.</Text>
+        <Text tone="subtle">Sign in to keep your own dashboards of shared topics. Anyone can view the topics.</Text>
         <div className="grid gap-3">
           {googleEnabled ? (
             <form

@@ -12,8 +12,10 @@ const WIDTHS = [1280, 375];
 const SCHEMES = (process.env.SCHEMES ?? "light,dark").split(",");
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "boards", path: "/boards" },
+  { name: "topics", path: "/topics" },
+  { name: "topics-past", path: "/topics?state=archived" },
   { name: "login", path: "/login" },
+  { name: "admin", path: "/admin" },
   { name: "privacy", path: "/privacy" },
   { name: "terms", path: "/terms" },
   { name: "ui", path: "/dev/ui" },
@@ -22,6 +24,8 @@ const PAGES = [
   { name: "cyber", path: "/dev/fixtures/cyber" },
   { name: "studio-flood", path: "/dev/fixtures/flood?view=studio" },
   { name: "studio-cyber", path: "/dev/fixtures/cyber?view=studio" },
+  { name: "mine-flood", path: "/dev/fixtures/flood?view=mine" },
+  { name: "mine-outage", path: "/dev/fixtures/outage?view=mine" },
 ];
 // The basemap comes from openfreemap.org; a slow tile is not a page bug.
 const IGNORE = [/openfreemap\.org/, /Download the React DevTools/, /\[HMR\]/, /\[Fast Refresh\]/];

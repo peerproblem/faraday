@@ -10,8 +10,18 @@ import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
 
-export function StatGridWidget({ data, sources, tier, building }: WidgetProps<"stat-grid">) {
-  const items = (data?.items ?? []).filter((k) => k && typeof k.key === "string" && typeof k.valueText === "string");
+/** The items to show: with a personal metric filter, only those metrics and in that order. */
+export function pickMetrics<T extends { key: string }>(items: T[], metrics: string[] | undefined): T[] {
+  if (!metrics?.length) return items;
+  const byKey = new Map(items.map((i) => [i.key, i]));
+  return metrics.map((m) => byKey.get(m)).filter((i): i is T => !!i);
+}
+
+export function StatGridWidget({ data, sources, tier, building, filter }: WidgetProps<"stat-grid">) {
+  const items = pickMetrics(
+    (data?.items ?? []).filter((k) => k && typeof k.key === "string" && typeof k.valueText === "string"),
+    filter?.metrics,
+  );
   if (!items.length) return <Empty building={building}>The sources did not give figures yet.</Empty>;
   return (
     // Tiles are at least 14rem wide, so the widest board fits five across: the design system asks for no more than that.

@@ -1,5 +1,5 @@
 import "server-only";
-import type { BoardCard, BoardView, RunView } from "./spec";
+import type { BoardCard, BoardView, MeView, PersonalViewCard, PersonalViewState, RunView, TopicState } from "./spec";
 import { API_URL } from "./config";
 
 // Server-side calls from the web app to the engine. On the Vultr box this goes over
@@ -24,6 +24,79 @@ export async function listBoards(limit = 24): Promise<BoardCard[]> {
   } catch (e) {
     console.error("listBoards failed", e);
     return [];
+  }
+}
+
+/** Shared topics for the home page and /topics, best ranked first. */
+export async function listTopics(opts: { state?: TopicState; type?: string | null; limit?: number } = {}): Promise<BoardCard[]> {
+  const q = new URLSearchParams({ state: opts.state ?? "active", limit: String(opts.limit ?? 24) });
+  if (opts.type) q.set("type", opts.type);
+  try {
+    return (await get<{ topics: BoardCard[] }>(`/api/topics?${q}`))?.topics ?? [];
+  } catch (e) {
+    console.error("listTopics failed", e);
+    return [];
+  }
+}
+
+/** Calls that need the signed-in person: the browser's cookie is forwarded. Null when signed out or not found. */
+async function getAs<T>(path: string, cookie: string | null): Promise<T | null> {
+  if (!cookie) return null;
+  const res = await fetch(`${ENGINE}${path}`, { cache: "no-store", headers: { cookie } });
+  if (res.status === 401 || res.status === 403 || res.status === 404) return null;
+  if (!res.ok) throw new Error(`Engine ${path} answered ${res.status}`);
+  return (await res.json()) as T;
+}
+
+export async function getMe(cookie: string | null): Promise<MeView | null> {
+  try {
+    return await getAs<MeView>("/api/me", cookie);
+  } catch (e) {
+    console.error("getMe failed", e);
+    return null;
+  }
+}
+
+export async function listMyViews(cookie: string | null): Promise<PersonalViewCard[]> {
+  try {
+    return (await getAs<{ views: PersonalViewCard[] }>("/api/me/views", cookie))?.views ?? [];
+  } catch (e) {
+    console.error("listMyViews failed", e);
+    return [];
+  }
+}
+
+export async function getMyView(boardId: string, cookie: string | null): Promise<PersonalViewState | null> {
+  try {
+    return await getAs<PersonalViewState>(`/api/me/views/${encodeURIComponent(boardId)}`, cookie);
+  } catch (e) {
+    console.error("getMyView failed", e);
+    return null;
+  }
+}
+
+/** True when the browser's cookies carry an admin session (the admin login or an admin Google account). */
+export async function getAdminSession(cookie: string | null): Promise<boolean> {
+  try {
+    return (await getAs<{ admin: boolean }>("/api/admin/session", cookie))?.admin === true;
+  } catch (e) {
+    console.error("getAdminSession failed", e);
+    return false;
+  }
+}
+
+/** Admin reads for the first render of /admin. Null when the session is not admin or the engine failed. */
+export async function getAdminOverview(cookie: string | null): Promise<{ discoverEnabled: boolean; topics: BoardCard[] } | null> {
+  try {
+    const [settings, topics] = await Promise.all([
+      getAs<{ discoverEnabled: boolean }>("/api/admin/settings", cookie),
+      getAs<{ topics: BoardCard[] }>("/api/admin/topics", cookie),
+    ]);
+    if (!settings || !topics) return null;
+    return { discoverEnabled: settings.discoverEnabled, topics: topics.topics };
+  } catch (e) {
+    console.error("getAdminOverview failed", e);
+    return null;
   }
 }
 

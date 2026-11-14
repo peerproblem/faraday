@@ -9,9 +9,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Faraday: live crisis boards from one sentence",
+  title: "Faraday: live boards for the crises unfolding now",
   description:
-    "Describe a crisis in one sentence. Faraday reads the live web through Context.dev and builds a situation board that keeps itself up to date.",
+    "Faraday finds the crises unfolding now, reads the live web through Context.dev and keeps one shared situation board per topic up to date. Shape your own view of any topic.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

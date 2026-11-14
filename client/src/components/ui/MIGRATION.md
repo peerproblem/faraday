@@ -26,7 +26,7 @@ v1 is commit `2e087cc` of `peerproblem/sw3.0-ui-sdk`.
 
 | Kind | Files |
 | - | - |
-| Plain re-exports of sw3 | accordion, alert-dialog, card, charts, field, icon, meter, pagination, popover, provider, resizable, scroll-area, separator, stat, tabs, textarea, timeline, toast, tooltip, typography, waterfall, agent |
+| Plain re-exports of sw3 | accordion, alert-dialog, card, charts, field, icon, input, meter, pagination, popover, provider, resizable, scroll-area, separator, stat, switch, tabs, textarea, timeline, toast, tooltip, typography, waterfall, agent |
 | sw3 with a workaround | button.tsx, segmented-control.tsx, point-map.tsx |
 | Stand-ins | table.tsx, citation.tsx, skeleton.tsx, link.tsx, link-card.tsx, badge.tsx (warning tone only), standins.css |
 

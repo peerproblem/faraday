@@ -5,6 +5,10 @@ import type { BoardData, BoardSpecV2, HeaderData, WidgetData } from "./widgets";
 
 export type BoardMessage = { role: "user" | "assistant"; content: string; ts: number };
 
+/** "system": a shared topic the discover job (or an admin) made. "user": a legacy board made from a prompt. */
+export type BoardOrigin = "system" | "user";
+export type TopicState = "active" | "archived" | "merged";
+
 /** GET /api/boards/:id and /api/boards/by-slug/:slug */
 export type BoardView = {
   id: string;
@@ -28,9 +32,11 @@ export type BoardView = {
   plan: Plan | null;
   messages: BoardMessage[];
   language: string | null;
+  origin: BoardOrigin;
+  topicState: TopicState | null;
 };
 
-/** GET /api/boards */
+/** GET /api/boards, GET /api/topics */
 export type BoardCard = {
   id: string;
   slug: string;
@@ -43,6 +49,11 @@ export type BoardCard = {
   severity: number | null;
   headline: string | null;
   accent: string | null;
+  origin: BoardOrigin;
+  topicState: TopicState | null;
+  /** Home ranking for shared topics, 0 to 1. Null until the scheduler has scored it. */
+  rankScore: number | null;
+  locationName: string | null;
 };
 
 export type RunStepView = {
@@ -61,7 +72,7 @@ export type RunStepView = {
 
 /** GET /api/boards/:id/runs/latest */
 export type RunView = {
-  run: { id: number; graph: "build" | "edit" | "update"; status: "running" | "done" | "failed"; startedAt: number; finishedAt: number | null; error: string | null } | null;
+  run: { id: number; graph: "build" | "edit" | "update" | "discover"; status: "running" | "done" | "failed"; startedAt: number; finishedAt: number | null; error: string | null } | null;
   steps: RunStepView[];
   totals: { ms: number | null; llmCalls: number; tokensIn: number; tokensOut: number; contextCalls: number };
 };

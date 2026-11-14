@@ -79,7 +79,7 @@ test("people who do not own the board get no edit form or manage tab", () => {
   render(<Studio initial={fx().board} initialRun={fx().run} canEdit={false} offline />);
   expect(screen.queryByLabelText("Edit the program")).toBeNull();
   expect(screen.queryByRole("tab", { name: "Manage" })).toBeNull();
-  expect(screen.getByText("Only the person who built this board can edit it.")).toBeTruthy();
+  expect(screen.getByText("Only admins can edit the shared board. Everyone can shape their own dashboard.")).toBeTruthy();
 });
 
 test("the pipeline waterfall lists the run's steps with times", () => {

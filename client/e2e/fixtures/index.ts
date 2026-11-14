@@ -11,5 +11,9 @@ const all = { flood, outage, cyber } as unknown as Record<string, Fixture>;
 export const fixtureNames = Object.keys(all);
 
 export function getFixture(name: string): Fixture | null {
-  return Object.hasOwn(all, name) ? structuredClone(all[name]) : null;
+  if (!Object.hasOwn(all, name)) return null;
+  const fx = structuredClone(all[name]);
+  // Saved before topics existed: every fixture is a shared topic.
+  fx.board = { ...fx.board, origin: fx.board.origin ?? "system", topicState: fx.board.topicState ?? "active" };
+  return fx;
 }

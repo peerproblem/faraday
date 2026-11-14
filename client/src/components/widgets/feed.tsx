@@ -24,8 +24,9 @@ export function feedItems(sources: Source[], limit = 15): Source[] {
     .slice(0, limit);
 }
 
-export function FeedWidget({ allSources, building }: WidgetProps<"feed">) {
-  const news = feedItems(allSources);
+export function FeedWidget({ allSources, building, filter }: WidgetProps<"feed">) {
+  const types = filter?.sourceTypes?.length ? new Set(filter.sourceTypes) : null;
+  const news = feedItems(types ? allSources.filter((s) => s.sourceType !== null && types.has(s.sourceType)) : allSources);
   if (!news.length) return <Empty building={building}>No coverage yet.</Empty>;
   return (
     <ul className="divide-y divide-hairline">

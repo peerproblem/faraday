@@ -114,8 +114,8 @@ describe("board v2", () => {
   test("a board without location has no map, and hidden widgets are skipped", () => {
     render(<LiveBoard initial={board("cyber")} live={false} />);
     expect(screen.queryByTestId("map-view")).toBeNull();
-    expect(screen.queryByRole("region", { name: "도움" })).toBeNull();
-    expect(screen.getByRole("heading", { level: 1, name: "서울 병원 랜섬웨어" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Help" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "Seoul Hospital Ransomware" })).toBeTruthy();
   });
 
   test("a v1 board shows that it is being rebuilt", () => {
