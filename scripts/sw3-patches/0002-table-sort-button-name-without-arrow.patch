@@ -1,0 +1,13 @@
+diff --git a/packages/ui/src/components/table.tsx b/packages/ui/src/components/table.tsx
+index a990844..242df82 100644
+--- a/packages/ui/src/components/table.tsx
++++ b/packages/ui/src/components/table.tsx
+@@ -92,7 +92,7 @@ export function Table({ caption, columns, rows, emptyMessage = 'No rows', sort,
+               return (
+                 <th key={column.id} scope="col" data-align={column.align} aria-sort={sorted}>
+                   {column.compare ? (
+-                    <button type="button" data-sw="button" className="sw-table__sort" onClick={() => toggleSort(column.id)}>
++                    <button type="button" data-sw="button" className="sw-table__sort" aria-label={typeof column.label === 'string' ? column.label : undefined} onClick={() => toggleSort(column.id)}>
+                       {column.label}<span aria-hidden="true">{sorted === 'ascending' ? '↑' : sorted === 'descending' ? '↓' : '↕'}</span>
+                     </button>
+                   ) : column.label}

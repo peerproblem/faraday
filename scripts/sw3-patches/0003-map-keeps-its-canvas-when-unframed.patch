@@ -1,0 +1,11 @@
+diff --git a/packages/ui/src/styles/map.css b/packages/ui/src/styles/map.css
+index c2583f7..4ec3915 100644
+--- a/packages/ui/src/styles/map.css
++++ b/packages/ui/src/styles/map.css
+@@ -1,5 +1,5 @@
+ /* MapView — map chrome restyled with SW3 tokens. */
+-.sw-map { --sw-map-control-inset: var(--sw-space-3); overflow: hidden; }
++.sw-map { --sw-map-control-inset: var(--sw-space-3); position: relative; isolation: isolate; overflow: hidden; }
+ .sw-map__canvas { position: absolute !important; inset: 0; container-type: inline-size; }
+ .sw-map .maplibregl-canvas:focus-visible { outline: 2px solid var(--sw-accent); outline-offset: -3px; }
+ .sw-map__overlay { --sw-inset: var(--sw-map-control-inset); position: absolute; top: var(--sw-inset); left: var(--sw-inset); z-index: 2; pointer-events: auto; }
