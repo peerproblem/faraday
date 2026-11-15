@@ -70,3 +70,44 @@ test.each([
     vi.unstubAllGlobals();
   }
 });
+
+test("switches the automatic chart from reported statuses to dated observations after a live update", async () => {
+  const baseline = getFixture("strike")!.board;
+  const table: Widget = { id: "adaptive-table", key: "table:field-status", type: "table", title: "Field status", bind: "field-status", span: "half", metrics: [] };
+  const trend: Widget = { id: "adaptive-trend", key: "trend:water-level", type: "trend", title: "Water level", bind: "water-level", span: "half", metrics: [] };
+  const presentation = resolveBoardPresentation({
+    layout: "map", timelineOpen: true, evidenceOpen: false, mapDetails: "aside",
+    cards: [{ id: "chart", title: "Reports", open: true, placement: "right", contents: [{ kind: "automatic-chart" }] }],
+  });
+  let stream: { onmessage: ((event: MessageEvent<string>) => void) | null };
+  vi.stubGlobal("EventSource", class extends EventTarget {
+    onmessage: ((event: MessageEvent<string>) => void) | null = null;
+    constructor() { super(); stream = this; }
+    close() {}
+  });
+  try {
+    const original = baseline.spec!.widgets.filter(({ type }) => type === "map");
+    const data = { ...baseline.data!, widgets: {
+      ...baseline.data!.widgets,
+      [table.id]: {
+        columns: [{ key: "status", label: "Status", kind: "status" as const }],
+        rows: [{ id: "1", asOf: null, sources: ["s1"], cells: { status: "Closed" } }],
+      },
+    } };
+    render(<LiveBoard workspace initial={{ ...baseline, presentation, data, spec: { ...baseline.spec!, widgets: [...original, table, trend] } }} />);
+    expect(screen.getByLabelText("Field status by status")).toBeTruthy();
+    const points = [
+      { t: "2026-11-11T20:00:00Z", v: 2, sources: ["s1"] },
+      { t: "2026-11-11T21:00:00Z", v: 3, sources: ["s1"] },
+    ];
+    act(() => stream.onmessage!(new MessageEvent("message", { data: JSON.stringify({
+      type: "data", version: baseline.version + 1, widgets: {
+        [trend.id]: { metric: "water-level", label: "Water level", unit: "m", points },
+      },
+    }) })));
+    expect(await screen.findByRole("region", { name: "Water level" })).toBeTruthy();
+    expect(screen.queryByLabelText("Field status by status")).toBeNull();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

@@ -13,7 +13,7 @@ const count = new Intl.NumberFormat("en-GB");
 
 export function IncidentReports({ kind, chart = "none", ...props }: Omit<Parameters<typeof getIncidentReports>[0], "now"> & {
   kind: "incident-status" | "official-tally";
-  chart?: "none" | "donut" | "bars";
+  chart?: "none" | "auto" | "donut" | "bars";
 }) {
   const now = useCurrentTime();
   const id = useId();
@@ -49,6 +49,7 @@ export function IncidentReports({ kind, chart = "none", ...props }: Omit<Paramet
         {!tallies.length && <Text size="sm" tone="muted">No official tally with a confirmed reporting cutoff is available.</Text>}
         {tallies.map((report) => {
           const slices = report.breakdown?.map((item, index) => ({ ...item, color: `var(--sw-chart-${index + 1})` }));
+          const donut = chart !== "bars" && !!slices && slices.length <= 6 && report.total > 0;
           return (
             <div key={report.area} className="grid min-w-0 gap-1.5">
               <Text size="sm" className="font-semibold">{report.area}</Text>
@@ -63,10 +64,10 @@ export function IncidentReports({ kind, chart = "none", ...props }: Omit<Paramet
               </Text>
               {slices?.length && chart !== "none" ? (
                 <ChartCard title="Incidents by type" aria-label={`Incident types in ${report.area}`} padding="none" bordered={false}
-                  legend={chart === "donut" && slices.length <= 6 && report.total > 0 ? slices.map((item) => ({
+                  legend={donut ? slices.map((item) => ({
                     key: item.label, label: `${item.label} · ${count.format(item.value)}`, color: item.color,
                   })) : undefined}>
-                  {chart === "donut" && slices.length <= 6 && report.total > 0
+                  {donut
                     ? <DonutChart data={slices} height={152} arcWidth={22} centralLabel={count.format(report.total)} centralSubLabel="incidents"
                         aria-label={`${report.area}: ${count.format(report.total)} total incidents. ${slices.map((item) => `${item.label}: ${item.value}`).join(". ")}`} />
                     : <><Text size="sm"><strong>{count.format(report.total)}</strong> incidents</Text>
