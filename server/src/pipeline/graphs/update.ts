@@ -14,6 +14,7 @@ import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
 import { geocodeBoard, placeCountry, type GeocodeResult } from "../nodes/geocode";
 import { oxylabsEnabled, oxySearch } from "../../oxylabs";
 import { listMonitors, listSources, markChanged, markMonitorsSynced, saveBoardVersion } from "../../repo/boards";
+import { recordContextChanges, recordContextSearch } from "../../repo/context-evidence";
 import { listFacts } from "../../repo/facts";
 import type { FactDiff } from "../../spec";
 import { diffData, type HeaderOverrides } from "../assemble";
@@ -72,6 +73,11 @@ export const updateGraph: GraphFn = async (ctx) => {
     { queries, webQueries, since, ...(localQuery ? { localQuery, country } : {}) },
     async (i, use, signal) => {
       const failures: string[] = [];
+      let contextSearchIncomplete = false;
+      const archive = async (docs: FoundDoc[], pageIndex = 0) => {
+        if (pageIndex > 0) use.context(1);
+        await recordContextSearch(ctx.boardId, docs);
+      };
       const localP = localQuery && country
         ? oxySearch(localQuery, { location: country, maxResults: 8, signal }).catch((e) => {
             failures.push(`Local search from ${country} failed: ${(e as Error).message}`);
@@ -80,13 +86,15 @@ export const updateGraph: GraphFn = async (ctx) => {
         : Promise.resolve([] as FoundDoc[]);
       const newsP = Promise.all([
         ...i.queries.map((q) =>
-          searchNews(q, i.since, 10, signal).catch((e) => {
+          searchNews(q, i.since, 10, signal, archive).catch((e) => {
+            contextSearchIncomplete = true;
             failures.push(`News poll failed: ${(e as Error).message}`);
             return [] as FoundDoc[];
           }),
         ),
         ...i.webQueries.map((q) =>
-          searchWeb(q, freshness, 6, signal).catch((e) => {
+          searchWeb(q, freshness, 6, signal, archive).catch((e) => {
+            contextSearchIncomplete = true;
             failures.push(`Web search failed: ${(e as Error).message}`);
             return [] as FoundDoc[];
           }),
@@ -95,7 +103,12 @@ export const updateGraph: GraphFn = async (ctx) => {
       use.context(i.queries.length + i.webQueries.length);
       const socialP = gather({ newsQueries: [], webQueries: [], socialQueries: followup ? [] : plan.socialQueries, lookbackDays: plan.lookbackDays }, use, signal,
         { boardId: ctx.boardId, polling: true, tier: board.tier });
-      const [news, social, m, local] = await Promise.all([newsP, socialP, collectMonitorChanges(ctx.boardId, signal), localP]);
+      const [news, social, m, local] = await Promise.all([
+        newsP,
+        socialP,
+        collectMonitorChanges(ctx.boardId, signal, (changes) => recordContextChanges(ctx.boardId, changes)),
+        localP,
+      ]);
       failures.push(...social.failures);
       use.context(m.calls);
       // Monitor docs carry raw page text only; the judge model's summary goes to the change event, not to sources.
@@ -114,9 +127,10 @@ export const updateGraph: GraphFn = async (ctx) => {
           importance: c.importance,
         })),
         failures,
+        contextSearchIncomplete,
       };
     },
-    { timeoutMs: 60_000, retries: 1 },
+    { timeoutMs: 180_000, retries: 1 },
   );
   for (const f of collected.failures) await ctx.event("error", f);
   for (const { id: _id, monitorId: _m, detectedAt: _d, ...c } of collected.changes) await ctx.event("change", `Monitor: ${c.title}`, c);
@@ -125,7 +139,7 @@ export const updateGraph: GraphFn = async (ctx) => {
   const refreshed = await refreshRound(ctx, collected.docs);
   const added = await ingest(ctx, collected.docs);
   const finish = async (message: string | null) => {
-    await recordBoardCheck(ctx);
+    if (!collected.contextSearchIncomplete) await recordBoardCheck(ctx);
     await ackChanges(collected.changes);
     if (message && reason !== "schedule") await ctx.event("info", message);
     await maintainMonitors();
@@ -239,7 +253,7 @@ export const updateGraph: GraphFn = async (ctx) => {
     ...(changed.hidden ? { hidden: data.hidden } : {}),
   });
   await markChanged(ctx.boardId);
-  await recordBoardCheck(ctx);
+  if (!collected.contextSearchIncomplete) await recordBoardCheck(ctx);
   await ackChanges(collected.changes);
   await ctx.event("update", note, {
     importance: mat.importance,

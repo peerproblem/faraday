@@ -7,6 +7,7 @@ import { z } from "zod";
 import { subscribe, subscribeAll, publish, subscriberCount } from "../bus";
 import { publicSources } from "../pipeline/public-source";
 import { one, all } from "../db/pool";
+import { contextEvidencePage } from "../repo/context-evidence";
 import { removeBoardMonitors, runBoardMonitors } from "../monitors";
 import {
   addEvent,
@@ -273,6 +274,18 @@ export function createApp(opts: AppOptions = {}) {
   });
 
   app.get("/api/boards/:id", async (c) => sendView(c, await view(c.req.param("id"))));
+
+  app.get("/api/boards/:id/evidence", async (c) => {
+    const group = c.req.query("group") ?? "search";
+    const before = Number(c.req.query("before") ?? Number.MAX_SAFE_INTEGER);
+    if ((group !== "search" && group !== "monitor") || !Number.isSafeInteger(before) || before < 1) {
+      return c.json({ error: "Invalid evidence group or cursor" }, 400);
+    }
+    const id = c.req.param("id");
+    if (!(await getBoard(id))) return c.json({ error: "Not found" }, 404);
+    c.header("Cache-Control", "no-store");
+    return c.json(await contextEvidencePage(id, group, before));
+  });
 
   app.get("/api/boards/:id/runs/latest", async (c) => {
     const admin = await adminOnly(c);

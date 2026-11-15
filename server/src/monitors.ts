@@ -16,8 +16,6 @@ import { monitorAllowance, type MonitorAllowance } from "./repo/topics";
 import type { BoardTier, Plan } from "./spec";
 
 const MAX_PAGE_MONITORS = 2;
-/** listChanges pages of 100 read per monitor and poll. More than this means a long outage: the newest are kept. */
-const MAX_CHANGE_PAGES = 10;
 /** The checkpoint is re-read with this overlap; change ids drop what was already processed. */
 const CHANGE_OVERLAP_MS = 10 * 60_000;
 /** How often a poll checks monitor health and settings (the edit graph and tier changes sync at once). */
@@ -345,7 +343,9 @@ export async function removeBoardMonitors(boardId: string, opts?: { kind?: Monit
  * Changes not processed yet, newest first. Reads every page since each monitor's checkpoint (minus a small overlap),
  * and skips change ids already processed. Does not move the checkpoint: call ackChanges once the changes are stored.
  */
-export async function collectMonitorChanges(boardId: string, signal?: AbortSignal): Promise<{ changes: MonitorChange[]; calls: number }> {
+export async function collectMonitorChanges(
+  boardId: string, signal?: AbortSignal, savePage?: (changes: MonitorChange[]) => Promise<void>,
+): Promise<{ changes: MonitorChange[]; calls: number }> {
   if (monitorsDisabled()) return { changes: [], calls: 0 };
   const changes: MonitorChange[] = [];
   let calls = 0;
@@ -353,23 +353,13 @@ export async function collectMonitorChanges(boardId: string, signal?: AbortSigna
     const from = m.lastSeenChangeAt ? Date.parse(m.lastSeenChangeAt) : m.createdAt;
     const since = Number.isFinite(from) ? new Date(from - CHANGE_OVERLAP_MS).toISOString() : undefined;
     try {
-      const got: Awaited<ReturnType<ReturnType<typeof ctx>["monitors"]["listChanges"]>>["data"] = [];
+      const got: MonitorChange[] = [];
+      const seenCursors = new Set<string>();
       let cursor: string | undefined;
-      let pages = 0;
       do {
         calls += 1;
-        pages += 1;
         const page = await ctx().monitors.listChanges(m.id, { limit: 100, ...(since ? { since } : {}), ...(cursor ? { cursor } : {}) }, { signal });
-        got.push(...page.data);
-        cursor = page.has_more && page.next_cursor ? page.next_cursor : undefined;
-      } while (cursor && pages < MAX_CHANGE_PAGES);
-      if (cursor) console.warn("[faraday] monitor changes truncated", m.id, got.length);
-      const seen = await seenChangeIds(got.map((c) => c.id));
-      const ids = new Set<string>();
-      for (const c of got) {
-        if (seen.has(c.id) || ids.has(c.id) || (since && c.detected_at < since)) continue;
-        ids.add(c.id);
-        changes.push({
+        const mapped = page.data.map((c): MonitorChange => ({
           id: c.id,
           monitorId: m.id,
           detectedAt: c.detected_at,
@@ -379,7 +369,25 @@ export async function collectMonitorChanges(boardId: string, signal?: AbortSigna
           importance: c.importance ?? null,
           afterExcerpt: c.after_text_excerpt?.trim() ? c.after_text_excerpt : null,
           evidence: (c.evidence ?? []).filter((ev) => ev.after?.trim()).map((ev) => ({ url: ev.url || null, after: ev.after })),
-        });
+          matchedUrls: c.matched_urls ?? [],
+          addedUrls: c.added_urls,
+          removedUrls: c.removed_urls,
+          beforeExcerpt: c.before_text_excerpt,
+          diff: c.diff,
+          snapshots: c.evidence?.map((item) => ({ ...item, url: item.url || null })),
+        }));
+        await savePage?.(mapped);
+        got.push(...mapped);
+        if (!page.has_more) break;
+        if (!page.next_cursor || seenCursors.has(page.next_cursor)) throw new Error("Context.dev monitor pagination did not advance");
+        cursor = page.next_cursor;
+        seenCursors.add(cursor);
+      } while (cursor);
+      const seen = await seenChangeIds(got.map((c) => c.id));
+      for (const c of got) {
+        if (seen.has(c.id) || (since && c.detectedAt < since)) continue;
+        seen.add(c.id);
+        changes.push(c);
       }
     } catch (e) {
       if (signal?.aborted) throw e;

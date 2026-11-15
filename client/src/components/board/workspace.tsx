@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useId, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -24,10 +24,11 @@ type WorkspaceProps = {
   sources?: ReactNode;
   sourceCount: number;
   changes?: ReactNode;
+  contextEvidence?: ReactNode;
   configuredCards?: WorkspaceCard[];
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, configuredCards }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -65,7 +66,14 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   const activeSection = sections.find((section) => section.key === sectionKey) ?? sections[0];
   const situationTab = selection.tab === "data" && activeSection ? "data" : "overview";
   const figuresOpen = !configuredCards && (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
-  const visibleEvidenceTab = evidenceTab === "changes" && changes ? "changes" : sources ? "sources" : "changes";
+  const evidenceSources = configuredCards ? undefined : sources;
+  const evidenceChanges = configuredCards ? undefined : changes;
+  const evidenceTabs = [
+    { value: "sources", label: "Sources", content: evidenceSources },
+    { value: "changes", label: "Changes", content: evidenceChanges },
+    { value: "context", label: "Context.dev", content: contextEvidence },
+  ].filter((tab) => tab.content);
+  const visibleEvidenceTab = evidenceTabs.find((tab) => tab.value === evidenceTab)?.value ?? evidenceTabs[0]?.value;
   const situation = (
     <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab })} size="sm" className="fd-workspace-tabs">
       <TabsList aria-label="Situation views" className="fd-workspace-tab-list">
@@ -90,22 +98,25 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   const evidence = (
     <Tabs value={visibleEvidenceTab} onValueChange={setEvidenceTab} size="sm" className="fd-workspace-tabs">
       <TabsList aria-label="Evidence views" className="fd-workspace-tab-list">
-        {sources && <Tab value="sources" aria-label={`Sources, ${sourceCount}`}>Sources <span className="ml-1 text-xs text-muted-foreground">{sourceCount}</span></Tab>}
-        {changes && <Tab value="changes">Changes</Tab>}
+        {evidenceTabs.map(({ value, label }) => value === "sources"
+          ? <Tab key={value} value={value} aria-label={`Sources, ${sourceCount}`}>Sources <span className="ml-1 text-xs text-muted-foreground">{sourceCount}</span></Tab>
+          : <Tab key={value} value={value}>{label}</Tab>)}
       </TabsList>
-      {sources && <TabsPanel value="sources" className="fd-workspace-tab-body">{sources}</TabsPanel>}
-      {changes && <TabsPanel value="changes" className="fd-workspace-tab-body">{changes}</TabsPanel>}
+      {evidenceTabs.map(({ value, content }) => <TabsPanel key={value} value={value} className="fd-workspace-tab-body">{content}</TabsPanel>)}
     </Tabs>
   );
 
-  const stackCards = configuredCards?.map((card) => ({ ...card, open: customOpen[card.id] ?? card.open }));
+  const evidenceCard = { id: "evidence" as const, label: "Evidence", content: evidence, open: open.evidence };
+  const stackCards: ComponentProps<typeof BoardCardStack>["cards"] | undefined =
+    configuredCards?.map((card) => ({ ...card, open: customOpen[card.id] ?? card.open }));
+  if (stackCards && contextEvidence) stackCards.push(evidenceCard);
   const cards = stackCards?.length === 0 ? null : (
     <BoardCardStack
       key={stackCards?.map((card) => card.id).join(",")}
       id={`${id}-detail-cards`}
       cards={stackCards ?? [
         { id: "situation", label: "Situation", content: situation, open: open.situation },
-        ...(sources || changes ? [{ id: "evidence" as const, label: "Evidence", content: evidence, open: open.evidence }] : []),
+        ...(evidenceTabs.length ? [evidenceCard] : []),
       ]}
       onOpenChange={(name, value) => {
         if (name === "situation" || name === "evidence") setOpen((current) => ({ ...current, [name]: value }));

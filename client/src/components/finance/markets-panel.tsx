@@ -137,15 +137,15 @@ export function MarketsPanel({ view, sources }: { view: MarketView; sources: Map
         <SegmentedControl aria-label="Time window" size="sm" value={view.range} onValueChange={(v) => view.setRange(v as Range)} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} />
       </div>
       <div className="fd-fin__controls">
-        <ToggleGroup multiple size="sm" variant="outline" aria-label="Indices" value={view.onLines.filter((k) => indices.some((l) => l.key === k))}
+        <ToggleGroup multiple size="sm" aria-label="Indices" value={view.onLines.filter((k) => indices.some((l) => l.key === k))}
           onValueChange={(v) => view.setPicked([...v, ...view.onLines.filter((k) => stocks.some((l) => l.key === k))])}
           items={indices.map((l) => ({ value: l.key, label: swatch(l.color, l.label) }))} />
         {stocks.length ? (
-          <ToggleGroup multiple size="sm" variant="outline" aria-label={stocks.some((l) => l.kind === "asset") ? "Markets and stocks" : "Stocks"} value={view.onLines.filter((k) => stocks.some((l) => l.key === k))}
+          <ToggleGroup multiple size="sm" aria-label={stocks.some((l) => l.kind === "asset") ? "Markets and stocks" : "Stocks"} value={view.onLines.filter((k) => stocks.some((l) => l.key === k))}
             onValueChange={(v) => view.setPicked([...view.onLines.filter((k) => indices.some((l) => l.key === k)), ...v])}
             items={stocks.map((l) => ({ value: l.key, label: swatch(l.color, l.label, l.dash) }))} />
         ) : null}
-        <ToggleGroup multiple size="sm" variant="outline" aria-label="Overlays"
+        <ToggleGroup multiple size="sm" aria-label="Overlays"
           value={[...(view.vixOn && vixLine ? [vixLine.key] : []), ...lanes.filter((l) => !view.lanesOff.includes(l.key)).map((l) => l.key)]}
           onValueChange={(v) => {
             view.setVixOn(!!vixLine && v.includes(vixLine.key));
@@ -158,7 +158,7 @@ export function MarketsPanel({ view, sources }: { view: MarketView; sources: Map
       </div>
       <PriceChart bars={bars} from={from} to={to} lines={shownLines} vix={view.vixOn ? vixLine : null} lanes={shownLanes} sources={sources}
         label={`${shownLines.map((l) => l.label).join(", ")}: change since ${dayFmt.format(from)}, hourly, with ${shownLanes.map((l) => l.label).join(" and ")} pinned where they happened`} />
-      <p className="fd-fin-kicker" style={{ marginTop: 10, textTransform: "none", letterSpacing: 0 }}>
+      <p className="fd-fin-note" style={{ marginTop: 16 }}>
         Change since {dayFmt.format(from)}, hourly closes from Yahoo Finance (delayed). Markers sit on {shownLines[0]?.label ?? "the price"} where each action or event happened; hover one to see how prices moved in the next session, or hover the chart to read every line.
       </p>
     </>
@@ -181,7 +181,7 @@ function Reported({ view, sources }: { view: MarketView; sources: Map<string, So
               options={groups.map((g) => ({ value: g.unit, label: g.label }))} />
           ) : null}
           {group && group.series.length > 1 ? (
-            <ToggleGroup multiple size="sm" variant="outline" aria-label="Series to show" value={reportShown.map((s) => s.key)}
+            <ToggleGroup multiple size="sm" aria-label="Series to show" value={reportShown.map((s) => s.key)}
               onValueChange={(v) => view.setOn(v.length ? v : reportShown.map((s) => s.key))}
               items={group.series.map((s) => ({ value: s.key, label: swatch(view.reportColor(s.key), s.label) }))} />
           ) : null}
@@ -189,7 +189,7 @@ function Reported({ view, sources }: { view: MarketView; sources: Map<string, So
       </div>
       <MarketChart series={series} visible={reportShown} colorOf={view.reportColor} lanes={lanes} sources={sources}
         label={`${reportShown.map((s) => s.label).join(", ")} over time, with ${lanes.map((l) => l.label).join(" and ")} on the same axis`} />
-      <p className="fd-fin-kicker" style={{ marginTop: 10, textTransform: "none", letterSpacing: 0 }}>
+      <p className="fd-fin-note" style={{ marginTop: 16 }}>
         Each dot is one reported figure; lines join reports in time order. Diamonds and circles below mark dated actions and key events. Hover for the source.
       </p>
     </>

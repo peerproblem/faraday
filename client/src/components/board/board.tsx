@@ -25,11 +25,13 @@ import { widgetKeyOf, type BoardCardContent, type BoardCardSettings, type BoardD
 import { newest, when } from "@/lib/time";
 import type { BoardEntry } from "./entry";
 import { BoardHeaderButton } from "./header-button";
+import { ContextEvidence } from "./context-evidence";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
 
 export type BoardProps = {
+  boardId?: string;
   spec: BoardSpecV2 | null;
   data: BoardData | null;
   specVersion: number;
@@ -356,6 +358,7 @@ export function Board(props: BoardProps) {
             </> : undefined}
             sourceCount={sources.length}
             changes={changelog ? renderWorkspaceWidget(changelog, true) : undefined}
+            contextEvidence={props.boardId ? <ContextEvidence boardId={props.boardId} checkedAt={lastPolledAt} /> : undefined}
           />
         </div>
       </OfficialReleasesContext.Provider>
