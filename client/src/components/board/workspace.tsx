@@ -157,10 +157,12 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
         </aside>
       )}
 
-      {map && <div className="fd-workspace-map" aria-label="Situation map" role="region">{map}
+      {map && <div className="fd-workspace-map" aria-label="Situation map" role="region"
+        data-cards-on-map={overlay ? "" : undefined} style={overlay ? detailsStyle : undefined}>
+        {map}
         {!figuresOpen && mapFigures}
         {overlay && (
-          <div id={`${id}-details`} className="fd-workspace-map-cards" role="group" aria-label="Map cards" style={detailsStyle}>
+          <div id={`${id}-details`} className="fd-workspace-map-cards" role="group" aria-label="Map cards">
             {cards}
           </div>
         )}

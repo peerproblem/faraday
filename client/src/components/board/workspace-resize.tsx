@@ -128,7 +128,8 @@ export function cardBounds(target: HTMLElement): SizeBounds {
   );
   const css = getComputedStyle(stack);
   const inner = stack.getBoundingClientRect().height - (parseFloat(css.paddingTop) || 0) - (parseFloat(css.paddingBottom) || 0);
-  const min = Math.max(1, Math.min(144, inner * 0.24));
+  const minHeight = getComputedStyle(target).minHeight;
+  const min = Math.max(1, minHeight.endsWith("px") ? parseFloat(minHeight) : Math.min(144, inner * 0.24));
   const available = inner - (other ? parseFloat(css.rowGap) || 0 : 0);
   const key = other?.getAttribute("data-reorder-id");
   const otherHeight = other?.getBoundingClientRect().height ?? 0;
