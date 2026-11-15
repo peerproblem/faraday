@@ -166,14 +166,14 @@ export function toExtracted(f: RawFact, plan: Plan): ExtractedFact | null {
         ...base,
         kind,
         key: slugify(title),
-        payload: { issuer: str(f.issuer) ?? "", title, text: str(f.text) ?? "", level: f.level ?? "info", url: str(f.url), active: f.active !== false, ...(f.audience ? { audience: f.audience } : {}) },
+        payload: { issuer: str(f.issuer) ?? "", title, text: str(f.text) ?? "", level: f.level ?? "info", url: str(f.url), active: f.active !== false, ...(plan.crisisType === "cyberattack" && f.audience ? { audience: f.audience } : {}) },
       };
     }
     case "resource": {
       const url = str(f.url);
       const label = str(f.label) ?? str(f.title);
       if (!url || !label) return null;
-      return { ...base, kind, key: slugify(label), payload: { label, url, resourceKind: f.resourceKind ?? "info", note: str(f.note) ?? "", ...(f.resourcePurpose ? { purpose: f.resourcePurpose } : {}) } };
+      return { ...base, kind, key: slugify(label), payload: { label, url, resourceKind: f.resourceKind ?? "info", note: str(f.note) ?? "", ...(plan.crisisType === "cyberattack" && f.resourcePurpose ? { purpose: f.resourcePurpose } : {}) } };
     }
     case "row": {
       const table = plan.tables.find((t) => t.key === str(f.table));
@@ -185,16 +185,19 @@ export function toExtracted(f: RawFact, plan: Plan): ExtractedFact | null {
       }
       const first = cells[table.columns[0]?.key ?? ""];
       if (!first) return null;
-      // A product/version or asset/network tuple must not collapse into the first column's row.
-      const subjects = table.cyberRole === "affected-scope" ? table.columns.filter(column => column.cyberRole === "subject") : [];
-      const identity = subjects.length ? subjects.map(column => cells[column.key] ?? "").join(" · ") : first;
-      return { ...base, kind, key: `${table.key}:${slugify(identity)}`, payload: { table: table.key, cells } };
+      const responseTime = table.key === "incident-totals" ? cells["reporting-window-end"]
+        : table.key === "operational-incidents" ? cells["status-as-of"] : undefined;
+      // Cyber scope rows identify a product/version or asset/network tuple, not just their first cell.
+      const subjects = plan.crisisType === "cyberattack" && table.cyberRole === "affected-scope" ? table.columns.filter(column => column.cyberRole === "subject") : [];
+      const identity = table.key === "operational-incidents" ? cells["incident-id"] || `${cells.region ?? ""} ${first}`
+        : subjects.length ? subjects.map(column => cells[column.key] ?? "").join(" · ") : first;
+      return { ...base, asOf: responseTime || base.asOf, kind, key: `${table.key}:${slugify(identity)}`, payload: { table: table.key, cells } };
     }
     case "status": {
       const group = plan.statusGroups.find((g) => g.key === str(f.group));
       const name = str(f.name);
       if (!group || !name) return null;
-      return { ...base, kind, key: `${group.key}:${slugify(name)}`, payload: { group: group.key, name, state: f.state ?? "unknown", note: str(f.note) ?? "", ...(f.statusScope ? { scope: f.statusScope } : {}) } };
+      return { ...base, kind, key: `${group.key}:${slugify(name)}`, payload: { group: group.key, name, state: f.state ?? "unknown", note: str(f.note) ?? "", ...(plan.crisisType === "cyberattack" && f.statusScope ? { scope: f.statusScope } : {}) } };
     }
   }
 }

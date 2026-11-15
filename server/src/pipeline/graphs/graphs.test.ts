@@ -38,6 +38,7 @@ vi.mock("../../repo/boards", () => ({
   savePlan: vi.fn(),
   setSchedule: vi.fn(),
 }));
+vi.mock("../../repo/board-layouts", () => ({ getBoardLayout: vi.fn() }));
 vi.mock("../../repo/facts", () => ({
   listFacts: vi.fn(async () => []),
   metricHistory: vi.fn(async () => []),
@@ -46,6 +47,7 @@ vi.mock("../../repo/facts", () => ({
   updatePlaceCoords: vi.fn(),
 }));
 vi.mock("../../repo/geocode", () => ({ getCachedGeocode: vi.fn(async () => ({ lat: 1, lon: 2, displayName: "x" })), putCachedGeocode: vi.fn() }));
+vi.mock("../../repo/context-evidence", () => ({ recordContextSearch: vi.fn(), recordContextChanges: vi.fn() }));
 vi.mock("../../contextdev", () => ({ searchNews: vi.fn(), searchWeb: vi.fn(), scrapeMarkdown: vi.fn(async () => null) }));
 // The root .env may hold an Oxylabs key; these suites must never reach the network.
 vi.mock("../../oxylabs", () => ({ oxylabsEnabled: () => false, oxySearch: vi.fn(async () => []), oxyScrape: vi.fn(async () => null) }));
@@ -81,6 +83,7 @@ vi.mock("../assemble", () => ({
 const ai = await import("ai");
 const { decide } = await import("../../llm/decide");
 const boards = await import("../../repo/boards");
+const { getBoardLayout } = await import("../../repo/board-layouts");
 const { scrapeMarkdown, searchNews, searchWeb } = await import("../../contextdev");
 const monitors = await import("../../monitors");
 const { buildGraph, updateGraph } = await import("./index");
@@ -214,6 +217,7 @@ function routeLlm() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getBoardLayout).mockResolvedValue({ assignment: null, rev: 0 });
   mergeDiff = { added: [], changed: [], superseded: 0 };
   routeDecide();
   routeLlm();
@@ -227,14 +231,33 @@ beforeEach(() => {
 describe("updateGraph", () => {
   it("makes no model calls when nothing new arrived", async () => {
     vi.mocked(boards.addSources).mockResolvedValue([]);
-    const { ctx, steps } = fakeCtx("poll", { reason: "schedule" });
+    const { ctx, steps, emitted } = fakeCtx("poll", { reason: "schedule" });
     await updateGraph(ctx);
     expect(steps).toEqual(["collect"]);
     expect(decide).not.toHaveBeenCalled();
     expect(ai.generateText).not.toHaveBeenCalled();
     expect(ai.streamText).not.toHaveBeenCalled();
-    expect(boards.markPolled).toHaveBeenCalledWith("b1");
+    const lastPolledAt = vi.mocked(boards.markPolled).mock.calls[0]?.[1];
+    expect(lastPolledAt).toEqual(expect.any(Number));
+    expect(emitted).toContainEqual({ type: "polled", lastPolledAt });
     expect(boards.saveBoardVersion).not.toHaveBeenCalled();
+  });
+
+  it("adds official Context search and reporting tables when the layout selects a tally", async () => {
+    vi.mocked(getBoardLayout).mockResolvedValue({
+      assignment: { templateId: null, settings: {
+        layout: "map", timelineOpen: true, evidenceOpen: true, officialDomains: ["112.fi"],
+        sidebar: { title: "Reports", open: true, contents: [{ kind: "official-tally", chart: "donut" }] },
+      } },
+      rev: 1,
+    });
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    const { ctx, emitted } = fakeCtx("poll", { reason: "schedule" });
+    await updateGraph(ctx);
+    expect(searchWeb).toHaveBeenCalledWith(expect.stringContaining("site:112.fi"), "last_week", 6, expect.any(AbortSignal), expect.any(Function));
+    expect(emitted).toContainEqual(expect.objectContaining({ type: "spec", spec: expect.objectContaining({
+      widgets: expect.arrayContaining([expect.objectContaining({ bind: "incident-totals" })]),
+    }) }));
   });
 
   it("stops after merge with an empty diff: only triage and extraction ran", async () => {
@@ -270,6 +293,9 @@ describe("updateGraph", () => {
     expect(data).toMatchObject({ type: "data", version: 7, widgets: { w2: { items: [] } } });
     expect(Object.keys((data as { widgets: object }).widgets)).toEqual(["w2"]);
     expect(boards.markChanged).toHaveBeenCalled();
+    expect(emitted).toContainEqual({
+      type: "polled", lastPolledAt: vi.mocked(boards.markPolled).mock.calls[0]?.[1],
+    });
     const update = emitted.find((m) => m.type === "event" && m.event.kind === "update");
     expect(update).toBeTruthy();
   });
@@ -327,7 +353,7 @@ describe("updateGraph", () => {
     await updateGraph(ctx);
     expect(steps).toEqual(["collect"]);
     expect(emitted.some((m) => m.type === "event")).toBe(false);
-    expect(boards.markPolled).toHaveBeenCalledWith("b1");
+    expect(boards.markPolled).toHaveBeenCalledWith("b1", expect.any(Number));
   });
 
   it("acknowledges collected changes when nothing new came of them", async () => {

@@ -1,5 +1,6 @@
 import type { BoardEvent, BoardStatus, BoardTier, Source, Visibility } from "./common";
 import type { Plan } from "./plan";
+import type { BoardPresentation } from "./presentation";
 import type { BoardData, BoardSpecV2, HeaderData, WidgetData } from "./widgets";
 
 export type BoardMessage = { role: "user" | "assistant"; content: string; ts: number };
@@ -20,6 +21,7 @@ export type BoardView = {
   /** 1 means an old board that is waiting to be rebuilt; spec and data are null then. */
   specVersion: number;
   spec: BoardSpecV2 | null;
+  presentation?: BoardPresentation;
   data: BoardData | null;
   version: number;
   sources: Source[];
@@ -78,7 +80,8 @@ export type RunView = {
 
 /** Server-Sent Events on GET /api/boards/:id/stream. The SSE `data:` line is JSON of one of these. */
 export type StreamMsg =
-  | { type: "hello"; version: number }
+  | { type: "hello"; version: number; lastPolledAt?: number | null }
+  | { type: "polled"; lastPolledAt: number }
   | { type: "status"; status: BoardStatus; tier: BoardTier }
   | { type: "spec"; version: number; spec: BoardSpecV2 }
   | { type: "data"; version: number; header?: HeaderData; widgets: Record<string, WidgetData>; hidden?: string[] }
@@ -86,3 +89,24 @@ export type StreamMsg =
   | { type: "event"; event: BoardEvent }
   /** Not stored. Shown while a build or edit runs. */
   | { type: "partial"; stage?: string; spec?: BoardSpecV2; header?: Partial<HeaderData>; widgets?: Record<string, WidgetData> };
+export type ContextEvidenceKind = "news" | "web" | "monitor";
+export type ContextEvidenceItem = {
+  id: number;
+  kind: ContextEvidenceKind;
+  url: string;
+  title: string;
+  publisher?: string | null;
+  publishedAt?: string | null;
+  detectedAt?: string | null;
+  summary?: string | null;
+  importance?: "low" | "medium" | "high" | null;
+  relatedUrls?: string[];
+  addedUrls?: string[];
+  removedUrls?: string[];
+  before?: string | null;
+  after?: string | null;
+  diff?: string;
+  snapshots?: { url: string | null; before: string; after: string }[];
+  collectedAt: number;
+};
+export type ContextEvidencePage = { items: ContextEvidenceItem[]; nextBefore: number | null };

@@ -141,6 +141,26 @@ describe("verifyFacts", () => {
     expect(r.accepted[0].relevance).toBe(0.9);
   });
 
+  it("verifies locally formatted official counts and drops unsupported chart slices", () => {
+    const through = "2026-11-11T23:59:00Z";
+    const quote = "The authority recorded 1.857 incidents: 1.137 floods and 720 other incidents.";
+    const tally: ExtractedFact<"row"> = {
+      kind: "row", key: "incident-totals:mainland-portugal", sourceId: "s2", asOf: through, quote,
+      payload: { table: "incident-totals", cells: {
+        region: "Mainland Portugal", "total-incidents": "1857", "reporting-window-end": through,
+        breakdown: '[{"label":"Floods","value":1137},{"label":"Other","value":720}]',
+      } },
+    };
+    const unsupported = { ...tally, payload: { ...tally.payload, cells: {
+      ...tally.payload.cells, breakdown: '[{"label":"Floods","value":1138},{"label":"Other","value":719}]',
+    } } };
+    const r = verifyFacts({ facts: [tally, unsupported, { ...tally, sourceId: "s1" }], sources, texts: new Map([["s1", quote], ["s2", quote]]) });
+    expect(r.accepted.map(({ payload }) => (payload as typeof tally.payload).cells.breakdown)).toEqual([
+      tally.payload.cells.breakdown, undefined,
+    ]);
+    expect(r.rejected).toHaveLength(1);
+  });
+
   it("rejects an unknown source", () => {
     const r = verifyFacts({ facts: [metric({ sourceId: "s9" })], sources, texts });
     expect(r.rejected[0].reason).toMatch(/unknown source/);

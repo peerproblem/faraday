@@ -356,6 +356,14 @@ describe("newestFacts", () => {
 
 
 describe("cyber extraction semantics", () => {
+  it("does not attach cyber-only hints to other crisis types", () => {
+    const advisory = toExtracted(raw({ kind: "advisory", title: "Next steps", audience: "users" }), plan);
+    const resource = toExtracted(raw({ kind: "resource", label: "Check", url: "https://example.com", resourcePurpose: "verification" }), plan);
+    const status = toExtracted(raw({ kind: "status", group: "transit", name: "Metro", state: "down", statusScope: "overall" }), plan);
+    expect(advisory?.payload).not.toHaveProperty("audience");
+    expect(resource?.payload).not.toHaveProperty("purpose");
+    expect(status?.payload).not.toHaveProperty("scope");
+  });
   it("preserves tuple identity and planner roles through normalization", () => {
     const cyber = normalizePlan({ ...plan, crisisType: "cyberattack", metrics: [{ key: "Any Key", label: "Any label", unit: null, why: "", cyberRole: "recovery" }], tables: [{ key: "products", title: "Affected releases", cyberRole: "affected-scope", columns: [
       { key: "product", label: "Product", kind: "text", cyberRole: "subject" },
@@ -368,8 +376,8 @@ describe("cyber extraction semantics", () => {
   });
 
   it("preserves scope, intended audience and resource purpose in fact payloads", () => {
-    expect(toExtracted(raw({ kind: "status", group: "transit", name: "Portal", state: "degraded", statusScope: "overall" }), plan)?.payload).toMatchObject({ scope: "overall" });
-    expect(toExtracted(raw({ kind: "advisory", title: "Next steps", text: "Contact the provider", audience: "users" }), plan)?.payload).toMatchObject({ audience: "users" });
-    expect(toExtracted(raw({ kind: "resource", label: "Check here", url: "https://example.com/check", resourcePurpose: "verification" }), plan)?.payload).toMatchObject({ purpose: "verification" });
+    expect(toExtracted(raw({ kind: "status", group: "transit", name: "Portal", state: "degraded", statusScope: "overall" }), { ...plan, crisisType: "cyberattack" })?.payload).toMatchObject({ scope: "overall" });
+    expect(toExtracted(raw({ kind: "advisory", title: "Next steps", text: "Contact the provider", audience: "users" }), { ...plan, crisisType: "cyberattack" })?.payload).toMatchObject({ audience: "users" });
+    expect(toExtracted(raw({ kind: "resource", label: "Check here", url: "https://example.com/check", resourcePurpose: "verification" }), { ...plan, crisisType: "cyberattack" })?.payload).toMatchObject({ purpose: "verification" });
   });
 });

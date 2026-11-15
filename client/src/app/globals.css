@@ -399,16 +399,19 @@ body:has(.fd-workspace-shell) .fd-site-header {
   min-inline-size: 0;
   max-block-size: 100%;
   padding: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 .fd-workspace-map-cards .fd-workspace-detail-card {
+  /* Keep the squircle's outsetting SVG layers out of the stack's scroll bounds. */
+  overflow: clip;
   pointer-events: auto;
 }
 .fd-workspace-map-cards .fd-workspace-detail-card[data-open] {
   min-block-size: 9rem;
 }
-.fd-workspace-timeline,
+.fd-workspace-sidebar,
 .fd-workspace-details {
   min-width: 0;
   min-height: 0;
@@ -416,8 +419,8 @@ body:has(.fd-workspace-shell) .fd-site-header {
   flex-direction: column;
   overflow: hidden;
 }
-.fd-workspace-timeline {
-  --fd-timeline-resize-width: var(--sw-space-2);
+.fd-workspace-sidebar {
+  --fd-sidebar-resize-width: var(--sw-space-2);
   background: var(--sw-background);
 }
 .fd-workspace-details {
@@ -439,21 +442,13 @@ body:has(.fd-workspace-shell) .fd-site-header {
   flex: 1;
   white-space: nowrap;
 }
-.fd-workspace-timeline-content,
+.fd-workspace-sidebar-content,
 .fd-workspace-tab-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   padding: var(--sw-space-3);
-}
-.fd-workspace-timeline-content h2 {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 .fd-workspace-tabs,
 .fd-workspace-widget {
@@ -521,6 +516,20 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-workspace-card-body[hidden] {
   display: none;
 }
+.fd-configured-card-content {
+  display: grid;
+  align-content: start;
+  gap: var(--sw-space-4);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fd-workspace-card-body .fd-configured-card-content {
+  flex: 1;
+  min-height: 0;
+  padding: var(--sw-space-3);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
 .fd-workspace-card-header {
   display: flex;
   align-items: center;
@@ -528,6 +537,14 @@ body:has(.fd-workspace-shell) .fd-site-header {
   flex-shrink: 0;
   min-height: var(--sw-space-10);
   padding-inline: var(--sw-space-2) var(--sw-space-3);
+}
+.fd-workspace-card-trigger:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.fd-workspace-card-trigger:focus-visible .fd-workspace-card-label {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 .fd-workspace-resize {
   position: absolute;
@@ -571,7 +588,7 @@ body:has(.fd-workspace-shell) .fd-site-header {
   place-items: center;
   inset-inline-end: 0;
   inset-block: 0;
-  width: var(--fd-timeline-resize-width);
+  width: var(--fd-sidebar-resize-width);
   cursor: ew-resize;
 }
 .fd-workspace-resize--width::before {
@@ -692,9 +709,9 @@ body:has(.fd-workspace-shell) .fd-site-header {
 }
 
 @container (width >= 64rem) {
-  .fd-workspace-timeline {
+  .fd-workspace-sidebar {
     position: relative;
-    width: clamp(12rem, var(--fd-workspace-timeline-width, min(18%, 18rem)), min(26.25rem, 32%));
+    width: clamp(12rem, var(--fd-workspace-sidebar-width, min(18%, 18rem)), min(26.25rem, 32%));
     flex: none;
     border-inline-end: 1px solid var(--sw-hairline);
   }
@@ -709,8 +726,8 @@ body:has(.fd-workspace-shell) .fd-site-header {
   .fd-workspace-map[data-cards-on-map] > .fd-workspace-map-figures {
     max-inline-size: max(0px, calc(100% - var(--fd-map-cards-controls-inset) - var(--sw-space-10) - 2 * var(--sw-space-3)));
   }
-  .fd-workspace-timeline[data-open] > .fd-workspace-timeline-content {
-    margin-inline-end: var(--fd-timeline-resize-width);
+  .fd-workspace-sidebar[data-open] > .fd-workspace-sidebar-content {
+    margin-inline-end: var(--fd-sidebar-resize-width);
     scrollbar-gutter: stable;
   }
   .fd-workspace-resize--width {
@@ -728,16 +745,16 @@ body:has(.fd-workspace-shell) .fd-site-header {
   .fd-board-workspace[data-has-map] > .fd-workspace-details[data-wide] {
     width: min(54%, 46rem);
   }
-  .fd-workspace-timeline:not([data-open]),
+  .fd-workspace-sidebar:not([data-open]),
   .fd-board-workspace[data-has-map] > .fd-workspace-details:not([data-open]) {
     width: 40px;
   }
-  :is(.fd-workspace-timeline, .fd-workspace-details):not([data-open]) > .fd-workspace-panel-header {
+  :is(.fd-workspace-sidebar, .fd-workspace-details):not([data-open]) > .fd-workspace-panel-header {
     padding: 0;
     justify-content: center;
   }
-  :is(.fd-workspace-timeline, .fd-workspace-details):not([data-open]) > .fd-workspace-panel-header > h2,
-  .fd-workspace-timeline:not([data-open]) > .fd-workspace-timeline-content,
+  :is(.fd-workspace-sidebar, .fd-workspace-details):not([data-open]) > .fd-workspace-panel-header > h2,
+  .fd-workspace-sidebar:not([data-open]) > .fd-workspace-sidebar-content,
   .fd-workspace-details:not([data-open]) > .fd-workspace-card-stack {
     display: none;
   }
@@ -769,8 +786,8 @@ body:has(.fd-workspace-shell) .fd-site-header {
     visibility: hidden;
   }
   .fd-workspace-desktop-action,
-  .fd-workspace-timeline,
-  .fd-board-workspace[data-mobile-panel="timeline"][data-has-map] > .fd-workspace-details,
+  .fd-workspace-sidebar,
+  .fd-board-workspace[data-mobile-panel="sidebar"][data-has-map] > .fd-workspace-details,
   .fd-board-workspace[data-has-map]:not([data-mobile-panel="details"]) > .fd-workspace-details > .fd-workspace-card-stack {
     display: none;
   }
@@ -783,14 +800,14 @@ body:has(.fd-workspace-shell) .fd-site-header {
   .fd-board-workspace[data-has-map]:not([data-mobile-panel="details"]) > .fd-workspace-details > .fd-workspace-details-row {
     background: var(--sw-canvas);
   }
-  .fd-board-workspace[data-mobile-panel="timeline"] > .fd-workspace-timeline,
+  .fd-board-workspace[data-mobile-panel="sidebar"] > .fd-workspace-sidebar,
   .fd-board-workspace[data-mobile-panel="details"][data-has-map] > .fd-workspace-details {
     position: absolute;
     z-index: 3;
     display: flex;
     inset: 0;
   }
-  .fd-board-workspace[data-mobile-panel="timeline"] > .fd-workspace-timeline .fd-workspace-close,
+  .fd-board-workspace[data-mobile-panel="sidebar"] > .fd-workspace-sidebar .fd-workspace-close,
   .fd-board-workspace[data-has-map] > .fd-workspace-details .fd-workspace-details-mobile-action {
     display: inline-flex;
   }
@@ -806,20 +823,20 @@ body:has(.fd-workspace-shell) .fd-site-header {
   margin-top: 0.45rem;
 }
 
-/* Let the opted-in Details cards share a scroll surface at their natural heights. */
-.fd-board-workspace[data-flowing-details] .fd-workspace-card-stack {
+/* Keep the wildfire Details cards in one scroll flow at their natural heights. */
+.fd-wildfire-workspace .fd-workspace-card-stack {
   overflow-y: auto;
   overflow-x: hidden;
 }
-.fd-board-workspace[data-flowing-details] .fd-workspace-detail-card {
+.fd-wildfire-workspace .fd-workspace-detail-card {
   flex: 0 0 auto;
   min-height: 0;
 }
-.fd-board-workspace[data-flowing-details] .fd-workspace-details :is(.fd-workspace-tabs, .fd-workspace-tab-body) {
+.fd-wildfire-workspace .fd-workspace-details :is(.fd-workspace-tabs, .fd-workspace-tab-body) {
   flex: 0 0 auto;
   overflow: visible;
 }
-.fd-board-workspace[data-flowing-details] .fd-workspace-details .fd-workspace-tab-body {
+.fd-wildfire-workspace .fd-workspace-details .fd-workspace-tab-body {
   min-width: 0;
   overflow-wrap: anywhere;
   padding-block: var(--sw-space-3);
@@ -843,6 +860,7 @@ body:has(.fd-workspace-shell) .fd-site-header {
   overflow: auto;
   background: var(--sw-canvas);
 }
+.fd-board-workspace[data-has-main] > .fd-workspace-mobile-tools:not(.fd-cyber-mobile-tools) { display: none; }
 @container (width >= 64rem) {
   .fd-board-workspace[data-has-main] > .fd-workspace-details {
     flex: none;
@@ -1036,4 +1054,32 @@ body:has(.fd-workspace-shell) .fd-site-header {
   .fd-cyber-action-copy { gap: 6px; }
   .fd-cyber-instructions { gap: 7px; line-height: 1.35; }
   .fd-cyber-action-links { gap: 5px; }
+}
+
+.fd-board-map-overlay {
+  position: absolute;
+  inset: var(--sw-space-3) auto auto var(--sw-space-3);
+  z-index: 2;
+  display: grid;
+  justify-items: start;
+  gap: var(--sw-space-2);
+  max-width: min(18rem, calc(100% - 4rem));
+}
+.fd-board-map-overlay > [data-sw="card"] {
+  max-height: min(38dvh, 20rem);
+  overflow: auto;
+}
+.fd-board-map-inset {
+  position: absolute;
+  inset: auto var(--sw-space-3) var(--sw-space-24) auto;
+  z-index: 1;
+  width: min(10rem, 38%);
+  display: grid;
+  gap: var(--sw-space-1);
+}
+.fd-board-map-inset > :first-child {
+  width: fit-content;
+  padding-inline: var(--sw-space-1);
+  background: var(--sw-background);
+  color: var(--sw-foreground);
 }

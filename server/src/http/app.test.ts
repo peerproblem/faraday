@@ -22,6 +22,7 @@ const boards = vi.hoisted(() => ({
   touchViewed: vi.fn(),
 }));
 const jobs = vi.hoisted(() => ({ enqueue: vi.fn(), hasPendingJob: vi.fn(), queueStats: vi.fn() }));
+const evidence = vi.hoisted(() => ({ contextEvidencePage: vi.fn() }));
 const runs = vi.hoisted(() => ({ latestRunView: vi.fn(), latestWorkerHeartbeat: vi.fn(), nodeStats: vi.fn() }));
 const monitors = vi.hoisted(() => ({ removeBoardMonitors: vi.fn(), runBoardMonitors: vi.fn() }));
 const session = vi.hoisted(() => ({ sessionUserId: vi.fn() }));
@@ -38,11 +39,26 @@ const views = vi.hoisted(() => ({
 }));
 const users = vi.hoisted(() => ({ upsertUser: vi.fn(async () => "u-new"), getUser: vi.fn() }));
 const conn = vi.hoisted(() => ({ address: "203.0.113.9" }));
-const settings = vi.hoisted(() => ({ discoverEnabled: vi.fn(async () => false), setDiscoverEnabled: vi.fn(async () => {}) }));
+const settings = vi.hoisted(() => ({
+  discoverEnabled: vi.fn(async () => false),
+  setDiscoverEnabled: vi.fn(async () => {}),
+  distributeLive: vi.fn(async () => false),
+  setDistributeLive: vi.fn(async () => {}),
+}));
 const topicsRepo = vi.hoisted(() => ({ listAdminTopics: vi.fn(async () => []), setTopicState: vi.fn(async () => true) }));
+const layouts = vi.hoisted(() => ({
+  getBoardLayout: vi.fn(),
+  getBoardLayoutTemplate: vi.fn(),
+  listBoardLayoutTemplates: vi.fn(async () => []),
+  createBoardLayoutTemplate: vi.fn(),
+  updateBoardLayoutTemplate: vi.fn(),
+  setBoardLayout: vi.fn(),
+}));
 
 vi.mock("../repo/boards", () => boards);
+vi.mock("../repo/board-layouts", () => layouts);
 vi.mock("../repo/jobs", () => jobs);
+vi.mock("../repo/context-evidence", () => evidence);
 vi.mock("../repo/runs", () => runs);
 vi.mock("../monitors", () => monitors);
 vi.mock("../session", () => session);
@@ -77,6 +93,8 @@ const ev = (id: number): BoardEvent => ({ id, ts: id, kind: "info", message: `e$
 
 beforeEach(() => {
   vi.clearAllMocks();
+  layouts.getBoardLayout.mockResolvedValue({ rev: 0, assignment: null });
+  layouts.setBoardLayout.mockImplementation(async (_id, assignment, rev) => ({ ok: true, value: { assignment, rev: rev + 1 } }));
   process.env.ADMIN_EMAILS = "Admin@Example.com, other@example.com";
   users.getUser.mockImplementation(async (id: string) =>
     id === "admin" ? { id, email: "admin@example.com", name: "A", image: null } : { id, email: `${id}@example.com`, name: null, image: null },
@@ -95,6 +113,74 @@ beforeEach(() => {
 });
 
 describe("board views", () => {
+  it("pages evidence for the requested board and validates the search group and cursor", async () => {
+    const app = createApp();
+    boards.getBoard.mockResolvedValueOnce(undefined);
+    expect((await app.request("/api/boards/missing/evidence")).status).toBe(404);
+    expect((await app.request("/api/boards/b1/evidence?group=other")).status).toBe(400);
+    expect((await app.request("/api/boards/b1/evidence?before=0")).status).toBe(400);
+    boards.getBoard.mockResolvedValueOnce(row());
+    evidence.contextEvidencePage.mockResolvedValueOnce({ items: [], nextBefore: null });
+    const page = await app.request("/api/boards/b1/evidence?group=monitor&before=40");
+    expect(page.headers.get("cache-control")).toBe("no-store");
+    expect(await page.json()).toEqual({ items: [], nextBefore: null });
+    expect(evidence.contextEvidencePage).toHaveBeenCalledWith("b1", "monitor", 40);
+    app.dispose();
+  });
+
+  it("keeps the finance market desk and strips its template from the public response", async () => {
+    const app = createApp();
+    boards.getBoardView.mockResolvedValue(view({ spec: { version: 2, widgets: [], template: "finance" } }));
+    const body = await (await app.request("/api/boards/b1")).json() as BoardView;
+    expect(body.presentation).toEqual({ workspace: false, marketPrices: true });
+    expect(body.spec).toEqual({ version: 2, widgets: [] });
+    app.dispose();
+  });
+
+  it("serves only renderer flags for a saved layout and changes the view ETag on assignment", async () => {
+    const app = createApp();
+    const settings = { layout: "map", timelineOpen: false, evidenceOpen: true };
+    boards.getBoardView.mockResolvedValue(view());
+    const first = await app.request("/api/boards/b1");
+    layouts.getBoardLayout.mockResolvedValue({ rev: 1, assignment: { templateId: "internal-id", settings } });
+    publish("b1", { type: "status", status: "live", tier: "hot" });
+    const next = await app.request("/api/boards/b1", { headers: { "If-None-Match": first.headers.get("etag")! } });
+    expect(next.status).toBe(200);
+    const body = await next.text();
+    expect(body).not.toContain("internal-id");
+    expect(JSON.parse(body).presentation).toEqual({ workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: true });
+    const cards = [{ id: "access", title: "Access", placement: "right", open: true, contents: [{ kind: "summary" }] }];
+    const sidebar = { title: "Sources", open: false, contents: [{ kind: "widget", type: "sources" }] };
+    layouts.getBoardLayout.mockResolvedValue({ rev: 2, assignment: { templateId: "internal-id", settings: { ...settings, cards, sidebar } } });
+    publish("b1", { type: "status", status: "live", tier: "hot" });
+    const composed = await app.request("/api/boards/b1", { headers: { "If-None-Match": next.headers.get("etag")! } });
+    expect(composed.status).toBe(200);
+    expect((await composed.json() as BoardView).presentation).toMatchObject({ cards, sidebar });
+    app.dispose();
+  });
+
+  it("requires an admin to assign a template and saves settings only for the selected board", async () => {
+    const app = createApp();
+    const settings = { layout: "grid", timelineOpen: true, evidenceOpen: false };
+    const path = "/api/admin/boards/b1/layout";
+    const request = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: "t1", rev: 0 }) };
+    expect((await app.request(path, request)).status).toBe(401);
+    session.sessionUserId.mockResolvedValue("u1");
+    expect((await app.request(path, request)).status).toBe(403);
+    expect(layouts.setBoardLayout).not.toHaveBeenCalled();
+    session.sessionUserId.mockResolvedValue("admin");
+    boards.getBoard.mockResolvedValue(row());
+    layouts.getBoardLayoutTemplate.mockResolvedValue({ id: "t1", name: "Grid", settings });
+    expect((await app.request(path, request)).status).toBe(200);
+    expect(layouts.setBoardLayout).toHaveBeenCalledExactlyOnceWith("b1", { templateId: "t1", settings }, 0);
+    const current = { assignment: { templateId: "t1", settings }, rev: 1 };
+    layouts.setBoardLayout.mockResolvedValueOnce({ ok: false, current });
+    const conflict = await app.request(path, { ...request, method: "DELETE", body: JSON.stringify({ rev: 0 }) });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ current });
+    app.dispose();
+  });
+
   it("sends an ETag and answers 304 when it matches", async () => {
     const app = createApp({ domain: "faraday.watch" });
     boards.getBoardView.mockResolvedValue(view());
@@ -511,12 +597,28 @@ describe("admin login, session and settings", () => {
     expect((await app.request("/api/admin/settings")).status).toBe(403);
     session.sessionUserId.mockResolvedValue(null);
     const cookie = cookieOf(await login(app, "tester", PASSWORD));
-    expect(await (await app.request("/api/admin/settings", withCookie(cookie))).json()).toEqual({ discoverEnabled: false });
+    const off = { discoverEnabled: false, distributeLive: false, distributeReady: false };
+    expect(await (await app.request("/api/admin/settings", withCookie(cookie))).json()).toEqual(off);
     settings.discoverEnabled.mockResolvedValueOnce(true);
     const on = await app.request("/api/admin/settings", withCookie(cookie, json({ discoverEnabled: true })));
-    expect(await on.json()).toEqual({ discoverEnabled: true });
+    expect(await on.json()).toEqual({ ...off, discoverEnabled: true });
     expect(settings.setDiscoverEnabled).toHaveBeenCalledWith(true);
+    expect(settings.setDistributeLive).not.toHaveBeenCalled();
     expect((await app.request("/api/admin/settings", withCookie(cookie, json({ discoverEnabled: "yes" })))).status).toBe(400);
+    expect((await app.request("/api/admin/settings", withCookie(cookie, json({})))).status).toBe(400);
+    app.dispose();
+  });
+
+  it("turns real posting to X and Discord on and off for admins only", async () => {
+    const app = createApp();
+    expect((await app.request("/api/admin/settings", json({ distributeLive: true }))).status).toBe(401);
+    expect(settings.setDistributeLive).not.toHaveBeenCalled();
+    const cookie = cookieOf(await login(app, "tester", PASSWORD));
+    settings.distributeLive.mockResolvedValueOnce(true);
+    const on = await app.request("/api/admin/settings", withCookie(cookie, json({ distributeLive: true })));
+    expect(await on.json()).toMatchObject({ distributeLive: true });
+    expect(settings.setDistributeLive).toHaveBeenCalledWith(true);
+    expect((await app.request("/api/admin/settings", withCookie(cookie, json({ distributeLive: "on" })))).status).toBe(400);
     app.dispose();
   });
 
@@ -761,12 +863,14 @@ describe("SSE stream", () => {
 
   it("sends hello, replays events after Last-Event-ID with ids, then live messages", async () => {
     const app = createApp({ pingMs: 60_000 });
-    boards.getBoard.mockResolvedValue(row());
+    boards.getBoard.mockResolvedValue({ ...row(), lastPolledAt: 1000 });
     boards.listEvents.mockResolvedValue([ev(12), ev(11)]);
     const res = await app.request("/api/boards/b1/stream", { headers: { "Last-Event-ID": "10" } });
     expect(res.status).toBe(200);
     setTimeout(() => {
       publish("b1", { type: "event", event: ev(12) });
+      publish("b1", { type: "polled", lastPolledAt: 2000 });
+      publish("b1", { type: "spec", version: 3, spec: { version: 2, widgets: [], template: "finance" } });
       publish("b1", { type: "event", event: ev(13) });
     }, 50);
     const text = await readUntil(res, (t) => t.includes('"e13"'));
@@ -774,9 +878,13 @@ describe("SSE stream", () => {
     const frames = text.split("\n\n").filter((f) => f.includes("data:"));
     const parsed = frames.map((f) => ({
       id: /^id: ?(.*)$/m.exec(f)?.[1] ?? null,
+      event: /^event: ?(.*)$/m.exec(f)?.[1] ?? null,
       msg: JSON.parse(/^data: ?(.*)$/m.exec(f)![1]) as { type: string; version?: number; event?: BoardEvent },
     }));
-    expect(parsed[0].msg).toEqual({ type: "hello", version: 3 });
+    expect(parsed[0].msg).toEqual({ type: "hello", version: 3, lastPolledAt: 1000 });
+    expect(parsed.find((frame) => frame.event === "polled")?.msg).toEqual({ type: "polled", lastPolledAt: 2000 });
+    expect(parsed.find((frame) => frame.msg.type === "spec")?.msg)
+      .toEqual({ type: "spec", version: 3, spec: { version: 2, widgets: [] } });
     const events = parsed.filter((p) => p.msg.type === "event");
     // 11 and 12 replayed in order, the live duplicate of 12 is skipped, 13 arrives live.
     expect(events.map((e) => [e.id, e.msg.event!.message])).toEqual([

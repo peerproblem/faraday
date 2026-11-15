@@ -26,11 +26,15 @@ function subscribe(fn: () => void) {
   };
 }
 
-export function Ago({ t }: { t: string | number | null | undefined }) {
-  const current = useSyncExternalStore(
+export function useCurrentTime() {
+  return useSyncExternalStore(
     subscribe,
     () => now,
     () => null,
   );
+}
+
+export function Ago({ t }: { t: string | number | null | undefined }) {
+  const current = useCurrentTime();
   return <span>{current === null ? "…" : ago(t, current)}</span>;
 }

@@ -30,6 +30,37 @@ const keyOf = (b: BoardView, id: string) => widgetKeyOf(b.spec!.widgets.find((w)
 const posts = (part: string) => (fetchMock.mock.calls as Call[]).filter(([u, i]) => u.includes(part) && i?.method === "POST");
 
 describe("personal dashboard", () => {
+  test("refreshes Context.dev evidence after an automatic check on both map board routes", async () => {
+    const user = userEvent.setup();
+    const b = { ...board(), presentation: { workspace: true, cardsOnMap: true } };
+    let stream: EventTarget;
+    vi.stubGlobal("EventSource", class extends EventTarget {
+      constructor() { super(); stream = this; }
+      close() {}
+    });
+    for (const personal of [true, false]) {
+      const titles = personal ? ["Personal first", "Personal new"] : ["Public first", "Public new"];
+      fetchMock.mockReset().mockImplementation(async () => json({
+        items: [{ id: 1, kind: "news", title: titles.shift(), url: "https://example.test/notice", collectedAt: 1000 }],
+        nextBefore: null,
+      }));
+      const { unmount } = render(personal
+        ? <PersonalBoard initial={b} initialView={null} />
+        : <LiveBoard initial={b} workspace />);
+
+      expect(screen.queryByRole("button", { name: "Check the web now" })).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Evidence" }));
+      await user.click(screen.getByRole("tab", { name: "Context.dev" }));
+      await screen.findByRole("link", { name: personal ? "Personal first" : "Public first" });
+      act(() => stream.dispatchEvent(new MessageEvent("polled", {
+        data: JSON.stringify({ type: "polled", lastPolledAt: (b.lastPolledAt ?? 0) + 60_000 }),
+      })));
+      await screen.findByRole("link", { name: personal ? "Personal new" : "Public new" });
+      expect(fetchMock.mock.calls.every(([url]) => url.includes("/evidence?group=search"))).toBe(true);
+      unmount();
+    }
+  });
+
   test("draws the baseline with the person's layout: hidden, pinned and resized widgets", () => {
     const b = board();
     const [first, second, third] = b.spec!.widgets;
@@ -55,37 +86,25 @@ describe("personal dashboard", () => {
     render(<PersonalBoard initial={b} initialView={{ layout: { ...emptyLayout(b.version), design: "map-focus" }, rev: 2 }} live={false} />);
     const timeline = screen.getByRole("complementary", { name: "Incident timeline" });
     const map = screen.getByRole("region", { name: "Situation map" });
-    expect(within(timeline).getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
-    expect(timeline.style.getPropertyValue("--fd-workspace-timeline-width")).toBe("280px");
+    expect(within(timeline).getByRole("button", { name: "Expand Timeline" }).getAttribute("aria-expanded")).toBe("false");
+    expect(timeline.style.getPropertyValue("--fd-workspace-sidebar-width")).toBe("280px");
     expect(map.style.getPropertyValue("--fd-workspace-details-width")).toBe("510px");
     expect(within(map).getByRole("region", { name: "Situation" })).toBeTruthy();
     expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
   });
 
-  test("saves a board design by revision and restores it on reload", async () => {
+  test("shows the assigned map layout and preserves table navigation", async () => {
     const user = userEvent.setup();
     const b = board();
-    const layout = { ...emptyLayout(b.version), hidden: ["map"] };
-    fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
-    const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
-    await user.click(screen.getByRole("button", { name: "Board settings" }));
-    await user.click(screen.getByRole("option", { name: /Natural disaster monitor/ }));
+    render(<PersonalBoard initial={{ ...b, presentation: { workspace: true, cardsOnMap: true } }}
+      initialView={{ layout: { ...emptyLayout(b.version), design: "standard" }, rev: 3 }} live={false} />);
     expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
-    await waitFor(() => expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1));
-    const save = JSON.parse(String(posts(`/api/me/views/${b.id}`)[0][1]!.body));
-    expect(save.rev).toBe(3);
-    expect(save.layout.design).toBe("map-overlay");
-    expect(save.layout.hidden).not.toContain("map");
-    unmount();
-
-    render(<PersonalBoard initial={b} initialView={{ layout: save.layout, rev: 4 }} live={false} />);
-    expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Collapse timeline" }).getAttribute("aria-expanded")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "Collapse timeline" }));
-    expect(screen.getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "Collapse Timeline" }).getAttribute("aria-expanded")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Collapse Timeline" }));
+    expect(screen.getByRole("button", { name: "Expand Timeline" }).getAttribute("aria-expanded")).toBe("false");
     const figures = within(screen.getByRole("list", { name: "Map figures" }));
     expect(figures.getByText("111 trains")).toBeTruthy();
-    expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1);
+    expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
     expect(screen.queryByRole("tabpanel", { name: "Sources" })).toBeNull();
 
     await user.click(screen.getByRole("tab", { name: "Data" }));
@@ -101,41 +120,16 @@ describe("personal dashboard", () => {
     expect(screen.getByText("5–8 of 34 rows")).toBeTruthy();
   });
 
-  test("recommends map cards without changing other views and saves the selection", async () => {
+  test("opens the assigned panels without exposing a template selector to the viewer", async () => {
     const user = userEvent.setup();
     const b = board();
-    const conflictBoard: BoardView = {
-      ...b,
-      data: { ...b.data!, header: { ...b.data!.header, crisisType: "conflict" } },
-    };
-    const path = `/api/me/views/${b.id}`;
-    const layout: PersonalLayout = { ...emptyLayout(b.version), design: "standard" };
-    fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
-    const { unmount } = render(<PersonalBoard initial={conflictBoard} initialView={{ layout, rev: 3 }} live={false} />);
-
+    const presentation = { workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: true };
+    render(<PersonalBoard initial={{ ...b, presentation }} initialView={null} live={false} />);
+    expect(screen.getByRole("button", { name: "Expand Timeline" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Evidence" }).getAttribute("aria-expanded")).toBe("true");
     await user.click(screen.getByRole("button", { name: "Board settings" }));
-    expect(screen.getByText("Recommended").closest('[role="option"]')?.textContent).toContain("Natural disaster monitor");
-    expect(screen.queryByRole("region", { name: "Situation map" })).toBeNull();
-    expect(posts(path)).toHaveLength(0);
-
-    const choices = screen.getByRole("listbox", { name: "Dashboard preset" });
-    fireEvent.keyDown(choices, { key: "End" });
-    expect(choices.getAttribute("aria-activedescendant")).toBe(screen.getByRole("option", { name: /Natural disaster monitor/ }).id);
-    fireEvent.keyDown(choices, { key: " " });
-    expect(screen.getByRole("option", { name: /Standard dashboard/ }).getAttribute("aria-selected")).toBe("true");
-    expect(posts(path)).toHaveLength(0);
-    fireEvent.keyDown(choices, { key: "Enter" });
-    await waitFor(() => expect(posts(path)).toHaveLength(1));
-    const save = JSON.parse(String(posts(path)[0][1]!.body));
-    expect(save.layout.design).toBe("map-overlay");
-    unmount();
-
-    render(<PersonalBoard initial={conflictBoard} initialView={{ layout: save.layout, rev: 4 }} live={false} />);
-    const map = within(screen.getByRole("region", { name: "Situation map" }));
-    expect(map.getByRole("region", { name: "Situation" })).toBeTruthy();
-    expect(map.getByRole("region", { name: "Evidence" })).toBeTruthy();
-    expect(screen.queryByRole("complementary", { name: "Board details" })).toBeNull();
-    expect(posts(path)).toHaveLength(1);
+    expect(screen.queryByRole("combobox", { name: "Dashboard preset" })).toBeNull();
+    expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
   });
 
   test("only shows the overview donut on the personal board that chose its table", async () => {
@@ -167,7 +161,6 @@ describe("personal dashboard", () => {
     const b = board();
     const timeline = b.spec!.widgets.find((w) => w.type === "timeline")!;
     const { container } = render(<PersonalBoard initial={b} initialView={{ layout: emptyLayout(b.version), rev: 3 }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Board settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit layout" }));
     fireEvent.click(screen.getByRole("button", { name: `Hide ${timeline.title}` }));
     expect(order(container)).not.toContain(timeline.id);
@@ -192,7 +185,6 @@ describe("personal dashboard", () => {
     fetchMock.mockImplementation(async () => json({ error: "Changed elsewhere", layout: other, rev: 9 }, 409));
     const narrative = b.spec!.widgets.find((w) => w.type === "narrative")!;
     const { container } = render(<PersonalBoard initial={b} initialView={{ layout: null, rev: 0 }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Board settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit layout" }));
     fireEvent.click(screen.getAllByRole("button", { name: /^Move .* down$/ })[0]);
     await act(async () => {

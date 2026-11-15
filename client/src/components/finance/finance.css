@@ -1,0 +1,697 @@
+/* The finance board page: a full-bleed market desk instead of the card grid. Scoped to .fd-fin. */
+
+.fd-site-main:has(.fd-fin) {
+  max-width: none;
+  padding: 0 0 4rem;
+}
+
+.fd-fin {
+  --fin-up: var(--sw-success);
+  --fin-down: var(--sw-danger);
+  /* Event lanes: colors no price line uses. */
+  --fin-reg: var(--sw-chart-5);
+  --fin-key: var(--sw-chart-6);
+  --fin-gutter: clamp(16px, 2.6vw, 44px);
+  --fin-rule: var(--sw-hairline);
+  background: var(--sw-background);
+  color: var(--sw-foreground);
+  min-width: 0;
+}
+
+.fd-fin :is(h1, h2, h3) {
+  margin: 0;
+}
+
+.fd-fin-mono {
+  font-family: var(--sw-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.fd-fin-kicker {
+  font-family: var(--sw-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sw-muted-foreground);
+}
+
+/* A line of explanation under a heading or chart: body text, quieter, as Text size="sm" tone="muted". */
+.fd-fin-note {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--sw-muted-foreground);
+  text-wrap: pretty;
+}
+
+/* ── Status strip ─────────────────────────────────────────────── */
+.fd-fin__strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 8px var(--fin-gutter);
+  border-bottom: 1px solid var(--fin-rule);
+}
+.fd-fin__strip-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Masthead ─────────────────────────────────────────────────── */
+.fd-fin__mast {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: 20px 56px;
+  padding: 32px var(--fin-gutter) 28px;
+  border-bottom: 1px solid var(--fin-rule);
+}
+/* Type follows sw3: Geist headings at weight 450 with tight tracking, no serif. */
+.fd-fin__title {
+  font-size: clamp(1.875rem, 4vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  font-weight: 450;
+  text-wrap: balance;
+}
+.fd-fin__dek {
+  margin-top: 14px;
+  max-width: 64ch;
+  font-size: clamp(1rem, 1.3vw, 1.125rem);
+  line-height: 1.5;
+  letter-spacing: -0.011em;
+  color: color-mix(in oklab, var(--sw-foreground) 82%, transparent);
+  text-wrap: pretty;
+}
+.fd-fin__mast-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-left: 24px;
+  border-left: 1px solid var(--fin-rule);
+}
+.fd-fin__alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 20px;
+  max-width: 72ch;
+  padding: 12px 16px;
+  border-radius: var(--sw-radius-sm);
+  background: color-mix(in oklab, var(--sw-warning) 8%, transparent);
+}
+
+/* ── Figures tape ─────────────────────────────────────────────── */
+.fd-fin__tape {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  border-bottom: 1px solid var(--fin-rule);
+}
+.fd-fin__tick {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 18px 20px 16px;
+  border-right: 1px solid var(--fin-rule);
+  cursor: default;
+}
+.fd-fin__tick:first-child {
+  padding-left: var(--fin-gutter);
+}
+.fd-fin__tick[data-chartable] {
+  cursor: pointer;
+}
+.fd-fin__tick[data-chartable]:hover {
+  background: var(--sw-muted);
+}
+.fd-fin__tick:focus-visible {
+  outline: 2px solid var(--sw-chart-1);
+  outline-offset: -2px;
+}
+/* A figure whose line is on the chart: a dot in the line's colour before its label, like a legend key. */
+.fd-fin__tick[data-on] > .fd-fin-kicker::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--tick-color, var(--sw-foreground));
+  vertical-align: 0.05em;
+}
+.fd-fin__tick-value {
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.25rem, 1.6vw, 1.625rem);
+  font-weight: 450;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.fd-fin__tick-unit {
+  margin-left: 4px;
+  font-size: 0.6em;
+  font-weight: 500;
+  color: var(--sw-muted-foreground);
+}
+.fd-fin__delta {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 500;
+}
+.fd-fin__delta[data-dir="up"] {
+  color: var(--fin-up);
+}
+.fd-fin__delta[data-dir="down"] {
+  color: var(--fin-down);
+}
+
+/* ── Body grid ────────────────────────────────────────────────── */
+.fd-fin__grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+.fd-fin__panel {
+  min-width: 0;
+  padding: 26px var(--fin-gutter) 30px;
+  border-bottom: 1px solid var(--fin-rule);
+}
+.fd-fin__panel--main {
+  grid-column: span 8;
+  border-right: 1px solid var(--fin-rule);
+}
+.fd-fin__panel--side {
+  grid-column: span 4;
+}
+.fd-fin__panel--full {
+  grid-column: 1 / -1;
+}
+.fd-fin__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 20px;
+  margin-bottom: 20px;
+}
+.fd-fin__h2 {
+  margin-top: 4px;
+  font-size: clamp(1.25rem, 1.6vw, 1.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 450;
+}
+@media (max-width: 1080px) {
+  .fd-fin__mast {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fd-fin__mast-side {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .fd-fin__panel--main,
+  .fd-fin__panel--side {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+}
+
+/* ── Market chart ─────────────────────────────────────────────── */
+.fd-fin-chart {
+  position: relative;
+  min-width: 0;
+}
+.fd-fin-chart svg {
+  display: block;
+  overflow: visible;
+}
+.fd-fin-chart text {
+  font-family: var(--sw-font-mono);
+  font-size: 10.5px;
+  fill: var(--sw-muted-foreground);
+}
+.fd-fin-chart .grid {
+  stroke: var(--fin-rule);
+}
+.fd-fin-chart .zero {
+  stroke: var(--sw-foreground);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+.fd-fin-chart .guide {
+  stroke: var(--sw-foreground);
+  stroke-dasharray: 2 3;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.fd-fin-chart .lane-rule {
+  stroke: var(--fin-rule);
+}
+.fd-fin-chart .hit {
+  cursor: pointer;
+  outline: none;
+}
+.fd-fin-chart .hit:focus-visible circle,
+.fd-fin-chart .hit:focus-visible rect,
+.fd-fin-chart .hit:focus-visible path {
+  stroke: var(--sw-chart-1);
+  stroke-width: 2.5;
+}
+
+/* ── Hover card (shared by the chart and the drop chart) ──────── */
+.fd-fin-tip {
+  position: absolute;
+  z-index: 5;
+  width: min(320px, calc(100% - 16px));
+  padding: 14px 16px;
+  background: var(--sw-background);
+  border: 1px solid var(--sw-frame);
+  border-radius: var(--sw-radius-md);
+  box-shadow: var(--sw-shadow-popup);
+  pointer-events: none;
+}
+.fd-fin-tip__title {
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.fd-fin-tip__rows {
+  margin: 10px 0 0;
+  display: grid;
+}
+.fd-fin-tip__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--fin-rule);
+  font-size: 13px;
+}
+.fd-fin-tip__row dd {
+  margin: 0;
+  font-family: var(--sw-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.fd-fin-tip__quote {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: color-mix(in oklab, var(--sw-foreground) 82%, transparent);
+}
+
+/* ── Drop chart ───────────────────────────────────────────────── */
+.fd-fin-drop {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  min-width: 0;
+}
+.fd-fin-drop__axis {
+  position: relative;
+}
+.fd-fin-drop__axis span {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-family: var(--sw-font-mono);
+  font-size: 10.5px;
+  color: var(--sw-muted-foreground);
+}
+.fd-fin-drop__plot {
+  position: relative;
+  min-width: 0;
+}
+.fd-fin-drop__rule {
+  position: absolute;
+  inset-inline: 0;
+  border-top: 1px solid var(--fin-rule);
+}
+.fd-fin-drop__rule[data-zero] {
+  border-top: 1px solid var(--sw-foreground);
+  opacity: 0.6;
+}
+.fd-fin-drop__stem {
+  position: absolute;
+  width: 0;
+  border-left: 2px solid color-mix(in oklab, var(--fin-down) 45%, transparent);
+  transform: translateX(-1px);
+}
+.fd-fin-drop__dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--sw-background);
+  background: color-mix(in oklab, var(--fin-down) 55%, var(--sw-background));
+  transform: translate(-50%, -50%);
+}
+.fd-fin-drop__mark {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mark, 46px);
+  height: var(--mark, 46px);
+  border-radius: 50%;
+  border: 2px solid var(--fin-down);
+  background: var(--sw-background);
+  color: var(--sw-foreground);
+  font-family: var(--sw-font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: -0.02em;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.fd-fin-drop__mark:hover,
+.fd-fin-drop__mark:focus-visible {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+.fd-fin-drop__mark:focus-visible {
+  outline: 2px solid var(--sw-chart-1);
+  outline-offset: 2px;
+}
+.fd-fin-drop__label {
+  position: absolute;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  color: var(--sw-foreground);
+  pointer-events: none;
+}
+.fd-fin-drop__label small {
+  display: block;
+  font-weight: 500;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fin-down);
+}
+.fd-fin-drop__shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--fin-rule);
+}
+.fd-fin-drop__chip {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--sw-frame);
+  border-radius: var(--sw-radius-full);
+  font-size: 13px;
+  cursor: pointer;
+}
+.fd-fin-drop__chip:focus-visible {
+  outline: 2px solid var(--sw-chart-1);
+}
+.fd-fin-drop__chip b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--sw-subtle);
+  font-family: var(--sw-font-mono);
+  font-size: 10px;
+}
+
+/* ── Coverage list ────────────────────────────────────────────── */
+.fd-fin-news {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fd-fin-news li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--fin-rule);
+}
+.fd-fin-news li:last-child {
+  border-bottom: 0;
+}
+.fd-fin-news a {
+  color: inherit;
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.fd-fin-news a:hover {
+  text-decoration: underline;
+}
+
+/* The story timeline sits in a narrower column here. */
+.fd-fin .fd-story {
+  --fd-story-h: clamp(24rem, 70vh, 38rem);
+}
+/* No accent rule on the active step here: its tint marks it. */
+.fd-fin .fd-story__step {
+  border-inline-start: 0;
+}
+
+/* ── Footer bands ─────────────────────────────────────────────── */
+.fd-fin__foot {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+.fd-fin__foot > * {
+  min-width: 0;
+  padding: 22px var(--fin-gutter);
+  border-bottom: 1px solid var(--fin-rule);
+}
+.fd-fin__foot > :first-child {
+  grid-column: span 8;
+  border-right: 1px solid var(--fin-rule);
+}
+.fd-fin__foot > :last-child {
+  grid-column: span 4;
+}
+@media (max-width: 1080px) {
+  .fd-fin__foot > :first-child,
+  .fd-fin__foot > :last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+}
+
+/* ── Price chart: lines, the VIX pane and the event pins ──────── */
+.fd-fin__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 2px 0 20px;
+}
+/* Legend toggles read like the segmented control beside them: a muted track, the lines that are on lifted
+   onto a light pill, the ones that are off quieter. Not the solid dark fill of a pressed button. */
+.fd-fin .sw-toggle-group .sw-toggle {
+  gap: 8px;
+  padding: 0 12px;
+  color: var(--sw-muted-foreground);
+}
+.fd-fin .sw-toggle-group .sw-toggle[data-state="on"],
+.fd-fin .sw-toggle-group .sw-toggle[data-state="on"]:hover:not([data-disabled]) {
+  --sw-sq-bg: var(--sw-background);
+  --sw-sq-border: transparent;
+  color: var(--sw-foreground);
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.1));
+}
+.fd-fin .sw-toggle-group .sw-toggle[data-state="off"]:hover:not([data-disabled]) {
+  color: var(--sw-foreground);
+}
+.fd-fin .sw-toggle-group .sw-toggle[data-state="off"] :is(.fd-fin-swatch, .fd-fin-glyph) {
+  opacity: 0.45;
+}
+.fd-fin-swatch {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+.fd-fin-glyph {
+  display: inline-block;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--fin-key);
+}
+.fd-fin-glyph[data-kind="regulator"] {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background: var(--fin-reg);
+  transform: rotate(45deg);
+}
+.fd-fin-chart .day {
+  stroke: var(--fin-rule);
+  stroke-dasharray: 1 3;
+}
+.fd-fin-chart .closed {
+  fill: color-mix(in oklab, var(--sw-foreground) 4%, transparent);
+}
+.fd-fin-chart .band {
+  fill: color-mix(in oklab, var(--sw-warning) 16%, transparent);
+  pointer-events: none;
+}
+.fd-fin-chart .vix-area {
+  fill: color-mix(in oklab, var(--sw-muted-foreground) 14%, transparent);
+}
+.fd-fin-chart .overlay {
+  fill: transparent;
+  cursor: crosshair;
+  outline: none;
+}
+.fd-fin-chart .overlay:focus-visible {
+  stroke: var(--sw-chart-1);
+  stroke-width: 1.5;
+}
+.fd-fin-chart .pin-rule {
+  stroke: var(--fin-key);
+  stroke-dasharray: 2 3;
+  opacity: 0.45;
+  pointer-events: none;
+}
+.fd-fin-chart .pin[data-kind="regulator"] .pin-rule {
+  stroke: var(--fin-reg);
+}
+.fd-fin-chart .pin[data-active] .pin-rule,
+.fd-fin-chart .pin:hover .pin-rule {
+  opacity: 1;
+  stroke-width: 1.5;
+}
+.fd-fin-chart .rail {
+  fill: color-mix(in oklab, var(--fin-key) 7%, transparent);
+  stroke: color-mix(in oklab, var(--fin-key) 22%, transparent);
+}
+.fd-fin-chart .rail[data-kind="regulator"] {
+  fill: color-mix(in oklab, var(--fin-reg) 7%, transparent);
+  stroke: color-mix(in oklab, var(--fin-reg) 22%, transparent);
+}
+.fd-fin-chart .pane {
+  fill: color-mix(in oklab, var(--sw-foreground) 3%, transparent);
+}
+.fd-fin-chart text.gutter-title,
+.fd-fin-chart text.gutter-line {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--sw-foreground);
+}
+.fd-fin-chart text.gutter-line {
+  font-weight: 500;
+}
+.fd-fin-chart text.gutter-value {
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--sw-foreground);
+}
+.fd-fin-tip__row dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.fd-fin-tip__row dd .fd-fin__delta {
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+/* ── Coverage wall: quote cards in columns ────────────────────── */
+.fd-fin-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 4 260px;
+  column-gap: 16px;
+}
+.fd-fin-card {
+  break-inside: avoid;
+  margin: 0 0 16px;
+  padding: 16px 16px 14px;
+  border: 1px solid var(--sw-frame);
+  border-radius: var(--sw-radius-md);
+  background: var(--sw-background);
+}
+.fd-fin-card__by {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.fd-fin-card__name {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-fin-card__meta {
+  margin-top: 2px;
+  font-family: var(--sw-font-mono);
+  font-size: 11px;
+  color: var(--sw-muted-foreground);
+}
+.fd-fin-card__title {
+  display: block;
+  margin-top: 12px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+}
+.fd-fin-card__title:hover,
+.fd-fin-card__link:hover {
+  text-decoration: underline;
+}
+.fd-fin-card__quote {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sw-muted-foreground);
+}
+/* A post has no headline: its own words are the body. */
+.fd-fin-card[data-kind="social"] .fd-fin-card__quote {
+  font-size: 14px;
+  color: var(--sw-foreground);
+}
+.fd-fin-card__link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: inherit;
+}
+.fd-fin__feed-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}

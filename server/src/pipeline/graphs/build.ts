@@ -1,7 +1,7 @@
 import { trustedFacts } from "../trust";
 import type { GraphFn, RunCtx } from "../../graph/runner";
 import { ensureBoardMonitors } from "../../monitors";
-import { addMessage, listMessages, listSources, markMonitorsSynced, markPolled, saveBoardVersion, savePlan, setSchedule } from "../../repo/boards";
+import { addMessage, listMessages, listSources, markMonitorsSynced, saveBoardVersion, savePlan, setSchedule } from "../../repo/boards";
 import { listFacts } from "../../repo/facts";
 import { enqueue } from "../../repo/jobs";
 import type { BoardSpecV2, Fact, Plan, StagedFact } from "../../spec";
@@ -27,6 +27,7 @@ import {
   officialUrls,
   provisionalFacts,
   readRound,
+  recordBoardCheck,
   setBoardStatus,
   triageRound,
   type ExtractOutcome,
@@ -253,7 +254,7 @@ export const buildGraph: GraphFn = async (ctx) => {
     fallback: "monitor setup failed, polling only",
   });
   await ctx.event("info", note);
-  await markPolled(ctx.boardId);
+  await recordBoardCheck(ctx);
   await setSchedule(ctx.boardId, { tier: "hot", nextPollAt: Date.now() + POLL_INTERVAL_MS.hot });
   await setBoardStatus(ctx, "live", "hot");
   const total = Date.now() - started;

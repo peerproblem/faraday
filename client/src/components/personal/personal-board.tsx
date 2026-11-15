@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Board, isBuilding, visibleWidgets } from "@/components/board/board";
 import { BoardHeaderButton } from "@/components/board/header-button";
-import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
+import { BoardToasts } from "@/components/board/live-board";
+import { useBoard } from "@/lib/client/use-board";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
-import { Listbox } from "@/components/ui/listbox";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -35,9 +35,8 @@ import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/cl
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import { emptyLayout, widgetKeyOf, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type TableData, type WidgetFilter } from "@/lib/spec";
+import { emptyLayout, widgetKeyOf, type BoardView, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type TableData, type WidgetFilter } from "@/lib/spec";
 
-const monitorCategories = new Set<CrisisType>(["flood", "wildfire", "earthquake", "storm", "heatwave", "conflict"]);
 
 const MIN_INSTRUCTION = 3;
 const MAX_INSTRUCTION = 500;
@@ -91,7 +90,7 @@ export function PersonalBoard({
   workspaceNavigation?: ReactNode;
 }) {
   const router = useRouter();
-  const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
+  const { board, partial, spec, data, connected, updatedAt } = useBoard(initial, { live });
   const { layout, saving, change, replace, saveNow } = useLayout(board.id, initialView, localPreview);
   const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -119,10 +118,8 @@ export function PersonalBoard({
 
   const available = visibleWidgets(spec, data, isBuilding(board.status));
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
-  const crisisType = data?.header?.crisisType;
-  const finance = spec?.template === "finance";
-  const recommendMonitor = hasMap && !finance && !!crisisType && monitorCategories.has(crisisType);
-  const mapDesign = !finance && (current.design === "map-focus" || current.design === "map-overlay");
+  const mapDesign = board.presentation?.workspace
+    ?? (spec?.template !== "finance" && (current.design === "map-focus" || current.design === "map-overlay"));
   const workspace = hasMap && mapDesign && available.some((w) =>
     w.type === "map" && !current.hidden.includes(widgetKeyOf(w)),
   );
@@ -133,6 +130,12 @@ export function PersonalBoard({
     return table?.columns.some((column) => column.kind === "status");
   });
   const chartWidget = chartTables.find((widget) => widgetKeyOf(widget) === current.overviewChart?.widget);
+  const editAction = (
+    <Button size="xs" variant={editing ? "primary" : "outline"} className="shrink-0"
+      onClick={() => setEditing((value) => !value)}>
+      {editing ? "Done editing" : "Edit layout"}
+    </Button>
+  );
 
   async function sendEdit() {
     const text = instruction.trim();
@@ -255,48 +258,13 @@ export function PersonalBoard({
 
   const actions = (
     <>
+      {editAction}
       <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
         <PopoverTrigger render={<BoardHeaderButton icon="settings" aria-label="Board settings" title="Board settings" />} />
         <PopoverContent align="end" className="fd-board-settings">
           <div className="grid min-w-0 gap-3">
             <PopoverTitle>Board settings</PopoverTitle>
-            {(hasMap || finance) && (
-              <Listbox
-                aria-label="Dashboard preset"
-                activation="manual"
-                framed={false}
-                value={mapDesign && hasMap ? "map-overlay" : "standard"}
-                items={[
-                  { type: "group", label: finance ? "Finance" : "General", items: [{
-                    value: "standard",
-                    label: finance ? "Finance dashboard" : "Standard dashboard",
-                    description: finance ? "Market data and research in a grid" : "Widgets in a grid",
-                    meta: !recommendMonitor ? "Recommended" : undefined,
-                  }] },
-                  ...(hasMap && !finance ? [{
-                    type: "group" as const, label: "Natural hazards", items: [{
-                      value: "map-overlay",
-                      label: "Natural disaster monitor",
-                      description: "Map with a timeline and floating cards",
-                      meta: recommendMonitor ? "Recommended" : undefined,
-                    }],
-                  }] : []),
-                ]}
-                onKeyDown={(event) => { if (event.key === " ") event.preventDefault(); }}
-                onValueChange={(value) => {
-                  if (value !== "standard" && value !== "map-overlay") return;
-                  commit({
-                    ...current,
-                    design: value,
-                    hidden: value === "map-overlay"
-                      ? current.hidden.filter((key) => !available.some((widget) => widget.type === "map" && widgetKeyOf(widget) === key))
-                      : current.hidden,
-                  });
-                  setSettingsOpen(false);
-                }}
-              />
-            )}
-            {workspace && chartTables.length > 0 && (
+            {workspace && board.presentation?.cards === undefined && chartTables.length > 0 && (
               <fieldset className="min-w-0 border-t border-hairline pt-2">
                 <legend className="px-1 text-sm">Overview chart</legend>
                 <Select aria-label="Overview chart" size="sm" value={chartWidget ? widgetKeyOf(chartWidget) : "none"}
@@ -333,12 +301,6 @@ export function PersonalBoard({
                 </div>
               </fieldset>
             )}
-            <Button variant="ghost" size="sm" className="justify-start" onClick={() => {
-              setEditing(!editing);
-              setSettingsOpen(false);
-            }}>
-              {editing ? "Done editing" : "Edit layout"}
-            </Button>
           </div>
         </PopoverContent>
       </Popover>
@@ -457,6 +419,7 @@ export function PersonalBoard({
   return (
     <div className={workspace ? "fd-workspace-shell" : "flex flex-col gap-4 pb-40"}>
       <Board
+        boardId={live && !localPreview ? board.id : undefined}
         spec={spec}
         data={data}
         specVersion={board.specVersion}
@@ -469,7 +432,6 @@ export function PersonalBoard({
         stage={partial?.stage}
         connected={connected}
         lastPolledAt={board.lastPolledAt}
-        onRefresh={localPreview ? undefined : refresh}
         layout={current}
         version={board.version}
         animate
@@ -477,7 +439,11 @@ export function PersonalBoard({
         actions={actions}
         tools={tools}
         workspace={workspace}
-        cardsOnMap={workspace}
+        cardsOnMap={workspace && (board.presentation?.cardsOnMap ?? true)}
+        defaultTimelineOpen={board.presentation?.timelineOpen}
+        defaultEvidenceOpen={board.presentation?.evidenceOpen}
+        sidebarSettings={board.presentation?.sidebar}
+        configuredCards={board.presentation?.cards}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
         workspaceEditor={workspace && editing ? <>{!localPreview && editForm}{hiddenSections}</> : undefined}

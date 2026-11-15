@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
 import { boardBadge } from "@/components/board-grid";
+import { AdminLayouts } from "@/components/admin/admin-layouts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +41,7 @@ import {
   setTopicState,
 } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import type { BoardCard, TopicCandidateView, TopicRequestView } from "@/lib/spec";
+import type { AdminSettings, BoardCard, TopicCandidateView, TopicRequestView } from "@/lib/spec";
 
 const MIN_PROMPT = 8;
 const MAX_PROMPT = 1000;
@@ -99,11 +100,13 @@ export function AdminLogin() {
   );
 }
 
-/** The admin dashboard: discovery switch, topic registration, the topic list, discovery results and requests. */
-export function AdminDashboard({ initialDiscover, initialTopics }: { initialDiscover: boolean; initialTopics: BoardCard[] }) {
+type SwitchName = "discoverEnabled" | "distributeLive";
+
+/** The admin dashboard: discovery and sharing switches, topic registration, the topic list, discovery results and requests. */
+export function AdminDashboard({ initialSettings, initialTopics }: { initialSettings: AdminSettings; initialTopics: BoardCard[] }) {
   const router = useRouter();
-  const [discover, setDiscover] = useState(initialDiscover);
-  const [savingDiscover, setSavingDiscover] = useState(false);
+  const [settings, setSettings] = useState(initialSettings);
+  const [saving, setSaving] = useState<SwitchName | null>(null);
   const [topics, setTopics] = useState(initialTopics);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -123,19 +126,29 @@ export function AdminDashboard({ initialDiscover, initialTopics }: { initialDisc
     return () => clearInterval(t);
   }, [building, reload]);
 
-  async function toggleDiscover(on: boolean) {
-    const prev = discover;
-    setDiscover(on);
-    setSavingDiscover(true);
+  async function toggle(name: SwitchName, on: boolean) {
+    const prev = settings;
+    setSettings({ ...prev, [name]: on });
+    setSaving(name);
     try {
-      setDiscover((await setAdminSettings(on)).discoverEnabled);
+      setSettings(await setAdminSettings({ [name]: on }));
     } catch (e) {
-      setDiscover(prev);
+      setSettings(prev);
       toast.danger("Could not change the setting", { description: (e as Error).message });
     } finally {
-      setSavingDiscover(false);
+      setSaving(null);
     }
   }
+
+  const discover = settings.discoverEnabled;
+  const live = settings.distributeLive;
+  const shareNote = !settings.distributeReady
+    ? live
+      ? "On, but the engine has no X or Discord account connected (or DISTRIBUTE_ENABLED is off), so nothing goes out yet."
+      : "Off. The engine has no X or Discord account connected (or DISTRIBUTE_ENABLED is off)."
+    : live
+      ? "Faraday posts new topics and important changes to X and to the Discord channels that follow them."
+      : "Off: nothing is posted. Faraday only records what it would post.";
 
   async function signOut() {
     setSigningOut(true);
@@ -164,19 +177,30 @@ export function AdminDashboard({ initialDiscover, initialTopics }: { initialDisc
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Discovery" headingLevel={2}>
-          <Switch
-            label="Discover new topics automatically"
-            checked={discover}
-            disabled={savingDiscover}
-            onCheckedChange={(on) => void toggleDiscover(on)}
-            description={
-              discover
-                ? "Faraday scans the news every half hour and opens topics for crises it confirms."
-                : "Off: only the topics registered here are shown."
-            }
-          />
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card title="Discovery" headingLevel={2}>
+            <Switch
+              label="Discover new topics automatically"
+              checked={discover}
+              disabled={saving === "discoverEnabled"}
+              onCheckedChange={(on) => void toggle("discoverEnabled", on)}
+              description={
+                discover
+                  ? "Faraday scans the news every half hour and opens topics for crises it confirms."
+                  : "Off: only the topics registered here are shown."
+              }
+            />
+          </Card>
+          <Card title="Sharing" headingLevel={2}>
+            <Switch
+              label="Post to X and Discord"
+              checked={live}
+              disabled={saving === "distributeLive"}
+              onCheckedChange={(on) => void toggle("distributeLive", on)}
+              description={shareNote}
+            />
+          </Card>
+        </div>
         <RegisterTopic
           onCreated={(t) => {
             setTopics((prev) => [t, ...prev.filter((x) => x.id !== t.id)]);
@@ -189,11 +213,15 @@ export function AdminDashboard({ initialDiscover, initialTopics }: { initialDisc
         <Tabs defaultValue="topics" size="sm">
           <TabsList aria-label="Admin panels">
             <Tab value="topics">Topics</Tab>
+            <Tab value="layouts">Layouts</Tab>
             <Tab value="discovery">Discovery results</Tab>
             <Tab value="requests">Requests</Tab>
           </TabsList>
           <TabsPanel value="topics">
             <TopicList topics={topics} onChanged={reload} onRemoved={(id) => setTopics((prev) => prev.filter((t) => t.id !== id))} />
+          </TabsPanel>
+          <TabsPanel value="layouts">
+            <AdminLayouts />
           </TabsPanel>
           <TabsPanel value="discovery">
             <DiscoveryPanel />

@@ -8,58 +8,58 @@ import { Icon } from "@/components/ui/icon";
 import { useReorder } from "@/components/ui/reorder";
 import { cardBounds, WorkspaceResizeHandle, type CornerWidth, type useWorkspaceSizes } from "./workspace-resize";
 
-const cardLabels = { situation: "Situation", evidence: "Evidence" };
-type BoardCardName = keyof typeof cardLabels;
+export type WorkspaceCard = { id: `card:${string}`; label: string; content: ReactNode; open: boolean };
+type StackCard = Omit<WorkspaceCard, "id"> & { id: WorkspaceCard["id"] | "situation" | "evidence" };
 
 type BoardCardStackProps = {
   id: string;
-  situation: ReactNode;
-  evidence?: ReactNode;
-  open: Record<BoardCardName, boolean>;
-  onOpenChange: (name: BoardCardName, open: boolean) => void;
+  cards: StackCard[];
+  onOpenChange: (name: StackCard["id"], open: boolean) => void;
   resize: ReturnType<typeof useWorkspaceSizes>;
   detailsWidth?: CornerWidth;
   flowing?: boolean;
 };
 
-export function BoardCardStack({ id, situation, evidence, open, onOpenChange, resize, detailsWidth, flowing }: BoardCardStackProps) {
-  const [cardOrder, setCardOrder] = useState<BoardCardName[]>(["situation", "evidence"]);
-  const hasEvidence = evidence != null;
-  const visibleCards = hasEvidence ? cardOrder : cardOrder.filter((name) => name === "situation");
+export function BoardCardStack({ id, cards, onOpenChange, resize, detailsWidth, flowing }: BoardCardStackProps) {
+  const [order, setOrder] = useState<string[]>([]);
+  const byId = new Map<string, StackCard>(cards.map((card) => [card.id, card]));
+  const ids = [...order.filter((key) => byId.has(key)), ...cards.map((card) => card.id).filter((key) => !order.includes(key))];
   const reorder = useReorder({
-    ids: visibleCards,
-    onReorder: (ids) => setCardOrder(ids as BoardCardName[]),
-    disabled: !hasEvidence,
-    getLabel: (name) => cardLabels[name as BoardCardName],
+    ids,
+    onReorder: setOrder,
+    disabled: cards.length < 2,
+    getLabel: (name) => byId.get(name)?.label ?? name,
   });
 
   return (
     <div {...reorder.getContainerProps()} id={id} className="fd-workspace-card-stack">
-      {visibleCards.map((name) => {
-        const label = cardLabels[name];
+      {ids.map((key) => {
+        const { id: name, label, content, open } = byId.get(key)!;
         const cardId = `${id}-${name}`;
         const cardSize = resize(name);
         return (
           <Card key={name} {...reorder.getItemProps(name)} id={cardId} role="region" aria-label={label}
-            radius="lg" padding="none" bordered className="fd-workspace-detail-card" data-open={open[name] ? "" : undefined}
+            radius="lg" padding="none" bordered className="fd-workspace-detail-card" data-open={open ? "" : undefined}
             data-fixed-height={!flowing && cardSize.value ? "" : undefined}
             style={!flowing && cardSize.value ? { "--fd-workspace-card-height": `${cardSize.value}px` } as CSSProperties : undefined}>
-            <Collapsible open={open[name]} onOpenChange={(value) => onOpenChange(name, value)}
+            <Collapsible open={open} onOpenChange={(value) => onOpenChange(name, value)}
               keepMounted={name === "situation"} className="fd-workspace-card-fold">
               <div className="fd-workspace-card-header">
                 {/* The 24px grip sits 8px inside the card's 20px corners. */}
-                {hasEvidence && <Button {...reorder.getHandleProps(name)} variant="ghost" size="sm" radius={12}
+                {cards.length > 1 && <Button {...reorder.getHandleProps(name)} variant="ghost" size="sm" radius={12}
                   className="size-[var(--sw-space-6)] shrink-0 cursor-grab touch-none" iconOnly title={`Reorder ${label}`}
                   leading={<Icon name="grip" width={16} height={16} />} />}
                 <h3 className="min-w-0 flex-1 text-sm font-semibold">
-                  <CollapsibleTrigger className="mx-0 w-full justify-between px-1">{label}</CollapsibleTrigger>
+                  <CollapsibleTrigger className="fd-workspace-card-trigger mx-0 w-full justify-between px-1">
+                    <span className="fd-workspace-card-label">{label}</span>
+                  </CollapsibleTrigger>
                 </h3>
               </div>
               <CollapsiblePanel className="fd-workspace-card-body">
-                {name === "situation" ? situation : evidence}
+                {content}
               </CollapsiblePanel>
             </Collapsible>
-            {!flowing && open[name] && <WorkspaceResizeHandle {...cardSize} target={cardId} label={`Resize ${label} card`}
+            {!flowing && open && <WorkspaceResizeHandle {...cardSize} target={cardId} label={`Resize ${label} card`}
               axis="height" getBounds={cardBounds} cornerWidth={detailsWidth} />}
           </Card>
         );

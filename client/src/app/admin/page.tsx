@@ -14,5 +14,5 @@ export default async function AdminPage() {
   if (!(await getAdminSession(cookie))) return <AdminLogin />;
   const overview = await getAdminOverview(cookie);
   if (!overview) return <PageIntro eyebrow="/admin" title="Admin" lede="The engine did not answer. Try again in a moment." />;
-  return <AdminDashboard initialDiscover={overview.discoverEnabled} initialTopics={overview.topics} />;
+  return <AdminDashboard initialSettings={overview.settings} initialTopics={overview.topics} />;
 }

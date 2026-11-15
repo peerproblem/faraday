@@ -25,6 +25,10 @@ export function useBoard(initial: BoardView, opts?: { live?: boolean }) {
     if (!res.ok) return;
     const board = (await res.json()) as BoardView;
     const prev = stateRef.current;
+    const lastPolledAt = prev.board.lastPolledAt;
+    if (lastPolledAt != null && (board.lastPolledAt == null || lastPolledAt > board.lastPolledAt)) {
+      board.lastPolledAt = lastPolledAt;
+    }
     const next = { board, partial: board.status === "live" || board.status === "error" ? null : prev.partial };
     stateRef.current = next;
     setState(next);
@@ -35,7 +39,7 @@ export function useBoard(initial: BoardView, opts?: { live?: boolean }) {
     const es = new EventSource(api(`/api/boards/${initial.id}/stream`), { withCredentials: true });
     es.onopen = () => setConnected(true);
     es.onerror = () => setConnected(false);
-    es.onmessage = (e) => {
+    const onMessage = (e: MessageEvent<string>) => {
       let msg: StreamMsg;
       try {
         msg = JSON.parse(e.data) as StreamMsg;
@@ -61,6 +65,10 @@ export function useBoard(initial: BoardView, opts?: { live?: boolean }) {
         if (msg.event.kind === "change") toast("New development detected", { description: msg.event.message });
       }
     };
+    es.onmessage = onMessage;
+    es.addEventListener("polled", (e) => {
+      if (e instanceof MessageEvent) onMessage(e);
+    });
     return () => es.close();
   }, [initial.id, live, refetch]);
 

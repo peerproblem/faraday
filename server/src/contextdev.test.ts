@@ -2,7 +2,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { __setContextClientForTest, CassetteMissError, scrapeMarkdown, searchWeb } from "./contextdev";
+import { __setContextClientForTest, CassetteMissError, scrapeMarkdown, searchNews, searchWeb } from "./contextdev";
 
 const webResult = {
   results: [{ url: "https://www.gov.example/alert", title: "Alert", description: "desc", highlights: { code: "SUCCESS", highlights: ["Evacuate now"] } }],
@@ -40,6 +40,23 @@ describe("contextdev cassettes", () => {
     __setContextClientForTest(fakeClient());
     const docs = await searchWeb("q", "last_week", 3);
     expect(docs).toEqual([{ url: "https://www.gov.example/alert", title: "Alert", publisher: "gov.example", publishedAt: null, snippet: "Evacuate now", kind: "web", via: "contextdev" }]);
+  });
+
+  it("saves each news page before requesting the next cursor", async () => {
+    delete process.env.EVAL_RECORD;
+    delete process.env.EVAL_REPLAY;
+    const save = vi.fn();
+    const search = vi.fn()
+      .mockResolvedValueOnce({ data: [{ url: "https://a.example/" }], has_more: true, next_cursor: "next" })
+      .mockImplementationOnce(async (input: { cursor?: string }) => {
+        expect(input.cursor).toBe("next");
+        expect(save).toHaveBeenCalledWith([expect.objectContaining({ url: "https://a.example/" })], 0);
+        return { data: [{ url: "https://b.example/" }], has_more: false };
+      });
+    __setContextClientForTest({ news: { search } });
+    const results = await searchNews("storm", 0, 1, undefined, save);
+    expect(results.map((doc) => doc.url)).toEqual(["https://a.example/"]);
+    expect(save).toHaveBeenNthCalledWith(2, [expect.objectContaining({ url: "https://b.example/" })], 1);
   });
 
   it("records, then replays without the network", async () => {

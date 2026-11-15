@@ -38,7 +38,7 @@ export function SourcesWidget({ widget, allSources, wrapSourceTitles }: WidgetPr
   const active = outlet && outlets.some((o) => o.key === outlet) ? outlet : null;
   const matching = active ? allSources.filter((s) => brandOf(s).key === active) : allSources;
   const shown = matching.slice(0, limit);
-  const contextCount = wrapSourceTitles ? allSources.filter((source) => source.via === "contextdev").length : 0;
+  const contextCount = allSources.filter((source) => source.via === "contextdev").length;
   const breakdown = Object.entries(byType)
     .map(([k, n]) => `${n} ${k}`)
     .join(", ");
@@ -50,7 +50,7 @@ export function SourcesWidget({ widget, allSources, wrapSourceTitles }: WidgetPr
     <div className="flex flex-col gap-3">
       <Text size="sm" tone="subtle">
         {allSources.length} sources from the live web across {outlets.length} {outlets.length === 1 ? "outlet" : "outlets"}
-        {wrapSourceTitles ? ` · ${contextCount} via Context.dev` : ", read through Context.dev"}
+        {contextCount > 0 ? ` · ${contextCount} via Context.dev` : null}
         {breakdown ? ` (${breakdown})` : null}
       </Text>
       {outlets.length > 1 ? (
