@@ -58,6 +58,7 @@ export type BoardProps = {
   cardsOnMap?: boolean;
   defaultTimelineOpen?: boolean;
   defaultEvidenceOpen?: boolean;
+  incidentOverview?: { status: boolean; tally: boolean };
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
@@ -421,6 +422,10 @@ export function Board(props: BoardProps) {
                 </section>
               )}
               {summary}
+              {props.incidentOverview?.status && <IncidentReports kind="incident-status" hideEmpty
+                widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />}
+              {props.incidentOverview?.tally && <IncidentReports kind="official-tally" chart="auto" hideEmpty
+                widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />}
               {overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
               {props.wildfireOverview && releases.length > 0 && (
                 <details className="border-t border-hairline pt-3">

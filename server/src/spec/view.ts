@@ -1,4 +1,4 @@
-import type { BoardEvent, BoardStatus, BoardTier, Source, Visibility } from "./common";
+import type { BoardEvent, BoardStatus, BoardTier, Source, TopicCategory, Visibility } from "./common";
 import type { Plan } from "./plan";
 import type { BoardPresentation } from "./presentation";
 import type { BoardData, BoardSpecV2, HeaderData, WidgetData } from "./widgets";
@@ -35,6 +35,7 @@ export type BoardView = {
   language: string | null;
   origin: BoardOrigin;
   topicState: TopicState | null;
+  topicCategory?: string | null;
 };
 
 /** GET /api/boards, GET /api/topics */
@@ -47,6 +48,8 @@ export type BoardCard = {
   tier: BoardTier;
   updatedAt: number;
   crisisType: string | null;
+  topicCategory?: string | null;
+  topicCategoryOverride?: TopicCategory | null;
   severity: number | null;
   headline: string | null;
   accent: string | null;

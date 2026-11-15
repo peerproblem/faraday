@@ -61,6 +61,7 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfireOv
         mapRegions={board.presentation?.mapRegions}
         defaultTimelineOpen={board.presentation?.timelineOpen}
         defaultEvidenceOpen={board.presentation?.evidenceOpen}
+        incidentOverview={board.presentation?.incidentOverview}
         sidebarSettings={board.presentation?.sidebar}
         configuredCards={board.presentation?.cards}
         wildfireOverview={wildfireOverview}

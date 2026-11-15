@@ -11,13 +11,15 @@ import { getIncidentReports } from "./incident-reports-data";
 
 const count = new Intl.NumberFormat("en-GB");
 
-export function IncidentReports({ kind, chart = "none", ...props }: Omit<Parameters<typeof getIncidentReports>[0], "now"> & {
+export function IncidentReports({ kind, chart = "none", hideEmpty = false, ...props }: Omit<Parameters<typeof getIncidentReports>[0], "now"> & {
   kind: "incident-status" | "official-tally";
   chart?: "none" | "auto" | "donut" | "bars";
+  hideEmpty?: boolean;
 }) {
   const now = useCurrentTime();
   const id = useId();
   const { incidents, tallies } = getIncidentReports({ ...props, now });
+  if (hideEmpty && !(kind === "incident-status" ? incidents.length : tallies.length)) return null;
 
   return (
     kind === "incident-status" ? (

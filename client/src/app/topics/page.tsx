@@ -2,7 +2,7 @@ import { BoardGrid } from "@/components/board-grid";
 import { PageIntro } from "@/components/page-intro";
 import { Button } from "@/components/ui/button";
 import { listTopics } from "@/lib/engine";
-import { crisisTypes } from "@/lib/spec";
+import { isNaturalDisaster, parseTopicFilter } from "@/lib/spec";
 import { CategoryFilter } from "./category-filter";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function TopicsPage({ searchParams }: PageProps<"/topics">) {
   const sp = await searchParams;
   const past = sp.state === "archived";
-  const type = crisisTypes.find((category) => category === sp.type) ?? null;
+  const requestedType = parseTopicFilter(sp.type);
+  const type = isNaturalDisaster(requestedType) ? "natural-disasters" : requestedType;
   const topics = await listTopics({ state: past ? "archived" : "active", type, limit: 100 });
   // Active and Past are two pages, so they are links (sw3: page navigation uses links, not Tabs).
   const list = (label: string, on: boolean, href: string) => (
@@ -38,7 +39,7 @@ export default async function TopicsPage({ searchParams }: PageProps<"/topics">)
         <CategoryFilter active={type} past={past} />
         <BoardGrid
           boards={topics}
-          empty={past ? "No past topics" : type ? `No ${type} topics right now` : "No topics yet"}
+          empty={past ? "No past topics" : type === "natural-disasters" ? "No natural disaster topics right now" : type ? `No ${type} topics right now` : "No topics yet"}
           emptyDescription={past ? "Topics move here when nobody has followed them for a while." : "Faraday adds topics as crises are detected."}
         />
       </div>

@@ -1,10 +1,13 @@
 import { trustedFacts } from "../trust";
 import type { GraphFn, RunCtx } from "../../graph/runner";
 import { ensureBoardMonitors } from "../../monitors";
+import { getBoardLayout } from "../../repo/board-layouts";
 import { addMessage, listMessages, listSources, markMonitorsSynced, saveBoardVersion, savePlan, setSchedule } from "../../repo/boards";
 import { listFacts } from "../../repo/facts";
 import { enqueue } from "../../repo/jobs";
 import type { BoardSpecV2, Fact, Plan, StagedFact } from "../../spec";
+import { incidentReporting } from "../../spec";
+import { incidentReportQuery, withIncidentReporting } from "../incident-reporting";
 import { assemble, specFromPlan, type HeaderOverrides } from "../assemble";
 import { assess, type Assessment } from "../nodes/assess";
 import { checkCoverage, followUpQueries } from "../nodes/coverage";
@@ -151,9 +154,12 @@ export const buildGraph: GraphFn = async (ctx) => {
   await setBoardStatus(ctx, "planning", "hot");
   await ctx.event("stage", "Compiling the prompt into a plan");
   let t = Date.now();
-  const plan = await ctx.step("plan", { program }, (i, use, signal) => makePlan(i.program, use, signal), { timeoutMs: 45_000, retries: 1 });
-  await savePlan(ctx.boardId, plan);
-  const spec = specFromPlan(plan, board.spec);
+  const baseline = await ctx.step("plan", { program }, (i, use, signal) => makePlan(i.program, use, signal), { timeoutMs: 45_000, retries: 1 });
+  await savePlan(ctx.boardId, baseline);
+  const settings = (await getBoardLayout(board.id)).assignment?.settings ?? null;
+  const reporting = incidentReporting(settings, board.topicCategoryOverride ?? baseline.crisisType);
+  const { plan, spec } = withIncidentReporting(baseline, specFromPlan(baseline, board.spec), reporting);
+  const webQueries = reporting.status || reporting.tally ? [incidentReportQuery(plan, reporting.domains), ...plan.webQueries] : plan.webQueries;
   ctx.emit({
     type: "partial",
     stage: "plan",
@@ -168,7 +174,7 @@ export const buildGraph: GraphFn = async (ctx) => {
   // The country comes from the geocoder, never from a model. Without it local search is skipped.
   const placeName = plan.location?.name;
   const country = placeName && oxylabsEnabled() ? await placeCountry(placeName).catch(() => null) : null;
-  await collect(ctx, plan, spec, "r1", plan, hasFacts, {
+  await collect(ctx, plan, spec, "r1", { ...plan, webQueries }, hasFacts, {
     scrapes: LIMITS.maxScrapes(),
     extractCap: LIMITS.maxExtract(),
     partial: true,

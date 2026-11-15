@@ -38,8 +38,8 @@ import { recentPosts } from "../repo/distribution";
 import { listCandidates } from "../repo/candidates";
 import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
 import { discoverEnabled, distributeLive, setDiscoverEnabled, setDistributeLive } from "../repo/settings";
-import { listAdminTopics, setTopicState } from "../repo/topics";
-import { boardLayoutSchema, crisisTypes, resolveBoardPresentation, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
+import { listAdminTopics, setTopicCategory, setTopicState } from "../repo/topics";
+import { boardLayoutSchema, parseTopicFilter, resolveBoardPresentation, topicCategories, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
 import { ADMIN_COOKIE, ADMIN_SESSION_MS, adminCookie, checkAdminLogin, issueAdminToken, readCookie, verifyAdminToken } from "./admin-auth";
 import { errMessage, log } from "./log";
 import { createLimiter } from "./rate-limit";
@@ -149,7 +149,7 @@ export function createApp(opts: AppOptions = {}) {
     const stored = await getBoardView(id);
     if (!stored) return null;
     const { assignment } = await getBoardLayout(id);
-    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance");
+    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance", stored.topicCategory);
     // English only: non-English source titles and snippets never leave the server.
     const v: BoardView = { ...stored, presentation, sources: publicSources(stored.sources) };
     cache.set(id, v);
@@ -263,8 +263,9 @@ export function createApp(opts: AppOptions = {}) {
   app.get("/api/topics", async (c) => {
     const state = c.req.query("state") ?? "active";
     if (!topicStates.has(state)) return c.json({ error: "state must be active or archived" }, 400);
-    const type = c.req.query("type") || null;
-    if (type && !(crisisTypes as readonly string[]).includes(type)) return c.json({ error: "Unknown crisis type" }, 400);
+    const requestedType = c.req.query("type");
+    const type = parseTopicFilter(requestedType);
+    if (requestedType && !type) return c.json({ error: "Unknown topic category" }, 400);
     return c.json({ topics: await listTopics({ state: state as "active" | "archived", crisisType: type, limit: limitOf(c, 50) }) });
   });
 
@@ -527,6 +528,18 @@ export function createApp(opts: AppOptions = {}) {
     if (!result.ok) return c.json({ error: "Another admin saved this board layout while you were editing.", current: result.current }, 409);
     cache.invalidate(id);
     return c.json(result.value);
+  });
+
+  const topicCategoryBody = z.object({ category: z.enum(topicCategories).nullable() });
+  app.post("/api/admin/topics/:id/category", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = topicCategoryBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Choose a topic category or Automatic" }, 400);
+    const id = c.req.param("id");
+    if (!(await setTopicCategory(id, parsed.data.category))) return c.json({ error: "Topic not found" }, 404);
+    cache.invalidate(id);
+    return c.json({ ok: true });
   });
 
   const topicStateBody = z.object({ state: z.enum(["active", "archived"]) });

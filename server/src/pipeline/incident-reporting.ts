@@ -3,12 +3,13 @@ import { incidentStatusTable, incidentTallyTable, type BoardSpecV2, type Plan, t
 const tables: TableSpec[] = [
   {
     key: incidentStatusTable,
-    title: "Official incident status for this event. Use only the responsible authority's own report.",
+    title: "Official operational status for this event, including warnings, evacuation orders, closures and response operations. Use only the responsible authority's own report.",
     columns: [
       { key: "incident", label: "Incident name or stable official identifier", kind: "text" },
       { key: "incident-id", label: "Stable incident identifier if published", kind: "text" },
       { key: "region", label: "Reporting area including country", kind: "text" },
-      { key: "status", label: "Explicit response status: Open, In progress, Closed to traffic, Reopened or Resolved, as reported", kind: "status" },
+      { key: "status", label: "The explicit response status as reported, translated into English if needed", kind: "status" },
+      { key: "response-state", label: "Choose active for an action, restriction or warning still in force; inactive if lifted, expired, ended or resolved; omit if unclear", kind: "text" },
       { key: "status-as-of", label: "Explicit status observation time, ISO 8601 with timezone, omit if unknown", kind: "time" },
       { key: "valid-until", label: "Explicit expiry, ISO 8601 with timezone, omit if unknown", kind: "time" },
     ],
@@ -25,6 +26,12 @@ const tables: TableSpec[] = [
     ],
   },
 ];
+
+export function incidentReportQuery(plan: Plan, domains: string[]) {
+  const subject = plan.location && !plan.title.includes(plan.location.name) ? `${plan.title} ${plan.location.name}` : plan.title;
+  const sites = domains.map((domain) => `site:${domain}`).join(" OR ");
+  return `${subject} official warnings response operations incident totals${sites ? ` (${sites})` : ""}`;
+}
 
 export function withIncidentReporting(plan: Plan, spec: BoardSpecV2, reporting: { status: boolean; tally: boolean }): { plan: Plan; spec: BoardSpecV2 } {
   const selected = tables.filter((table) => table.key === incidentStatusTable ? reporting.status : reporting.tally);
