@@ -6,7 +6,7 @@ import type { BoardCard } from "./view";
 /** A widget's stable key (Widget.key / widgetKeyOf): "map", "table:road-closures". */
 export type WidgetKey = string;
 
-export const boardDesigns = ["standard", "map-focus"] as const;
+export const boardDesigns = ["standard", "map-focus", "map-overlay"] as const;
 export type BoardDesign = (typeof boardDesigns)[number];
 
 /** Display-only filters. A widget applies its filter when rendering; the board data never changes. */

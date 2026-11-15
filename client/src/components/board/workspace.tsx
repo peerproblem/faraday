@@ -12,6 +12,7 @@ import { timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceR
 type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
 type WorkspaceProps = {
   workspaceKey?: string;
+  cardsOnMap?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
   timeline?: ReactNode;
@@ -23,8 +24,9 @@ type WorkspaceProps = {
   editor?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
   const id = useId();
+  const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
   const resize = useWorkspaceSizes(workspaceKey, { timeline: legacy.sidebar?.width, details: legacy.inspector?.width });
   const timelineSize = resize("timeline");
@@ -42,8 +44,9 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
       if (!details || !board || !getComputedStyle(details).getPropertyValue("--fd-workspace-details-min-width")) return null;
 
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-      const min = 23 * rem;
-      const max = Math.max(min, Math.min(board.clientWidth * 0.54, 46 * rem));
+      const room = Math.min(board.clientWidth * (overlay ? 0.48 : 0.54), 46 * rem);
+      const min = overlay ? Math.min(23 * rem, room) : 23 * rem;
+      const max = Math.max(min, room);
       return { size: details.getBoundingClientRect().width, bounds: { min, max } };
     },
     onResize: detailsSize.onResize,
@@ -62,7 +65,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
     if (editing) {
       setOpen({ ...open, situation: true });
       setDetailsOpen(true);
-      if (map) setMobilePanel("details");
+      if (map && !overlay) setMobilePanel("details");
     }
   }
 
@@ -70,7 +73,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
   const situationTab = ((selection.tab === "layout" && editor) || (selection.tab === "data" && activeSection))
     ? selection.tab
     : "overview";
-  const figuresOpen = detailsOpen && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
+  const figuresOpen = (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
   const visibleEvidenceTab = evidenceTab === "changes" && changes ? "changes" : sources ? "sources" : "changes";
   const situation = (
     <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab, editing })} size="sm" className="fd-workspace-tabs">
@@ -106,9 +109,24 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
     </Tabs>
   );
 
+  const cards = (
+    <BoardCardStack
+      id={`${id}-detail-cards`}
+      situation={situation}
+      evidence={sources || changes ? evidence : undefined}
+      open={open}
+      onOpenChange={(name, value) => setOpen((current) => ({ ...current, [name]: value }))}
+      resize={resize}
+      detailsWidth={detailsWidth}
+    />
+  );
+  const detailsStyle = detailsSize.value
+    ? { "--fd-workspace-details-width": `${detailsSize.value}px` } as CSSProperties
+    : undefined;
+
   return (
     <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined}
-      data-mobile-panel={mobilePanel ?? undefined} onKeyDown={(event) => {
+      data-mobile-panel={overlay && mobilePanel === "details" ? undefined : mobilePanel ?? undefined} onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented) setMobilePanel(null);
       }}>
       {timeline && (
@@ -139,10 +157,15 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
 
       {map && <div className="fd-workspace-map" aria-label="Situation map" role="region">{map}
         {!figuresOpen && mapFigures}
+        {overlay && (
+          <div id={`${id}-details`} className="fd-workspace-map-cards" role="group" aria-label="Map cards" style={detailsStyle}>
+            {cards}
+          </div>
+        )}
       </div>}
 
-      <aside id={`${id}-details`} className="fd-workspace-details" aria-label="Board details" data-open={detailsOpen ? "" : undefined} data-wide={wide && !detailsSize.resizing ? "" : undefined}
-        style={detailsSize.value ? { "--fd-workspace-details-width": `${detailsSize.value}px` } as CSSProperties : undefined}>
+      {!overlay && <aside id={`${id}-details`} className="fd-workspace-details" aria-label="Board details" data-open={detailsOpen ? "" : undefined} data-wide={wide && !detailsSize.resizing ? "" : undefined}
+        style={detailsStyle}>
         <div className="fd-workspace-panel-header fd-workspace-details-row">
           <h2 className="text-sm font-semibold">Details</h2>
           {map && detailsOpen && (
@@ -164,16 +187,8 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
               onClick={() => setMobilePanel(mobilePanel === "details" ? null : "details")} />
           )}
         </div>
-        <BoardCardStack
-          id={`${id}-detail-cards`}
-          situation={situation}
-          evidence={sources || changes ? evidence : undefined}
-          open={open}
-          onOpenChange={(name, value) => setOpen((current) => ({ ...current, [name]: value }))}
-          resize={resize}
-          detailsWidth={detailsWidth}
-        />
-      </aside>
+        {cards}
+      </aside>}
     </section>
   );
 }

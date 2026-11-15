@@ -101,6 +101,33 @@ describe("personal dashboard", () => {
     expect(screen.getByText("5–8 of 24 rows")).toBeTruthy();
   });
 
+  test("recommends map cards without changing other views and saves the selection", async () => {
+    const user = userEvent.setup();
+    const b = board();
+    const path = `/api/me/views/${b.id}`;
+    const layout: PersonalLayout = { ...emptyLayout(b.version), design: "map-focus" };
+    fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
+    const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
+
+    await user.click(screen.getByRole("button", { name: "Board design" }));
+    expect(screen.getByText("Recommended for this category: Cards on map")).toBeTruthy();
+    expect(screen.getByRole("complementary", { name: "Board details" })).toBeTruthy();
+    expect(posts(path)).toHaveLength(0);
+
+    await user.click(screen.getByRole("radio", { name: "Cards on map" }));
+    await waitFor(() => expect(posts(path)).toHaveLength(1));
+    const save = JSON.parse(String(posts(path)[0][1]!.body));
+    expect(save.layout.design).toBe("map-overlay");
+    unmount();
+
+    render(<PersonalBoard initial={b} initialView={{ layout: save.layout, rev: 4 }} live={false} />);
+    const map = within(screen.getByRole("region", { name: "Situation map" }));
+    expect(map.getByRole("region", { name: "Situation" })).toBeTruthy();
+    expect(map.getByRole("region", { name: "Evidence" })).toBeTruthy();
+    expect(screen.queryByRole("complementary", { name: "Board details" })).toBeNull();
+    expect(posts(path)).toHaveLength(1);
+  });
+
   test("hiding a widget shows at once and saves 300 ms later with the revision it builds on", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fetchMock.mockImplementation(async (_u, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));

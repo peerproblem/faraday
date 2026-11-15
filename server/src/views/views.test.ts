@@ -134,13 +134,13 @@ const output = (over: Partial<LayoutEditOutput> = {}): LayoutEditOutput => ({
 describe("editLayout", () => {
   const input = { spec, plan, layout: emptyLayout(3), instruction: "Map first", baseVersion: 5 };
 
-  it("keeps the selected design when applying a prompted change", async () => {
+  it.each(["map-focus", "map-overlay"] as const)("keeps %s when applying a prompted change", async (design) => {
     const result = await editLayout(
-      { ...input, layout: { ...input.layout, design: "map-focus" } },
+      { ...input, layout: { ...input.layout, design } },
       AbortSignal.timeout(1000),
       async () => output({ hidden: ["feed"] }),
     );
-    expect(result.layout).toMatchObject({ design: "map-focus", hidden: ["feed"] });
+    expect(result.layout).toMatchObject({ design, hidden: ["feed"] });
   });
 
   it("turns the flat model output into a sanitized layout", async () => {

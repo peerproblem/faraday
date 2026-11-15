@@ -32,12 +32,14 @@ import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/cl
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import { emptyLayout, widgetKeyOf, type BoardDesign, type BoardView, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type WidgetFilter } from "@/lib/spec";
+import { emptyLayout, widgetKeyOf, type BoardDesign, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type WidgetFilter } from "@/lib/spec";
 
 const designOptions: { value: BoardDesign; label: string }[] = [
   { value: "standard", label: "Standard" },
   { value: "map-focus", label: "Map focus" },
+  { value: "map-overlay", label: "Cards on map" },
 ];
+const mapOverlayCategories = new Set<CrisisType>(["flood", "wildfire", "earthquake", "storm", "heatwave", "conflict"]);
 
 const MIN_INSTRUCTION = 3;
 const MAX_INSTRUCTION = 500;
@@ -115,7 +117,12 @@ export function PersonalBoard({
 
   const available = visibleWidgets(spec, data, isBuilding(board.status));
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
-  const workspace = hasMap && current.design === "map-focus" && available.some((w) =>
+  const crisisType = data?.header?.crisisType;
+  const recommendedDesign: BoardDesign = crisisType && mapOverlayCategories.has(crisisType)
+    ? "map-overlay"
+    : "standard";
+  const mapDesign = current.design === "map-focus" || current.design === "map-overlay";
+  const workspace = hasMap && mapDesign && available.some((w) =>
     w.type === "map" && !current.hidden.includes(widgetKeyOf(w)),
   );
   const hiddenWidgets = (spec?.widgets ?? []).filter((w) => current.hidden.includes(widgetKeyOf(w)));
@@ -247,16 +254,19 @@ export function PersonalBoard({
           <PopoverTitle>Board design</PopoverTitle>
           <SegmentedControl<BoardDesign>
             aria-label="Dashboard design"
-            value={workspace ? "map-focus" : "standard"}
+            value={workspace && current.design ? current.design : "standard"}
             options={designOptions}
             onValueChange={(design) => commit({
               ...current,
               design,
-              hidden: design === "map-focus"
+              hidden: design !== "standard"
                 ? current.hidden.filter((key) => !available.some((widget) => widget.type === "map" && widgetKeyOf(widget) === key))
                 : current.hidden,
             })}
           />
+          <Text size="sm" tone="muted">
+            Recommended for this category: {designOptions.find((option) => option.value === recommendedDesign)?.label}
+          </Text>
           {workspace && (
             <fieldset className="grid max-h-56 gap-2 overflow-auto border-t border-hairline pt-2">
               <legend className="px-1 text-sm">Visible sections</legend>
@@ -423,6 +433,7 @@ export function PersonalBoard({
         actions={workspace ? actions : standardActions}
         tools={tools}
         workspace={workspace}
+        cardsOnMap={workspace && current.design === "map-overlay"}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
         workspaceEditor={workspace && editing ? <>{editForm}{hiddenSections}</> : undefined}

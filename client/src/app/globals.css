@@ -370,6 +370,23 @@ body:has(.fd-workspace-shell) .fd-site-header {
   min-width: 0;
   min-height: 0;
 }
+.fd-workspace-map-cards {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  min-inline-size: 0;
+  inset-inline-end: var(--sw-space-3);
+  inset-block-end: var(--sw-space-8);
+  inline-size: min(26rem, calc(100% - 2 * var(--sw-space-3)));
+  block-size: min(55%, 26rem);
+  pointer-events: none;
+}
+.fd-workspace-map-cards > .fd-workspace-card-stack {
+  padding: 0;
+}
+.fd-workspace-map-cards .fd-workspace-detail-card {
+  pointer-events: auto;
+}
 .fd-workspace-timeline,
 .fd-workspace-details {
   min-width: 0;
@@ -650,6 +667,14 @@ body:has(.fd-workspace-shell) .fd-site-header {
     width: clamp(12rem, var(--fd-workspace-timeline-width, min(18%, 18rem)), min(26.25rem, 32%));
     flex: none;
     border-inline-end: 1px solid var(--sw-hairline);
+  }
+  .fd-workspace-map-cards {
+    --fd-workspace-details-min-width: 23rem;
+    inset-block-start: var(--sw-space-3);
+    inset-block-end: var(--sw-space-8);
+    inset-inline-end: var(--sw-space-16);
+    inline-size: clamp(min(var(--fd-workspace-details-min-width), 48%), var(--fd-workspace-details-width, 25rem), min(46rem, 48%));
+    block-size: auto;
   }
   .fd-workspace-resize--width {
     display: grid;

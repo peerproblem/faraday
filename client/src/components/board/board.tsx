@@ -57,6 +57,7 @@ export type BoardProps = {
   /** Edit-mode controls for one widget. */
   tools?: (w: LaidOutWidget) => ReactNode;
   workspace?: boolean;
+  cardsOnMap?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
   workspaceEditor?: ReactNode;
@@ -260,7 +261,7 @@ export function Board(props: BoardProps) {
       <OfficialReleasesContext.Provider value={releases}>
         <div className="@container fd-workspace-board">
           {boardHeader}
-          <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey}
+          <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap}
             map={map ? <>
               <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
               {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}

@@ -33,7 +33,7 @@ export default async function FixturePage({ params, searchParams }: PageProps<"/
             rev: 1,
             layout: {
               ...emptyLayout(fx.board.version),
-              design: design === "standard" ? "standard" : "map-focus",
+              design: design === "standard" || design === "map-overlay" ? design : "map-focus",
               pinned: fx.board.spec?.widgets.some((w) => w.type === "map") ? ["map"] : [],
               hidden: ["feed"],
               size: fx.board.spec?.widgets[0] ? { [widgetKeyOf(fx.board.spec.widgets[0])]: "half" } : {},
