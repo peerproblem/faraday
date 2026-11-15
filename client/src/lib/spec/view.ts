@@ -79,7 +79,8 @@ export type RunView = {
 
 /** Server-Sent Events on GET /api/boards/:id/stream. The SSE `data:` line is JSON of one of these. */
 export type StreamMsg =
-  | { type: "hello"; version: number }
+  | { type: "hello"; version: number; lastPolledAt?: number | null }
+  | { type: "polled"; lastPolledAt: number }
   | { type: "status"; status: BoardStatus; tier: BoardTier }
   | { type: "spec"; version: number; spec: BoardSpecV2 }
   | { type: "data"; version: number; header?: HeaderData; widgets: Record<string, WidgetData>; hidden?: string[] }

@@ -8,6 +8,7 @@ import {
   getSourceTexts,
   listSources,
   markExtracted,
+  markPolled,
   refreshSources,
   setSourceLanguage,
   setSourceTriage,
@@ -50,6 +51,12 @@ export async function loadBoard(ctx: RunCtx): Promise<BoardRow> {
 export async function setBoardStatus(ctx: RunCtx, status: BoardStatus, tier: BoardTier) {
   await setStatus(ctx.boardId, status);
   ctx.emit({ type: "status", status, tier });
+}
+
+export async function recordBoardCheck(ctx: RunCtx) {
+  const lastPolledAt = Date.now();
+  await markPolled(ctx.boardId, lastPolledAt);
+  ctx.emit({ type: "polled", lastPolledAt });
 }
 
 export async function ingest(ctx: RunCtx, docs: FoundDoc[]): Promise<Source[]> {

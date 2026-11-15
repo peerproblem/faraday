@@ -378,7 +378,9 @@ export function createApp(opts: AppOptions = {}) {
         if (msg.type === "event" && msg.event.id <= replayedUpTo) return;
         const id = msg.type === "event" ? String(msg.event.id) : undefined;
         const out: StreamMsg = msg.type === "sources" ? { ...msg, added: publicSources(msg.added) } : msg;
-        chain = chain.then(() => stream.writeSSE({ data: JSON.stringify(out), id })).catch(() => {});
+        // A named event lets tabs running an older client ignore poll metadata.
+        const event = msg.type === "polled" ? "polled" : undefined;
+        chain = chain.then(() => stream.writeSSE({ data: JSON.stringify(out), id, event })).catch(() => {});
       };
       off = subscribe(id, (msg) => (replaying ? queued.push(msg) : write(msg)));
       if (stream.aborted) cleanup();
@@ -391,7 +393,7 @@ export function createApp(opts: AppOptions = {}) {
       };
       touch();
 
-      write({ type: "hello", version: row.version });
+      write({ type: "hello", version: row.version, lastPolledAt: row.lastPolledAt });
       if (Number.isFinite(lastEventId) && lastEventId > 0) {
         try {
           const missed = (await listEvents(id, { afterId: lastEventId, limit: 200 })).sort((a, b) => a.id - b.id);

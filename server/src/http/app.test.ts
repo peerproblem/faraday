@@ -761,12 +761,13 @@ describe("SSE stream", () => {
 
   it("sends hello, replays events after Last-Event-ID with ids, then live messages", async () => {
     const app = createApp({ pingMs: 60_000 });
-    boards.getBoard.mockResolvedValue(row());
+    boards.getBoard.mockResolvedValue({ ...row(), lastPolledAt: 1000 });
     boards.listEvents.mockResolvedValue([ev(12), ev(11)]);
     const res = await app.request("/api/boards/b1/stream", { headers: { "Last-Event-ID": "10" } });
     expect(res.status).toBe(200);
     setTimeout(() => {
       publish("b1", { type: "event", event: ev(12) });
+      publish("b1", { type: "polled", lastPolledAt: 2000 });
       publish("b1", { type: "event", event: ev(13) });
     }, 50);
     const text = await readUntil(res, (t) => t.includes('"e13"'));
@@ -774,9 +775,11 @@ describe("SSE stream", () => {
     const frames = text.split("\n\n").filter((f) => f.includes("data:"));
     const parsed = frames.map((f) => ({
       id: /^id: ?(.*)$/m.exec(f)?.[1] ?? null,
+      event: /^event: ?(.*)$/m.exec(f)?.[1] ?? null,
       msg: JSON.parse(/^data: ?(.*)$/m.exec(f)![1]) as { type: string; version?: number; event?: BoardEvent },
     }));
-    expect(parsed[0].msg).toEqual({ type: "hello", version: 3 });
+    expect(parsed[0].msg).toEqual({ type: "hello", version: 3, lastPolledAt: 1000 });
+    expect(parsed.find((frame) => frame.event === "polled")?.msg).toEqual({ type: "polled", lastPolledAt: 2000 });
     const events = parsed.filter((p) => p.msg.type === "event");
     // 11 and 12 replayed in order, the live duplicate of 12 is skipped, 13 arrives live.
     expect(events.map((e) => [e.id, e.msg.event!.message])).toEqual([

@@ -13,7 +13,7 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 };
 document.head.append(Object.assign(document.createElement("style"), { textContent: "[popover] { display: block !important }" }));
-class FakeEventSource {
+class FakeEventSource extends EventTarget {
   onopen: (() => void) | null = null;
   onerror: (() => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;

@@ -227,13 +227,15 @@ beforeEach(() => {
 describe("updateGraph", () => {
   it("makes no model calls when nothing new arrived", async () => {
     vi.mocked(boards.addSources).mockResolvedValue([]);
-    const { ctx, steps } = fakeCtx("poll", { reason: "schedule" });
+    const { ctx, steps, emitted } = fakeCtx("poll", { reason: "schedule" });
     await updateGraph(ctx);
     expect(steps).toEqual(["collect"]);
     expect(decide).not.toHaveBeenCalled();
     expect(ai.generateText).not.toHaveBeenCalled();
     expect(ai.streamText).not.toHaveBeenCalled();
-    expect(boards.markPolled).toHaveBeenCalledWith("b1");
+    const lastPolledAt = vi.mocked(boards.markPolled).mock.calls[0]?.[1];
+    expect(lastPolledAt).toEqual(expect.any(Number));
+    expect(emitted).toContainEqual({ type: "polled", lastPolledAt });
     expect(boards.saveBoardVersion).not.toHaveBeenCalled();
   });
 
@@ -270,6 +272,9 @@ describe("updateGraph", () => {
     expect(data).toMatchObject({ type: "data", version: 7, widgets: { w2: { items: [] } } });
     expect(Object.keys((data as { widgets: object }).widgets)).toEqual(["w2"]);
     expect(boards.markChanged).toHaveBeenCalled();
+    expect(emitted).toContainEqual({
+      type: "polled", lastPolledAt: vi.mocked(boards.markPolled).mock.calls[0]?.[1],
+    });
     const update = emitted.find((m) => m.type === "event" && m.event.kind === "update");
     expect(update).toBeTruthy();
   });
@@ -327,7 +332,7 @@ describe("updateGraph", () => {
     await updateGraph(ctx);
     expect(steps).toEqual(["collect"]);
     expect(emitted.some((m) => m.type === "event")).toBe(false);
-    expect(boards.markPolled).toHaveBeenCalledWith("b1");
+    expect(boards.markPolled).toHaveBeenCalledWith("b1", expect.any(Number));
   });
 
   it("acknowledges collected changes when nothing new came of them", async () => {
