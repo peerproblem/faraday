@@ -66,7 +66,7 @@ export function CoverageFeed({ sources, title }: { sources: Source[]; title: str
         {shown.map((s) => <Quote key={s.id} source={s} />)}
       </ul>
       <div className="fd-fin__feed-foot">
-        <span className="fd-fin-kicker" style={{ textTransform: "none", letterSpacing: 0 }}>Showing {shown.length} of {list.length}</span>
+        <span className="fd-fin-note">Showing {shown.length} of {list.length}</span>
         {shown.length < list.length ? (
           <Button variant="outline" size="sm" onClick={() => setCount(next)}>Show {more} more</Button>
         ) : null}
