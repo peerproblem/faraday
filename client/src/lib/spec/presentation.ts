@@ -6,7 +6,8 @@ const cardContentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("summary") }),
   z.object({ kind: z.literal("widget"), type: z.enum(widgetTypes), key: z.string().min(1).max(256).optional() }),
   z.object({ kind: z.literal("incident-status") }),
-  z.object({ kind: z.literal("official-tally"), chart: z.enum(["none", "donut", "bars"]) }),
+  z.object({ kind: z.literal("automatic-chart") }),
+  z.object({ kind: z.literal("official-tally"), chart: z.enum(["none", "auto", "donut", "bars"]) }),
   z.object({ kind: z.literal("status-chart"), chart: z.enum(["donut", "bars"]), key: z.string().min(1).max(256).optional() }),
 ]);
 

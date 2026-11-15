@@ -30,6 +30,7 @@ import { ContextEvidence } from "./context-evidence";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
+import { automaticChartEntry } from "./automatic-chart";
 import { IncidentReports } from "./incident-reports";
 import { RegionSwitch, RegionInset } from "./map-regions";
 import { MapWidget } from "@/components/widgets/map";
@@ -258,6 +259,7 @@ export function Board(props: BoardProps) {
   );
 
   function cardEntry(content: BoardCardContent) {
+    if (content.kind === "automatic-chart") return automaticChartEntry(widgets, data);
     if (content.kind !== "widget" && content.kind !== "status-chart") return;
     const type = content.kind === "widget" ? content.type : "table";
     return widgets.find((entry) => {
@@ -276,7 +278,13 @@ export function Board(props: BoardProps) {
           widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />,
       ];
       const entry = cardEntry(content);
+      if (!entry && content.kind === "automatic-chart") {
+        return [<Text size="sm" tone="muted">Waiting for dated observations or reported statuses.</Text>];
+      }
       if (!entry || (props.workspace && entry === map)) return [];
+      if (content.kind === "automatic-chart" && entry.widget.type === "table") {
+        return [<StatusBreakdown entry={entry} data={data} chart="auto" />];
+      }
       return [content.kind === "status-chart"
         ? <StatusBreakdown entry={entry} data={data} chart={content.chart} fallback={renderWorkspaceWidget(entry)} />
         : renderWorkspaceWidget(entry)];
