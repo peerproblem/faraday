@@ -102,7 +102,7 @@ export function FinanceBoard({ board, spec, data, connected, onRefresh, actions,
           {header?.headline ? (
             <p className="fd-fin__dek">{header.headline.text} <SourceChips ids={header.headline.sources} sources={byId} /></p>
           ) : header?.subtitle ? <p className="fd-fin__dek">{header.subtitle}</p> : null}
-          {header?.headline && header.subtitle ? <p className="fd-fin-kicker" style={{ marginTop: 12, textTransform: "none", letterSpacing: 0 }}>{header.subtitle}</p> : null}
+          {header?.headline && header.subtitle ? <p className="fd-fin-note" style={{ marginTop: 16 }}>{header.subtitle}</p> : null}
           {alerts.map((a) => (
             <div key={a.id} className="fd-fin__alert" role="note">
               <Badge variant={a.level === "warning" ? "warning" : "neutral"}>{a.level}</Badge>
@@ -156,7 +156,7 @@ export function FinanceBoard({ board, spec, data, connected, onRefresh, actions,
           <section className="fd-fin__panel fd-fin__panel--main" aria-labelledby="fd-fin-rank-h">
             <div className="fd-fin__head">
               <div><div className="fd-fin-kicker">Companies</div><h2 id="fd-fin-rank-h" className="fd-fin__h2">{rank.widget.title}</h2></div>
-              <span className="fd-fin-kicker" style={{ textTransform: "none", letterSpacing: 0 }}>Height = {rank.value.label}, as reported. Hover a company for details.</span>
+              <span className="fd-fin-note">Height = {rank.value.label}, as reported. Hover a company for details.</span>
             </div>
             <DropChart ranking={rank} sources={byId} />
           </section>
