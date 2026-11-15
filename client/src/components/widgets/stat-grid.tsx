@@ -1,7 +1,7 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { TrendChart } from "@/components/ui/charts";
 import { Stat } from "@/components/ui/stat";
 import { Text } from "@/components/ui/typography";
@@ -35,12 +35,12 @@ export function getStatItems(data: StatGridData | undefined, metrics: string[] |
 
 export function MapFigureCards({ items }: { items: StatItem[] }) {
   return (
-    <ul className="fd-map-focus-figures" aria-label="Map figures">
+    <ul className="fd-workspace-map-figures" aria-label="Map figures">
       {items.map((item) => {
         const tone = statTone[item.tone];
         return (
           <li key={`${item.key}:${item.label}`}>
-            <Card padding="none" radius="md" className="fd-map-focus-figure">
+            <Card padding="none" radius="md" className="fd-map-figure" style={{ padding: "var(--sw-space-3)" }}>
               <Text as="span" size="sm" tone="muted">{item.label}</Text>
               <Text as="span" size="lg" className="font-semibold tabular-nums"
                 style={tone && tone !== "neutral" ? { color: `var(--sw-${tone})` } : undefined}>
@@ -54,7 +54,7 @@ export function MapFigureCards({ items }: { items: StatItem[] }) {
   );
 }
 
-export function StatGridWidget({ data, sources, tier, building, filter }: WidgetProps<"stat-grid">) {
+export function StatGridWidget({ data, sources, tier, building, filter, mapFocus }: WidgetProps<"stat-grid">) {
   const items = getStatItems(data, filter?.metrics);
   if (!items.length) return <Empty building={building} title="No figures yet" description="The sources have not given any figures." />;
   return (
@@ -75,7 +75,7 @@ export function StatGridWidget({ data, sources, tier, building, filter }: Widget
                 // The dashboard Stat shows no warning badge, so a disruption is named in its caption.
                 caption={k.tone === "warning" ? "Disruption" : undefined}
               >
-                {history.length > 1 ? <TrendChart spark values={history.map((p) => p.v)} aria-label={trendSummary(k.label, k.history ?? [], k.unit)} /> : null}
+                {!mapFocus && history.length > 1 ? <TrendChart spark values={history.map((p) => p.v)} aria-label={trendSummary(k.label, k.history ?? [], k.unit)} /> : null}
               </Stat>
               {k.conflict?.length ? (
                 <Text size="sm" tone="subtle">

@@ -63,9 +63,12 @@ describe("personal dashboard", () => {
 
     render(<PersonalBoard initial={b} initialView={{ layout: save.layout, rev: 4 }} live={false} />);
     expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Toggle timeline" }).getAttribute("aria-expanded")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "Toggle timeline" }));
-    expect(screen.getByRole("button", { name: "Toggle timeline" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "Collapse timeline" }).getAttribute("aria-expanded")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Collapse timeline" }));
+    expect(screen.getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
+    const figures = within(screen.getByRole("list", { name: "Map figures" }));
+    expect(figures.getAllByRole("listitem")).toHaveLength(2);
+    expect(figures.getByText("41,000")).toBeTruthy();
     expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1);
     expect(screen.queryByRole("tabpanel", { name: "Sources" })).toBeNull();
 

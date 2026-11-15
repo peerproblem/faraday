@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { BoardHeaderButton } from "@/components/board/header-button";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Board, isBuilding, visibleWidgets } from "@/components/board/board";
+import { BoardHeaderButton } from "@/components/board/header-button";
 import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
 import {
   AlertDialog,
@@ -19,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { MenuItem } from "@/components/ui/menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -28,7 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { Toggle } from "@/components/ui/toggle";
-import { Text } from "@/components/ui/typography";
+import { Heading, Text } from "@/components/ui/typography";
 import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
@@ -81,11 +80,15 @@ export function PersonalBoard({
   initial,
   initialView,
   live = true,
+  workspace: preferWorkspace = false,
+  workspaceNavigation,
 }: {
   initial: BoardView;
   initialView: PersonalViewState | null;
   /** False renders a saved board without the stream (dev fixtures). */
   live?: boolean;
+  workspace?: boolean;
+  workspaceNavigation?: ReactNode;
 }) {
   const router = useRouter();
   const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
@@ -114,7 +117,7 @@ export function PersonalBoard({
 
   const available = visibleWidgets(spec, data, isBuilding(board.status));
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
-  const mapFocus = hasMap && current.design === "map-focus" && available.some((w) =>
+  const workspace = hasMap && (current.design ?? (preferWorkspace ? "map-focus" : "standard")) === "map-focus" && available.some((w) =>
     w.type === "map" && !current.hidden.includes(widgetKeyOf(w)),
   );
   const hiddenWidgets = (spec?.widgets ?? []).filter((w) => current.hidden.includes(widgetKeyOf(w)));
@@ -174,18 +177,22 @@ export function PersonalBoard({
   const tools = (lw: LaidOutWidget) => {
     if (!editing || !full) return null;
     const k = lw.key;
-    const order = full.widgets.filter((w) => !w.pinned).map((w) => w.key);
+    const featured = (type: LaidOutWidget["widget"]["type"]) =>
+      workspace && (type === "map" || type === "changelog" || type === "sources" || type === "timeline");
+    const reorderable = { ...full, widgets: full.widgets.filter(({ widget }) => !featured(widget.type)) };
+    const order = reorderable.widgets.filter((w) => !w.pinned).map((w) => w.key);
     const i = order.indexOf(k);
     const t = lw.widget.title;
     return (
       <>
         <FilterControl lw={lw} onChange={(f) => setFilter(k, f)} />
+        {!featured(lw.widget.type) ? <>
         <Button
           variant="ghost"
           size="sm"
           aria-label={`Move ${t} up`}
           disabled={lw.pinned || i <= 0}
-          onClick={() => commit({ ...current, order: moveKey(full, k, -1) })}
+          onClick={() => commit({ ...current, order: moveKey(reorderable, k, -1) })}
         >
           <Icon name="chevron-up" width={16} height={16} />
         </Button>
@@ -194,7 +201,7 @@ export function PersonalBoard({
           size="sm"
           aria-label={`Move ${t} down`}
           disabled={lw.pinned || i < 0 || i >= order.length - 1}
-          onClick={() => commit({ ...current, order: moveKey(full, k, 1) })}
+          onClick={() => commit({ ...current, order: moveKey(reorderable, k, 1) })}
         >
           <Icon name="chevron-down" width={16} height={16} />
         </Button>
@@ -205,6 +212,7 @@ export function PersonalBoard({
           pressed={lw.pinned}
           onPressedChange={(on) => commit({ ...current, pinned: on ? [...current.pinned.filter((x) => x !== k), k] : current.pinned.filter((x) => x !== k) })}
         />
+        {!workspace ? (
         <Button
           variant="ghost"
           size="sm"
@@ -213,6 +221,8 @@ export function PersonalBoard({
         >
           <Icon name="expand" width={16} height={16} />
         </Button>
+        ) : null}
+        </> : null}
         <Button
           variant="ghost"
           size="sm"
@@ -233,13 +243,13 @@ export function PersonalBoard({
 
   const designControl = hasMap && (
     <Popover>
-      <PopoverTrigger render={<BoardHeaderButton icon="settings" aria-label="Board design" title="Board design" />} />
+      <PopoverTrigger render={<BoardHeaderButton icon="layers" aria-label="Board design" title="Board design" />} />
       <PopoverContent align="end">
         <div className="grid w-64 max-w-full gap-3">
           <PopoverTitle>Board design</PopoverTitle>
           <SegmentedControl<BoardDesign>
             aria-label="Dashboard design"
-            value={mapFocus ? "map-focus" : "standard"}
+            value={workspace ? "map-focus" : "standard"}
             options={designOptions}
             onValueChange={(design) => commit({
               ...current,
@@ -249,7 +259,7 @@ export function PersonalBoard({
                 : current.hidden,
             })}
           />
-          {mapFocus && (
+          {workspace && (
             <fieldset className="grid max-h-56 gap-2 overflow-auto border-t border-hairline pt-2">
               <legend className="px-1 text-sm">Visible sections</legend>
               {available.filter((widget) => widget.type !== "map").map((widget) => {
@@ -272,7 +282,7 @@ export function PersonalBoard({
     </Popover>
   );
 
-  const actions = (
+  const standardActions = (
     <>
       {designControl}
       <Toggle variant="outline" size="sm" pressed={editing} onPressedChange={setEditing}>
@@ -293,89 +303,74 @@ export function PersonalBoard({
     </>
   );
 
-  return (
-    <div className={mapFocus ? "fd-map-focus-personal" : "flex flex-col gap-4 pb-40"}>
-      <Board
-        spec={spec}
-        data={data}
-        specVersion={board.specVersion}
-        title={board.title}
-        prompt={board.prompt}
-        sources={board.sources}
-        events={board.events}
-        status={board.status}
-        tier={board.tier}
-        stage={partial?.stage}
-        connected={connected}
-        lastPolledAt={board.lastPolledAt}
-        onRefresh={refresh}
-        layout={current}
-        version={board.version}
-        animate
-        updatedAt={updatedAt}
-        actions={actions}
-        mapFocus={mapFocus ? {
-          boardId: board.id,
-          designControl,
-          menu: <>
-            <MenuItem disabled={!!busy} onSelect={() => void undo()}>Undo dashboard change</MenuItem>
-            <MenuItem onSelect={() => router.push(boardUrl(board.slug))}>Open shared board</MenuItem>
-          </>,
-        } : undefined}
-        tools={tools}
-      />
+  const actions = (
+    <>
+      {designControl}
+      <BoardHeaderButton icon="settings" aria-label="Edit layout" aria-pressed={editing} onClick={() => setEditing((open) => !open)} />
+      <Popover>
+        <PopoverTrigger render={<BoardHeaderButton icon="more" aria-label="Board actions" />} />
+        <PopoverContent align="end" aria-label="Board actions" className="grid gap-1">
+          <Button variant="ghost" size="sm" loading={busy === "undo"} onClick={() => void undo()}>Undo</Button>
+          <Button variant="ghost" size="sm" onClick={() => commit(emptyLayout(board.version))}>Reset to baseline</Button>
+          <Button variant="ghost" size="sm" href={boardUrl(board.slug)}>Open the shared board</Button>
+          <Text as="span" size="sm" tone="muted" role="status">{saving ? "Saving…" : layout ? "Your layout" : "Shared layout"}</Text>
+        </PopoverContent>
+      </Popover>
+    </>
+  );
 
-      {editing && !mapFocus ? (
-        <Card title="Hidden sections" count={hiddenWidgets.length} headingLevel={2}>
-          <div className="flex flex-col gap-3">
-            {hiddenWidgets.length ? (
-              <ul className="flex flex-wrap gap-2">
-                {hiddenWidgets.map((w) => {
-                  const k = widgetKeyOf(w);
-                  return (
-                    <li key={k}>
-                      <Button variant="outline" size="sm" onClick={() => commit({ ...current, hidden: current.hidden.filter((x) => x !== k) })}>
-                        Show {w.title}
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <EmptyState headingLevel={3} title="Nothing is hidden" description="Hide a section with its eye button while you edit." />
-            )}
-            <div>
-              <AlertDialog>
-                <AlertDialogTrigger variant="danger" size="sm" loading={busy === "remove"} data-sw-confirm="">
-                  Remove from my dashboards
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Remove this dashboard?</AlertDialogTitle>
-                    <AlertDialogDescription>Your layout, filters and pins for this topic are deleted. The shared board stays.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep it</AlertDialogCancel>
-                    <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => remove()}>
-                      Remove
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+  const hiddenSections = (
+    <Card padding="md" className="gap-3">
+          <Heading as="h2" size="sm">
+            Hidden sections
+          </Heading>
+          {hiddenWidgets.length ? (
+            <ul className="flex flex-wrap gap-2">
+              {hiddenWidgets.map((w) => {
+                const k = widgetKeyOf(w);
+                return (
+                  <li key={k}>
+                    <Button variant="outline" size="sm" onClick={() => commit({ ...current, hidden: current.hidden.filter((x) => x !== k) })}>
+                      Show {w.title}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState headingLevel={3} title="Nothing is hidden" description="Hide a section with its eye button while you edit." />
+          )}
+          <div>
+            <AlertDialog>
+              <AlertDialogTrigger variant="danger" size="sm" loading={busy === "remove"} data-sw-confirm="">
+                Remove from my dashboards
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove this dashboard?</AlertDialogTitle>
+                  <AlertDialogDescription>Your layout, filters and pins for this topic are deleted. The shared board stays.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep it</AlertDialogCancel>
+                  <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => remove()}>
+                    Remove
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </Card>
-      ) : null}
-
-      {!mapFocus && <form
+  );
+  const editForm = (
+    <form
         aria-label="Change your dashboard"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-canvas/90 backdrop-blur-md"
+        className={workspace ? "flex flex-col gap-2" : "fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-canvas/90 backdrop-blur-md"}
         onSubmit={(e) => {
           e.preventDefault();
           void sendEdit();
         }}
       >
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3">
+        <div className={workspace ? "flex min-w-0 flex-col gap-2" : "mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3"}>
           {reply ? (
             <Text size="sm" tone="subtle" role="status">
               {reply.text}
@@ -404,7 +399,39 @@ export function PersonalBoard({
             </Button>
           </div>
         </div>
-      </form>}
+      </form>
+  );
+
+  return (
+    <div className={workspace ? "fd-workspace-shell" : "flex flex-col gap-4 pb-40"}>
+      <Board
+        spec={spec}
+        data={data}
+        specVersion={board.specVersion}
+        title={board.title}
+        prompt={board.prompt}
+        sources={board.sources}
+        events={board.events}
+        status={board.status}
+        tier={board.tier}
+        stage={partial?.stage}
+        connected={connected}
+        lastPolledAt={board.lastPolledAt}
+        onRefresh={refresh}
+        layout={current}
+        version={board.version}
+        animate
+        updatedAt={updatedAt}
+        actions={workspace ? actions : standardActions}
+        tools={tools}
+        workspace={workspace}
+        workspaceNavigation={workspaceNavigation}
+        workspaceKey={`personal:${board.id}`}
+        workspaceEditor={workspace && editing ? <>{editForm}{hiddenSections}</> : undefined}
+      />
+
+      {!workspace && editing ? hiddenSections : null}
+      {!workspace ? editForm : null}
       <BoardToasts />
     </div>
   );

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { PointMapInstance } from "@/components/ui/point-map";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Caption, Text } from "@/components/ui/typography";
@@ -17,7 +18,7 @@ const PointMap = dynamic(() => import("@/components/ui/point-map"), {
   loading: () => <Skeleton height={340} radius="lg" />,
 });
 
-export function MapWidget({ data, sources, tier, building, filter, mapFocus }: WidgetProps<"map">) {
+export function MapWidget({ data, sources, tier, building, filter, fillMap }: WidgetProps<"map">) {
   const mapRef = useRef<PointMapInstance | null>(null);
   const [placesOpen, setPlacesOpen] = useState(false);
   const kinds = filter?.pointKinds?.length ? new Set(filter.pointKinds) : null;
@@ -35,16 +36,16 @@ export function MapWidget({ data, sources, tier, building, filter, mapFocus }: W
   const center = c && Number.isFinite(c.lat) && Number.isFinite(c.lon) && Number.isFinite(c.zoom) ? c : null;
   if (!points.length && !center) return <Empty building={building} title="No places to map" description="The sources have not named any places yet." />;
   const markers = points.map((p) => ({ id: p.id, name: p.name, lat: p.lat, lon: p.lon, kind: p.kind, note: p.note }));
-  if (mapFocus) {
+  if (fillMap) {
     return (
-      <div className="fd-map-focus-map">
+      <div className="fd-map-workspace">
         <PointMap points={markers} center={center} fill onLoad={(map) => { mapRef.current = map; }} />
         {points.length > 0 && (
-          <div className="fd-map-focus-places">
+          <div className="fd-map-places">
             <Popover open={placesOpen} onOpenChange={setPlacesOpen}>
               <PopoverTrigger variant="secondary" size="sm">Places · {points.length}</PopoverTrigger>
               <PopoverContent side="top" align="start" aria-label="Places on the map" className="max-w-[min(22rem,calc(100vw-2rem))]">
-                <div className="max-h-80 overflow-auto">
+                <ScrollArea aria-label="Map locations" maxHeight={320}>
                   <ul className="flex flex-col divide-y divide-hairline">
                     {points.map((point) => (
                       <li key={point.id} className="grid min-w-0 gap-1 py-2">
@@ -60,7 +61,7 @@ export function MapWidget({ data, sources, tier, building, filter, mapFocus }: W
                       </li>
                     ))}
                   </ul>
-                </div>
+                </ScrollArea>
               </PopoverContent>
             </Popover>
           </div>

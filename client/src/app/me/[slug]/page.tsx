@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { PersonalBoard } from "@/components/personal/personal-board";
+import { WorkspaceNavigation } from "@/components/site-header";
 import { getBoardBySlug, getMyView } from "@/lib/engine";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,5 @@ export default async function MyDashboardPage({ params }: PageProps<"/me/[slug]"
   const board = await getBoardBySlug(slug);
   if (!board) notFound();
   const view = await getMyView(board.id, (await headers()).get("cookie"));
-  return (
-    <div className="fd-personal-route pt-6">
-      <PersonalBoard initial={board} initialView={view} />
-    </div>
-  );
+  return <PersonalBoard initial={board} initialView={view} workspace workspaceNavigation={<WorkspaceNavigation />} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Ago } from "@/components/ago";
 import { BrandMark, SourceMark } from "@/components/sources/source-mark";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +10,22 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Caption, Text } from "@/components/ui/typography";
 import type { SourceType } from "@/lib/spec";
 import { brandOf, outletsOf } from "@/lib/source-brand";
+import { evidenceUrl, OfficialReleases, OfficialReleasesContext } from "./source-chips";
 import type { WidgetProps } from "./types";
 
-const STEP = 100;
+const STEP = 20;
 /** Outlets offered as filters. The rest are still in the list. */
 const OUTLETS = 14;
 
 export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
+  const releases = useContext(OfficialReleasesContext);
+  const knownUrls = new Set(allSources.map((source) => evidenceUrl(source.url)));
+  const additionalReleases = releases.filter((release) => {
+    const url = evidenceUrl(release.url);
+    if (knownUrls.has(url)) return false;
+    knownUrls.add(url);
+    return true;
+  });
   const [limit, setLimit] = useState(STEP);
   const [outlet, setOutlet] = useState<string | null>(null);
   const outlets = useMemo(() => outletsOf(allSources), [allSources]);
@@ -100,6 +109,7 @@ export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
           </ol>
         </ScrollArea>
       ) : null}
+      {!active && <OfficialReleases releases={additionalReleases} />}
       {matching.length > limit ? (
         <div>
           <Button variant="secondary" size="sm" onClick={() => setLimit((l) => l + STEP)}>

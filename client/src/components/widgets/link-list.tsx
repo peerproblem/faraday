@@ -6,8 +6,8 @@ import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
 
-export function LinkListWidget({ data, sources, building }: WidgetProps<"link-list">) {
-  const items = (data?.items ?? []).filter((h) => h && typeof h.id === "string" && /^https?:\/\//.test(h.url ?? ""));
+export function LinkListWidget({ data, sources, building, mapFocus }: WidgetProps<"link-list">) {
+  const items = (data?.items ?? []).filter((h) => h && (!mapFocus || h.kind !== "official") && typeof h.id === "string" && /^https?:\/\//.test(h.url ?? ""));
   if (!items.length) return <Empty building={building} title="No help resources" description="The sources do not list hotlines, shelters or donation pages yet." />;
   return (
     // Rows on hairlines inside the tile, no cards of their own: the tile is the frame.

@@ -184,7 +184,7 @@ export function TableWidget({ widget, data, sources, tier, building, filter, map
       <Table
         // The card already shows the title. Keep the caption as the accessible table and scroll region name.
         caption={`${widget.title}: ${rows.length === 1 ? "1 row" : `${rows.length} rows`}`}
-        className={compact ? "fd-map-focus-table [&>caption]:sr-only" : "[&>caption]:sr-only"}
+        className={compact ? "fd-workspace-table [&>caption]:sr-only" : "[&>caption]:sr-only"}
         columns={columns}
         sort={sort}
         onSortChange={(next) => {

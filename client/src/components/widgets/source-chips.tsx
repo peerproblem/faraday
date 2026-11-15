@@ -1,15 +1,46 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { SourceMark } from "@/components/sources/source-mark";
+import { Link } from "@/components/ui/link";
+import { CitationChip } from "@/components/ui/citation";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { OriginalWords } from "@/components/sources/original-words";
 import { Caption, Text } from "@/components/ui/typography";
-import type { Evidence, Source } from "@/lib/spec";
+import type { Evidence, LinkListData, Source } from "@/lib/spec";
 import { excerptOf, hostOf, sourceLabel } from "@/lib/source-brand";
 import { ago } from "@/lib/time";
+
+export const OfficialReleasesContext = createContext<LinkListData["items"]>([]);
+
+/** Ignore fragments and campaign parameters when identifying the same release. */
+export function evidenceUrl(value: string) {
+  try {
+    const url = new URL(value);
+    for (const key of [...url.searchParams.keys()]) {
+      if (key.startsWith("utm_") || key === "origin") url.searchParams.delete(key);
+    }
+    url.searchParams.sort();
+    return url.host + url.pathname.replace(/\/$/, "") + url.search;
+  } catch {
+    return value;
+  }
+}
+
+export function OfficialReleases({ releases }: { releases: LinkListData["items"] }) {
+  if (!releases.length) return null;
+  return (
+    <ul aria-label="Additional official releases" className="grid gap-1.5">
+      {releases.map((release) => (
+        <li key={release.id}>
+          <Text size="sm"><Link href={release.url} target="_blank" rel="noreferrer">{release.label}</Link></Text>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** Kind of source and when it was published and read, in one line under the publisher. */
 function details(s: Source) {
@@ -111,11 +142,23 @@ export function SourceChips({
   evidence?: Evidence;
 }) {
   const known = (ids ?? []).filter((id, i, all) => all.indexOf(id) === i && sources.has(id) && linkable(sources.get(id)!));
+  const releases = useContext(OfficialReleasesContext);
+  const seen = new Set(known.map((id) => evidenceUrl(sources.get(id)!.url)));
+  const related = releases.filter((release) => {
+    const url = evidenceUrl(release.url);
+    if (seen.has(url) || !(release.sources ?? []).some((id) => known.includes(id))) return false;
+    seen.add(url);
+    return true;
+  });
   if (!known.length) return null;
   return (
     <span className="inline-flex flex-wrap gap-1 align-middle">
       {known.map((id) => (
         <SourceChip key={id} id={id} source={sources.get(id)!} evidence={evidence?.source === id ? evidence : undefined} />
+      ))}
+      {related.map((release) => (
+        <CitationChip key={release.id} reference="Official" title={release.label} href={release.url}
+          publisher="Official release referenced by a cited source" excerpt={release.note || undefined} />
       ))}
     </span>
   );

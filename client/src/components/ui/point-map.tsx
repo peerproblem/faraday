@@ -78,7 +78,7 @@ export default function PointMap({
   return (
     <MapView
       workerUrl={workerUrl}
-      className={fill ? "fd-map-focus-canvas" : undefined}
+      className={fill ? "fd-map-fill" : undefined}
       radius={fill ? 0 : undefined}
       bordered={!fill}
       onLoad={handleMapLoad}

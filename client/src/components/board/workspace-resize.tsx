@@ -2,12 +2,11 @@
 
 import { useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 
-type SizeKey = "situation" | "evidence";
+type SizeKey = "timeline" | "details" | "situation" | "evidence";
 type Sizes = Partial<Record<SizeKey, number>>;
-type Draft = { key: SizeKey; size: number };
 type SizeBounds = { min: number; max: number };
 
-const sizeKeys: SizeKey[] = ["situation", "evidence"];
+const sizeKeys: SizeKey[] = ["timeline", "details", "situation", "evidence"];
 const resizeEvent = "faraday-workspace-resize";
 
 function subscribe(callback: () => void) {
@@ -46,15 +45,16 @@ export function useWorkspaceSizes(scope: string | undefined) {
   const key = scope ? `faraday:workspace-sizes:v1:${scope}` : null;
   const stored = useSyncExternalStore(subscribe, () => read(key), () => null);
   const [local, setLocal] = useState<Sizes>({});
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<Sizes>({});
   const sizes = { ...decode(stored), ...local };
 
   function handle(sizeKey: SizeKey) {
     return {
-      value: draft?.key === sizeKey ? draft.size : sizes[sizeKey],
-      onResize: (size: number | null) => setDraft(size === null ? null : { key: sizeKey, size }),
+      value: draft[sizeKey] ?? sizes[sizeKey],
+      resizing: draft[sizeKey] != null,
+      onResize: (size: number | null) => setDraft((current) => ({ ...current, [sizeKey]: size ?? undefined })),
       onCommit: (size: number) => {
-        setDraft(null);
+        setDraft((current) => ({ ...current, [sizeKey]: undefined }));
         if (key) {
           try {
             window.localStorage.setItem(key, JSON.stringify({ ...decode(read(key)), ...local, [sizeKey]: size }));
@@ -71,6 +71,16 @@ export function useWorkspaceSizes(scope: string | undefined) {
   }
 
   return handle;
+}
+
+/** The timeline follows the board width so a saved value can be restored on a smaller screen. */
+export function timelineBounds(target: HTMLElement): SizeBounds {
+  const board = target.parentElement;
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const peers = board?.querySelector<HTMLElement>(".fd-workspace-details")?.offsetWidth ?? 0;
+  const width = board?.clientWidth ?? target.offsetWidth;
+  const min = 12 * rem;
+  return { min, max: Math.max(min, Math.min(26.25 * rem, width * 0.32, width - peers - 14 * rem)) };
 }
 
 /** Leave room for the other card's header or its open content. */
@@ -102,6 +112,7 @@ type HandleProps = {
   cornerWidth?: CornerWidth;
   target: string;
   label: string;
+  axis: "height" | "width";
   edge?: "start" | "end";
   value: number | undefined;
   getBounds: (target: HTMLElement) => SizeBounds;
@@ -113,7 +124,7 @@ function constrain(value: number, { min, max }: SizeBounds) {
   return Math.round(Math.min(max, Math.max(min, value)));
 }
 
-export function WorkspaceResizeHandle({ target, label, edge = "end", value, getBounds, onResize, onCommit, cornerWidth }: HandleProps) {
+export function WorkspaceResizeHandle({ target, label, axis, edge = "end", value, getBounds, onResize, onCommit, cornerWidth }: HandleProps) {
   const drag = useRef<{
     id: number;
     start: number;
@@ -123,13 +134,14 @@ export function WorkspaceResizeHandle({ target, label, edge = "end", value, getB
     width?: { size: number; bounds: SizeBounds; moved: boolean };
   } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const reverse = edge === "start";
-  const position = (event: PointerEvent) => reverse ? -event.clientY : event.clientY;
+  const vertical = axis === "height";
+  const reverse = vertical && edge === "start";
+  const position = (event: PointerEvent) => vertical ? (reverse ? -event.clientY : event.clientY) : event.clientX;
 
   function measure() {
     const element = document.getElementById(target);
     if (!element) return null;
-    return { size: element.offsetHeight, bounds: getBounds(element) };
+    return { size: vertical ? element.offsetHeight : element.offsetWidth, bounds: getBounds(element) };
   }
 
   function widthAt(current: NonNullable<typeof drag.current>, clientX: number) {
@@ -158,10 +170,10 @@ export function WorkspaceResizeHandle({ target, label, edge = "end", value, getB
       tabIndex={0}
       aria-label={label}
       aria-controls={target}
-      aria-orientation="horizontal"
+      aria-orientation={vertical ? "horizontal" : "vertical"}
       aria-valuetext={value ? `${value} pixels` : "Automatic"}
       title={label}
-      className="fd-workspace-resize fd-workspace-resize--height"
+      className={`fd-workspace-resize fd-workspace-resize--${axis}`}
       data-edge={edge}
       data-two-axis={cornerWidth ? "" : undefined}
       data-dragging={dragging ? "" : undefined}
@@ -203,8 +215,8 @@ export function WorkspaceResizeHandle({ target, label, edge = "end", value, getB
             return;
           }
         }
-        const backwards = "ArrowUp";
-        const forwards = "ArrowDown";
+        const backwards = vertical ? "ArrowUp" : "ArrowLeft";
+        const forwards = vertical ? "ArrowDown" : "ArrowRight";
         if (![backwards, forwards, "Home", "End"].includes(event.key)) return;
         const measured = measure();
         if (!measured) return;
@@ -215,10 +227,10 @@ export function WorkspaceResizeHandle({ target, label, edge = "end", value, getB
         onCommit(constrain(next, bounds));
       }}
     >
-      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      {vertical && <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
         <circle cx="10" cy="10" r="9" className="fd-workspace-resize-focus" />
         <path d="M14 14l-8-8M10 14l-4-4" />
-      </svg>
+      </svg>}
     </div>
   );
 }

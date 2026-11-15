@@ -39,7 +39,7 @@ export function StatusBreakdown({ sections, data }: { sections: LaidOutWidget[];
     }));
     return (
       <ChartCard title={title} variant="ghost" padding="none" bordered={false} className="min-w-0">
-        <div className="fd-map-focus-breakdown">
+        <div className="fd-workspace-breakdown">
           <DonutChart data={slices} height={132} arcWidth={16} centralLabel={breakdown.total.toLocaleString()}
             centralSubLabel="records" aria-label={`${title}. ${slices.map((slice) => `${slice.label}: ${slice.value}`).join(", ")}.`} />
           <ul className="grid min-w-0 gap-2">
