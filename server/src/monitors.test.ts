@@ -116,23 +116,23 @@ describe("monitors", () => {
     expect(calls[0][0].target).toMatchObject({ type: "search", query: "Valencia flood news" });
     expect(calls[1][0].target).toEqual({ type: "page", url: "https://gov.example/a", instructions: plan.monitor.instructions });
     expect(calls[0][0].webhook).toEqual(HOOK);
-    expect(calls[0][0].schedule).toEqual({ type: "interval", frequency: 10, unit: "minutes" });
+    expect(calls[0][0].schedule).toEqual({ type: "interval", frequency: 30, unit: "minutes" });
     expect(calls[0][0].tags).toEqual(["faraday", "board:b1"]);
     expect(rows.map((r) => [r.kind, r.target, r.webhookSecret, r.scheduleMinutes])).toEqual([
-      ["search", "Valencia flood news", "sec1", 10],
-      ["page", "https://gov.example/a", "sec2", 10],
-      ["page", "https://aemet.es/b", "sec3", 10],
+      ["search", "Valencia flood news", "sec1", 30],
+      ["page", "https://gov.example/a", "sec2", 30],
+      ["page", "https://aemet.es/b", "sec3", 30],
     ]);
     expect(rows[0].configHash).toBe(configHash({ type: "search", query: plan.monitor.query, instructions: plan.monitor.instructions }));
     expect(note).toContain("search monitor m1");
     expect(await ensureBoardMonitors("b1", plan, ["https://gov.example/a"])).toBe("monitors already running");
   });
 
-  it("schedules by tier: a cold board's monitors run every two hours", async () => {
+  it("schedules by tier: a cold board's monitors run every six hours", async () => {
     const c = client();
     __setContextClientForTest(c);
     await ensureBoardMonitors("b1", plan, [], { tier: "cold" });
-    expect((c.monitors.create.mock.calls as unknown as [Record<string, any>][])[0][0].schedule).toEqual({ type: "interval", frequency: 2, unit: "hours" });
+    expect((c.monitors.create.mock.calls as unknown as [Record<string, any>][])[0][0].schedule).toEqual({ type: "interval", frequency: 6, unit: "hours" });
   });
 
   it("respects the account allowance and allowPage=false", async () => {
@@ -266,7 +266,7 @@ describe("monitors", () => {
     const now = Date.parse("2026-11-14T12:00:00Z");
 
     it("leaves an up-to-date, recently checked monitor alone", async () => {
-      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 10, remoteStatus: "active", checkedAt: now - 60_000 }));
+      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 30, remoteStatus: "active", checkedAt: now - 60_000 }));
       const c = client();
       __setContextClientForTest(c);
       expect(await syncBoardMonitors("b1", plan, "hot", { now })).toEqual({ notes: [], alerts: [] });
@@ -275,7 +275,7 @@ describe("monitors", () => {
     });
 
     it("adds the retrying webhook to monitors from before config hashes without resetting their baseline", async () => {
-      rows.push(row({ id: "s", target: plan.monitor.query, scheduleMinutes: 10 }));
+      rows.push(row({ id: "s", target: plan.monitor.query, scheduleMinutes: 30 }));
       const c = client();
       __setContextClientForTest(c);
       await syncBoardMonitors("b1", plan, "hot", { now });
@@ -284,21 +284,21 @@ describe("monitors", () => {
     });
 
     it("sends the edited query and instructions, and the tier's schedule", async () => {
-      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 10, remoteStatus: "active", checkedAt: now }));
+      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 30, remoteStatus: "active", checkedAt: now }));
       const edited = { ...plan, monitor: { query: "Valencia flood shelters", instructions: "Shelter openings and closures" } } as Plan;
       const c = client();
       __setContextClientForTest(c);
       await syncBoardMonitors("b1", edited, "warm", { now });
       expect(c.monitors.update).toHaveBeenCalledWith("s", {
         target: { type: "search", query: "Valencia flood shelters", instructions: "Shelter openings and closures" },
-        schedule: { type: "interval", frequency: 30, unit: "minutes" },
+        schedule: { type: "interval", frequency: 2, unit: "hours" },
       });
-      expect(rows[0]).toMatchObject({ target: "Valencia flood shelters", scheduleMinutes: 30 });
+      expect(rows[0]).toMatchObject({ target: "Valencia flood shelters", scheduleMinutes: 120 });
     });
 
     it("deletes a page monitor Context.dev failed and marks its URL dead", async () => {
       const hash = configHash({ type: "page", url: "https://gov.example/a", instructions: plan.monitor.instructions }, HOOK as never);
-      rows.push(row({ id: "p", kind: "page", target: "https://gov.example/a", configHash: hash, scheduleMinutes: 10, remoteStatus: "active" }));
+      rows.push(row({ id: "p", kind: "page", target: "https://gov.example/a", configHash: hash, scheduleMinutes: 30, remoteStatus: "active" }));
       const c = client();
       c.monitors.retrieve.mockResolvedValueOnce({ id: "p", status: "failed", last_error: { message: "HTTP 503" } });
       c.monitors.listRuns.mockResolvedValueOnce({ data: [{ status: "failed", error: { message: "HTTP 503 from origin" } }] });
@@ -310,7 +310,7 @@ describe("monitors", () => {
     });
 
     it("reports runs skipped for credits without deleting, and resumes a paused search monitor once", async () => {
-      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 10, remoteStatus: "active" }));
+      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 30, remoteStatus: "active" }));
       const c = client();
       c.monitors.retrieve.mockResolvedValue({ id: "s", status: "paused", last_error: null });
       c.monitors.listRuns.mockResolvedValueOnce({ data: [{ status: "skipped", skip_reason: "insufficient_credits" }] });
@@ -332,7 +332,7 @@ describe("monitors", () => {
     });
 
     it("drops the row of a monitor that no longer exists so it is recreated", async () => {
-      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 10 }));
+      rows.push(row({ id: "s", target: plan.monitor.query, configHash: searchHash, scheduleMinutes: 30 }));
       const c = client();
       c.monitors.retrieve.mockRejectedValueOnce(new NotFoundError(404, undefined, "gone", new Headers()));
       __setContextClientForTest(c);
@@ -341,12 +341,12 @@ describe("monitors", () => {
     });
 
     it("updates schedules when the tier changes", async () => {
-      rows.push(row({ id: "s", scheduleMinutes: 10 }), row({ id: "p", kind: "page", target: "u", scheduleMinutes: 10, remoteStatus: "dead" }));
+      rows.push(row({ id: "s", scheduleMinutes: 30 }), row({ id: "p", kind: "page", target: "u", scheduleMinutes: 30, remoteStatus: "dead" }));
       const c = client();
       __setContextClientForTest(c);
       expect(await setBoardMonitorSchedule("b1", "cold")).toBe(1);
-      expect(c.monitors.update).toHaveBeenCalledWith("s", { schedule: { type: "interval", frequency: 2, unit: "hours" } });
-      expect(rows[0].scheduleMinutes).toBe(120);
+      expect(c.monitors.update).toHaveBeenCalledWith("s", { schedule: { type: "interval", frequency: 6, unit: "hours" } });
+      expect(rows[0].scheduleMinutes).toBe(360);
       expect(await setBoardMonitorSchedule("b1", "cold")).toBe(0);
     });
   });

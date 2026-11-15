@@ -21,9 +21,9 @@ export const TOPIC_LIMITS = {
   newPerDay: () => envNum("MAX_NEW_TOPICS_PER_DAY", 10),
   maxActive: () => envNum("MAX_ACTIVE_TOPICS", 30),
   /** Top topics by rank that get a search monitor. */
-  monitored: () => envNum("MONITORED_TOPICS", 10),
+  monitored: () => envNum("MONITORED_TOPICS", 5),
   /** Top topics by rank that also get page monitors. */
-  pageMonitored: () => Math.min(envNum("PAGE_MONITORED_TOPICS", 5), envNum("MONITORED_TOPICS", 10)),
+  pageMonitored: () => Math.min(envNum("PAGE_MONITORED_TOPICS", 2), envNum("MONITORED_TOPICS", 5)),
 };
 
 // ---------- scoring (pure) ----------

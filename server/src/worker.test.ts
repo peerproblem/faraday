@@ -20,8 +20,10 @@ const base = { tier: "warm" as const, createdAt: now - 10 * DAY, lastViewedAt: n
 describe("computeTier", () => {
   it("is hot when watched, recently changed or new", () => {
     expect(computeTier({ ...base, lastViewedAt: now - MIN }, now)).toBe("hot");
-    expect(computeTier({ ...base, lastChangedAt: now - 20 * MIN }, now)).toBe("hot");
-    expect(computeTier({ ...base, createdAt: now - HOUR }, now)).toBe("hot");
+    expect(computeTier({ ...base, lastChangedAt: now - 5 * MIN }, now)).toBe("hot");
+    expect(computeTier({ ...base, lastChangedAt: now - 20 * MIN }, now)).toBe("warm");
+    expect(computeTier({ ...base, createdAt: now - 20 * MIN }, now)).toBe("hot");
+    expect(computeTier({ ...base, createdAt: now - HOUR, lastViewedAt: now - 3 * HOUR }, now)).toBe("warm");
   });
   it("is warm within a day of a view or change", () => {
     expect(computeTier({ ...base, lastViewedAt: now - 3 * HOUR }, now)).toBe("warm");

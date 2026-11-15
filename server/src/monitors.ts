@@ -28,9 +28,9 @@ const SNIPPET_CHARS = 8000;
 
 /** How often Context.dev runs a board's monitors, by tier. Context.dev allows 10 minutes to 1 year. */
 export const MONITOR_SCHEDULE_MINUTES: Record<Exclude<BoardTier, "paused">, number> = {
-  hot: Number(process.env.MONITOR_HOT_MINUTES ?? 10),
-  warm: Number(process.env.MONITOR_WARM_MINUTES ?? 30),
-  cold: Number(process.env.MONITOR_COLD_MINUTES ?? 120),
+  hot: Number(process.env.MONITOR_HOT_MINUTES ?? 30),
+  warm: Number(process.env.MONITOR_WARM_MINUTES ?? 120),
+  cold: Number(process.env.MONITOR_COLD_MINUTES ?? 360),
 };
 
 const scheduleMinutes = (tier: BoardTier | undefined) =>

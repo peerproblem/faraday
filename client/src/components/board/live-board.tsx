@@ -26,11 +26,12 @@ export function BoardToasts() {
 }
 
 /** The shared (baseline) board: data updates are highlighted, the layout never animates. */
-export function LiveBoard({ initial, live = true, actions, workspace, workspaceNavigation }: {
+export function LiveBoard({ initial, live = true, actions, workspace, wildfireOverview, workspaceNavigation }: {
   initial: BoardView;
   live?: boolean;
   actions?: ReactNode;
   workspace?: boolean;
+  wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
 }) {
   const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
@@ -53,6 +54,7 @@ export function LiveBoard({ initial, live = true, actions, workspace, workspaceN
         updatedAt={updatedAt}
         actions={actions}
         workspace={workspace}
+        wildfireOverview={wildfireOverview}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`shared:${board.id}`}
       />

@@ -16,6 +16,7 @@
     "rebuild-v1": "tsx --env-file-if-exists=../.env src/scripts/rebuild-v1.ts",
     "recompose": "tsx --env-file-if-exists=../.env src/scripts/recompose.ts",
     "smoke:x": "tsx --env-file-if-exists=../.env src/scripts/smoke-x.ts",
+    "discord:commands": "tsx --env-file-if-exists=../.env src/scripts/discord-commands.ts",
     "lint": "eslint src"
   },
   "dependencies": {

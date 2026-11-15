@@ -140,12 +140,12 @@ describe("pickExtractSources", () => {
 });
 
 describe("queries", () => {
-  it("rotates through all news queries three at a time", () => {
+  it("rotates through all news queries two at a time", () => {
     const seen = new Set<string>();
-    for (let slot = 0; slot < 4; slot++) for (const q of rotateQueries(plan.newsQueries, slot * 120_000)) seen.add(q);
+    for (let slot = 0; slot < 3; slot++) for (const q of rotateQueries(plan.newsQueries, slot * 600_000)) seen.add(q);
     expect([...seen].sort()).toEqual(["a", "b", "c", "d", "e"]);
     expect(rotateQueries(["x", "y"], 0)).toEqual(["x", "y"]);
-    expect(rotateQueries(plan.newsQueries, 120_000)).toHaveLength(3);
+    expect(rotateQueries(plan.newsQueries, 600_000)).toHaveLength(2);
   });
   it("gathers in parallel, records calls and reports failures without throwing", async () => {
     vi.mocked(searchNews).mockResolvedValueOnce([{ url: "https://a.com/x#frag", title: "x", publisher: null, publishedAt: null, snippet: null, kind: "news" }]);

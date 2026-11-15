@@ -19,9 +19,10 @@ type BoardCardStackProps = {
   onOpenChange: (name: BoardCardName, open: boolean) => void;
   resize: ReturnType<typeof useWorkspaceSizes>;
   detailsWidth?: CornerWidth;
+  flowing?: boolean;
 };
 
-export function BoardCardStack({ id, situation, evidence, open, onOpenChange, resize, detailsWidth }: BoardCardStackProps) {
+export function BoardCardStack({ id, situation, evidence, open, onOpenChange, resize, detailsWidth, flowing }: BoardCardStackProps) {
   const [cardOrder, setCardOrder] = useState<BoardCardName[]>(["situation", "evidence"]);
   const hasEvidence = evidence != null;
   const visibleCards = hasEvidence ? cardOrder : cardOrder.filter((name) => name === "situation");
@@ -41,8 +42,8 @@ export function BoardCardStack({ id, situation, evidence, open, onOpenChange, re
         return (
           <Card key={name} {...reorder.getItemProps(name)} id={cardId} role="region" aria-label={label}
             radius="lg" padding="none" bordered className="fd-workspace-detail-card" data-open={open[name] ? "" : undefined}
-            data-fixed-height={cardSize.value ? "" : undefined}
-            style={cardSize.value ? { "--fd-workspace-card-height": `${cardSize.value}px` } as CSSProperties : undefined}>
+            data-fixed-height={!flowing && cardSize.value ? "" : undefined}
+            style={!flowing && cardSize.value ? { "--fd-workspace-card-height": `${cardSize.value}px` } as CSSProperties : undefined}>
             <Collapsible open={open[name]} onOpenChange={(value) => onOpenChange(name, value)}
               keepMounted={name === "situation"} className="fd-workspace-card-fold">
               <div className="fd-workspace-card-header">
@@ -58,7 +59,7 @@ export function BoardCardStack({ id, situation, evidence, open, onOpenChange, re
                 {name === "situation" ? situation : evidence}
               </CollapsiblePanel>
             </Collapsible>
-            {open[name] && <WorkspaceResizeHandle {...cardSize} target={cardId} label={`Resize ${label} card`}
+            {!flowing && open[name] && <WorkspaceResizeHandle {...cardSize} target={cardId} label={`Resize ${label} card`}
               axis="height" getBounds={cardBounds} cornerWidth={detailsWidth} />}
           </Card>
         );

@@ -13,6 +13,7 @@ type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?:
 type WorkspaceProps = {
   workspaceKey?: string;
   cardsOnMap?: boolean;
+  flowingDetails?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
   timeline?: ReactNode;
@@ -24,7 +25,7 @@ type WorkspaceProps = {
   editor?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -118,6 +119,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, map, mapFigures, time
       onOpenChange={(name, value) => setOpen((current) => ({ ...current, [name]: value }))}
       resize={resize}
       detailsWidth={detailsWidth}
+      flowing={flowingDetails && !overlay}
     />
   );
   const detailsStyle = detailsSize.value

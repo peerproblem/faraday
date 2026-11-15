@@ -23,7 +23,7 @@ import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
-import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, Source, StatGridData, Widget } from "@/lib/spec";
+import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, Widget } from "@/lib/spec";
 import { newest } from "@/lib/time";
 import { BoardHeaderButton } from "./header-button";
 import { selectMapFigures } from "./map-figures";
@@ -58,6 +58,7 @@ export type BoardProps = {
   tools?: (w: LaidOutWidget) => ReactNode;
   workspace?: boolean;
   cardsOnMap?: boolean;
+  wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
   workspaceEditor?: ReactNode;
@@ -192,7 +193,9 @@ export function Board(props: BoardProps) {
     const Comp = widgetComponent(entry.widget.type)!;
     return (
       <Comp
-        widget={entry.widget}
+        widget={props.wildfireOverview && entry.widget.type === "timeline"
+          ? { ...entry.widget, display: "story" }
+          : entry.widget}
         data={(entry.data ?? data?.widgets[entry.widget.id]) as never}
         filter={entry.filter as never}
         sources={byId}
@@ -203,6 +206,9 @@ export function Board(props: BoardProps) {
         building={building}
         mapFocus={compact}
         fillMap={fillMap}
+        wrapSourceTitles={props.wildfireOverview}
+        collapseSourceGroups={props.wildfireOverview}
+        compactTrendAxis={props.wildfireOverview && compact}
       />
     );
   }
@@ -250,25 +256,58 @@ export function Board(props: BoardProps) {
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
     const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid") : [];
-    const mapFigures = selectMapFigures(figureSections.flatMap((entry) => {
+    const figureItems = figureSections.flatMap((entry) => {
       const figures = (entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined;
       const metrics = entry.filter?.kind === "stat-grid" ? entry.filter.metrics : undefined;
       return getStatItems(figures, metrics);
-    }), summaryText ?? undefined);
+    });
+    const mapFigures = selectMapFigures(figureItems, summaryText ?? undefined);
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
     const mapTools = map && props.tools?.(map);
+    const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
+    const narrativeData = (narrative && (narrative.data ?? data?.widgets[narrative.widget.id])) as NarrativeData | undefined;
+    const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
+    const housing = props.wildfireOverview ? figureItems.filter((item) => /homes-(?:destroyed|damaged)$/.test(item.key)) : [];
     return (
       <OfficialReleasesContext.Provider value={releases}>
-        <div className="@container fd-workspace-board">
+        <div className={`@container fd-workspace-board${props.wildfireOverview ? " fd-wildfire-workspace" : ""}`}>
           {boardHeader}
-          <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap}
+          <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
             map={map ? <>
               <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
               {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
             </> : undefined}
             mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} /> : undefined}
             timeline={timeline ? renderWorkspaceWidget(timeline, true) : undefined}
-            overview={<>{summary}<StatusBreakdown sections={sections} data={data} />{overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
+            overview={<>
+              {evacuation && (
+                <section className="grid gap-1.5" aria-label="Evacuation and access">
+                  <h3 className="text-base font-semibold">Evacuation &amp; access</h3>
+                  <Text size="sm">{evacuation.text} <SourceChips ids={evacuation.sources} sources={byId} collapseAt={5} /></Text>
+                </section>
+              )}
+              {housing.length > 0 && (
+                <section className="grid gap-1.5 border-t border-hairline pt-3" aria-label="Housing damage">
+                  <h3 className="text-base font-semibold">Housing damage</h3>
+                  <div className="grid gap-1.5">
+                    {housing.map((item) => (
+                      <Text key={item.key} size="sm">
+                        <strong>{item.valueText}{item.unit && ` ${item.unit}`}</strong> {item.label.replace(/^homes\s+/i, "").toLowerCase()}{" "}
+                        <SourceChips ids={item.sources} sources={byId} evidence={item.evidence} />
+                      </Text>
+                    ))}
+                  </div>
+                </section>
+              )}
+              {summary}
+              <StatusBreakdown sections={sections} data={data} />
+              {overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
+              {props.wildfireOverview && releases.length > 0 && (
+                <details className="border-t border-hairline pt-3">
+                  <summary className="cursor-pointer text-sm font-medium">Official releases</summary>
+                  <div className="mt-2"><OfficialReleases releases={releases} /></div>
+                </details>
+              )}
               {status === "error" && !widgets.length ? <EmptyState title="The board could not be built" description={events.find((e) => e.kind === "error")?.message} /> : null}
             </>}
             sections={[...sections, ...figureSections].map((entry) => ({
@@ -278,7 +317,7 @@ export function Board(props: BoardProps) {
               content: renderWorkspaceWidget(entry, true),
             }))}
             sources={sourcesWidget || releases.length ? <>
-              <SourceWire items={wire} label="On the wire" />
+              {!props.wildfireOverview && <SourceWire items={wire} label="On the wire" />}
               {sourcesWidget && renderWorkspaceWidget(sourcesWidget, true)}
               {!sourcesWidget && <OfficialReleases releases={releases} />}
             </> : undefined}
