@@ -25,7 +25,7 @@ import type { BoardData, BoardSpecV2, BoardView, StatItem, Widget } from "@/lib/
 import { newest } from "@/lib/time";
 import { CoverageFeed } from "./coverage-feed";
 import { DropChart } from "./drop-chart";
-import { activeAlerts, figures, keyEventLane, metricSeries, ofType, placedWidgets, ranking, tableLanes, type Placed } from "./finance-data";
+import { activeAlerts, figures, inScale, keyEventLane, metricSeries, ofType, placedWidgets, ranking, tableLanes, type Placed } from "./finance-data";
 import { MarketsPanel, useMarketView } from "./markets-panel";
 
 const cadence: Record<string, string> = { hot: "Checked every 2 minutes", warm: "Checked every 5 minutes", cold: "Checked every 30 minutes", paused: "Updates paused" };
@@ -67,7 +67,8 @@ export function FinanceBoard({ board, spec, data, connected, onRefresh, actions,
   const changelog = first("changelog");
   const sourcesWidget = first("sources");
   const laneTables = new Set(lanes.map((l) => l.key));
-  const rest = placed.filter((p) => !OWN.has(p.widget.type) && !laneTables.has(p.widget.id) && p.widget.id !== rank?.widget.id && widgetComponent(p.widget.type));
+  // The engine adds a map to every board with a place; a finance board's story is in its markets, so it is left out.
+  const rest = placed.filter((p) => !OWN.has(p.widget.type) && p.widget.type !== "map" && !laneTables.has(p.widget.id) && p.widget.id !== rank?.widget.id && widgetComponent(p.widget.type));
   const outlets = useMemo(() => outletsOf(sources), [sources]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -148,7 +149,8 @@ export function FinanceBoard({ board, spec, data, connected, onRefresh, actions,
         {timeline ? (
           <aside className="fd-fin__panel fd-fin__panel--side" aria-labelledby="fd-fin-story-h">
             <div className="fd-fin__head"><div><div className="fd-fin-kicker">Timeline</div><h2 id="fd-fin-story-h" className="fd-fin__h2">{timeline.widget.title}</h2></div></div>
-            <TimelineWidget {...(props(timeline) as WidgetProps<"timeline">)} />
+            {/* Every finance board tells its timeline as a story, as the sell-off board does. */}
+            <TimelineWidget {...(props({ ...timeline, widget: { ...timeline.widget, display: "story" } }) as WidgetProps<"timeline">)} />
           </aside>
         ) : null}
 
@@ -162,7 +164,8 @@ export function FinanceBoard({ board, spec, data, connected, onRefresh, actions,
           </section>
         ) : null}
 
-        <aside className="fd-fin__panel fd-fin__panel--side" aria-label="Briefing">
+        {/* Without a company chart the briefing leads its row, and the coverage fills the rest of it. */}
+        <aside className={`fd-fin__panel fd-fin__panel--side${rank ? "" : " fd-fin__panel--lead"}`} aria-label="Briefing">
           {narrative ? (
             <>
               <div className="fd-fin__head"><div><div className="fd-fin-kicker">Briefing</div><h2 className="fd-fin__h2">{narrative.widget.title}</h2></div></div>
@@ -171,7 +174,7 @@ export function FinanceBoard({ board, spec, data, connected, onRefresh, actions,
           ) : null}
         </aside>
 
-        <section className="fd-fin__panel fd-fin__panel--full" aria-labelledby="fd-fin-feed-h">
+        <section className={`fd-fin__panel ${rank ? "fd-fin__panel--full" : "fd-fin__panel--wide"}`} aria-labelledby="fd-fin-feed-h">
           <CoverageFeed sources={sources} title={feed?.widget.title ?? "Latest coverage"} />
         </section>
 
@@ -228,7 +231,7 @@ function Tick({ stat, tier, color, chartable, on, onFocus }: { stat: StatItem; t
       <span className="fd-fin-kicker">{stat.label}</span>
       <span className="fd-fin__tick-value">{stat.valueText}{unit ? <span className="fd-fin__tick-unit">{unit}</span> : null}</span>
       {stat.delta ? <span className="fd-fin__delta" data-dir={dir}>{dir === "up" ? "▲" : dir === "down" ? "▼" : "•"} {stat.delta}</span> : null}
-      {stat.history.length > 1 ? <Sparkline data={stat.history.map((h) => h.v)} height={26} color={color} /> : null}
+      {stat.history.length > 1 ? <Sparkline data={inScale(stat.history).map((h) => h.v)} height={26} color={color} /> : null}
       <span style={{ fontSize: 11 }} className="text-muted-foreground"><AsOf t={stat.asOf} tier={tier} /></span>
     </>
   );

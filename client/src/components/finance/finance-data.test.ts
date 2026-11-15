@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BoardData, BoardSpecV2, TableData } from "@/lib/spec";
 import { assetsIn, indexOfLabel, tickerOf } from "@/lib/market-symbols";
-import { filled, metricSeries, parseNumber, placedWidgets, rankEntries, ranking, reaction, sessionAxis, tableLanes, unitGroups } from "./finance-data";
+import { filled, inScale, metricSeries, parseNumber, placedWidgets, rankEntries, ranking, reaction, sessionAxis, tableLanes, unitGroups } from "./finance-data";
 
 const row = (id: string, cells: Record<string, string>, asOf: string | null = null) => ({ id, cells, sources: [`s${id}`], asOf });
 const companies: TableData = {
@@ -124,13 +124,21 @@ describe("finance data", () => {
 
   it("finds tickers and the index a figure is about", () => {
     expect([tickerOf("Micron", "MU"), tickerOf("Nvidia", null), tickerOf("Advanced Micro Devices", ""), tickerOf("Acme Robotics", null)]).toEqual(["MU", "NVDA", "AMD", null]);
+    expect([tickerOf("BNP Paribas", "BNP"), tickerOf("Société Générale", null), tickerOf("Crédit Agricole SA", "ACA")]).toEqual(["BNP.PA", "GLE.PA", "ACA.PA"]);
     expect([indexOfLabel("S&P 500 Change"), indexOfLabel("Dow Jones Change"), indexOfLabel("VIX Volatility Index"), indexOfLabel("Market Value Erased")]).toEqual(["^GSPC", "^DJI", "^VIX", null]);
   });
 
   it("picks the currency or index each finance topic is about, and nothing for a Wall Street board", () => {
     expect(assetsIn("Egyptian pound hits record low near 56 per dollar")).toEqual(["EGP=X"]);
     expect(assetsIn("Ueno Bank collapse topples Paraguay's president")).toEqual(["PYG=X"]);
-    expect(assetsIn("French 10-year yield tops 5% amid unrest")).toEqual(["^FCHI", "EURUSD=X"]);
+    expect(assetsIn("French 10-year yield tops 5% amid unrest")).toEqual(["^FCHI", "^STOXX50E", "EURUSD=X"]);
     expect(assetsIn("Post-Midterm AI Stock Sell-Off")).toEqual([]);
+  });
+
+  it("leaves out a figure read a thousand times too big, and keeps real jumps", () => {
+    const pts = [4.9, 5, 4952, 4.97, 4904, 5, 4780, 4.77, 4.69, 4.89].map((v) => ({ v }));
+    expect(inScale(pts).map((p) => p.v)).toEqual([4.9, 5, 4.97, 5, 4.77, 4.69, 4.89]);
+    const moves = [0.05, -0.04, 0.06, 6, 0.03].map((v) => ({ v }));
+    expect(inScale(moves)).toEqual(moves);
   });
 });

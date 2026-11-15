@@ -41,6 +41,18 @@ export function figures(placed: Placed[]): StatItem[] {
 }
 
 /**
+ * Leaves out figures that look like a decimal point read as a thousands separator ("4,952%" for 4.952%): about a
+ * thousand times the rest of the series, and back in line once divided by a thousand.
+ */
+export function inScale<T extends { v: number }>(points: T[]): T[] {
+  if (points.length < 3) return points;
+  const sizes = points.map((p) => Math.abs(p.v)).sort((a, b) => a - b);
+  const mid = sizes[Math.floor(sizes.length / 2)];
+  if (!mid) return points;
+  return points.filter((p) => !(Math.abs(p.v) >= mid * 500 && Math.abs(p.v) / 1000 <= mid * 2 && Math.abs(p.v) / 1000 >= mid / 2));
+}
+
+/**
  * Every metric reported at least twice. Trend charts carry a source per point, so their points win over the
  * figure grid's plain history for the same metric.
  */
@@ -54,7 +66,7 @@ export function metricSeries(placed: Placed[]): Series[] {
     const raw = trend && trend.points.length >= (stat?.history.length ?? 0)
       ? trend.points.map((p) => ({ t: toMs(p.t), v: p.v, sources: p.sources }))
       : (stat?.history ?? []).map((p) => ({ t: toMs(p.t), v: p.v, sources: [] as string[] }));
-    const points = raw.filter((p): p is SeriesPoint => p.t !== null && Number.isFinite(p.v)).sort((a, b) => a.t - b.t);
+    const points = inScale(raw.filter((p): p is SeriesPoint => p.t !== null && Number.isFinite(p.v))).sort((a, b) => a.t - b.t);
     if (points.length < 2) return [];
     return [{ key, label: stat?.label ?? trend?.label ?? key, unit: stat?.unit ?? trend?.unit ?? null, points, latest: stat }];
   });

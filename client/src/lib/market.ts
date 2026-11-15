@@ -17,7 +17,7 @@ const FRESH_MS = 5 * 60_000;
 const recent = new Map<string, { at: number; line: Promise<MarketLine | null> }>();
 
 async function line(symbol: string): Promise<MarketLine | null> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1h`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1h`;
   try {
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Faraday board)" }, signal: AbortSignal.timeout(4000), next: { revalidate: 300 } });
     if (!res.ok) return null;
