@@ -13,13 +13,13 @@ export const dynamic = "force-dynamic";
 export default async function FixturePage({ params, searchParams }: PageProps<"/dev/fixtures/[name]">) {
   if (process.env.NODE_ENV === "production") notFound();
   const { name } = await params;
-  const { view, social } = await searchParams;
+  const { view, social, design } = await searchParams;
   const fx = getFixture(name);
   if (!fx) notFound();
   // ?social=1 adds made-up posts from X, Reddit and others, to see how social sources are drawn.
   if (social) fx.board = withSamplePosts(fx.board);
   return (
-    <div className="pt-6">
+    <div className="fd-personal-route pt-6">
       {view === "studio" ? (
         <Studio initial={fx.board} initialRun={fx.run} canEdit offline />
       ) : view === "mine" ? (
@@ -31,6 +31,7 @@ export default async function FixturePage({ params, searchParams }: PageProps<"/
             rev: 1,
             layout: {
               ...emptyLayout(fx.board.version),
+              ...(design === "map-focus" ? { design } : {}),
               pinned: fx.board.spec?.widgets.some((w) => w.type === "map") ? ["map"] : [],
               hidden: ["feed"],
               size: fx.board.spec?.widgets[0] ? { [widgetKeyOf(fx.board.spec.widgets[0])]: "half" } : {},
@@ -40,7 +41,7 @@ export default async function FixturePage({ params, searchParams }: PageProps<"/
       ) : (
         <LiveBoard initial={fx.board} live={false} />
       )}
-      <Caption className="mt-6 block text-center">
+      <Caption className="fd-fixture-caption mt-6 block text-center">
         Fixture boards: {fixtureNames.join(", ")}
         {social ? ". The social posts on this page are made up." : null}
       </Caption>

@@ -1,6 +1,7 @@
 import "./jsdom-stubs";
 import "./mocks";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getFixture } from "../../../e2e/fixtures";
 import { LiveBoard } from "@/components/board/live-board";
@@ -42,6 +43,43 @@ describe("personal dashboard", () => {
     const tile = frame.closest<HTMLElement>('[data-sw="dashboard-tile"]')!;
     expect(tile.style.gridColumn).toBe("span 6");
     expect(tile.style.viewTransitionName).toBe(`fd-w-${keyOf(b, first.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`);
+  });
+
+  test("saves a board design by revision and restores it on reload", async () => {
+    const user = userEvent.setup();
+    const b = board();
+    const layout = { ...emptyLayout(b.version), hidden: ["map"] };
+    fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
+    const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
+    await user.click(screen.getByRole("button", { name: "Board design" }));
+    await user.click(screen.getByRole("radio", { name: "Map focus" }));
+    expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
+    await waitFor(() => expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1));
+    const save = JSON.parse(String(posts(`/api/me/views/${b.id}`)[0][1]!.body));
+    expect(save.rev).toBe(3);
+    expect(save.layout.design).toBe("map-focus");
+    expect(save.layout.hidden).not.toContain("map");
+    unmount();
+
+    render(<PersonalBoard initial={b} initialView={{ layout: save.layout, rev: 4 }} live={false} />);
+    expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Toggle timeline" }).getAttribute("aria-expanded")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Toggle timeline" }));
+    expect(screen.getByRole("button", { name: "Toggle timeline" }).getAttribute("aria-expanded")).toBe("false");
+    expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1);
+    expect(screen.queryByRole("tabpanel", { name: "Sources" })).toBeNull();
+
+    await user.click(screen.getByRole("tab", { name: "Data" }));
+    const selector = screen.getByRole("combobox", { name: "Data section" });
+    await user.click(selector);
+    await user.click(screen.getByRole("option", { name: "Road closures" }));
+    expect(selector.textContent).toContain("Road closures");
+    expect(screen.queryByRole("heading", { name: "Road closures" })).toBeNull();
+    const table = screen.getByRole("table", { name: /Road closures/ });
+    expect(within(table).getAllByRole("row")).toHaveLength(5);
+    const pager = screen.getByRole("navigation", { name: "Road closures pages" });
+    await user.click(within(pager).getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("5–8 of 24 rows")).toBeTruthy();
   });
 
   test("hiding a widget shows at once and saves 300 ms later with the revision it builds on", async () => {

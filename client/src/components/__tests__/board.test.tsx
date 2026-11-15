@@ -5,7 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { getFixture } from "../../../e2e/fixtures";
 import { LiveBoard } from "@/components/board/live-board";
-import type { BoardView } from "@/lib/spec";
+import { sortRows } from "@/components/widgets/table";
+import type { BoardView, TableData } from "@/lib/spec";
 
 const NOW = Date.parse("2026-11-14T12:00:00Z");
 
@@ -67,6 +68,22 @@ describe("board v2", () => {
     const first = within(t).getAllByRole("row")[1];
     expect(within(first).getByText("A-7")).toBeTruthy();
     expect(within(t).getByRole("columnheader", { name: /Road/ }).getAttribute("aria-sort")).toBe("ascending");
+  });
+
+  test("time sorting compares UTC and local times and keeps unknown times last in both directions", () => {
+    const table: TableData = {
+      columns: [{ key: "since", label: "Since (EET)", kind: "time" }],
+      rows: [
+        ["later", "11 Nov 2026 09:00 UTC"],
+        ["unknown", "Reported overnight"],
+        ["clock", "08:30 EET"],
+        ["earlier", "2026-11-11T06:15:00Z"],
+      ].map(([id, since]) => ({ id, cells: { since }, sources: [], asOf: null })),
+    };
+    const ids = (direction: "ascending" | "descending") =>
+      sortRows(table, { columnId: "since", direction }).map((row) => row.id);
+    expect(ids("ascending")).toEqual(["earlier", "clock", "later", "unknown"]);
+    expect(ids("descending")).toEqual(["later", "clock", "earlier", "unknown"]);
   });
 
   test("link cells show the host and status cells are not plain text", () => {

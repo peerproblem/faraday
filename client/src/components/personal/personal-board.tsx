@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Board } from "@/components/board/board";
+import { Board, isBuilding, visibleWidgets } from "@/components/board/board";
 import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
 import {
   AlertDialog,
@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { MenuItem } from "@/components/ui/menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -31,7 +32,12 @@ import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/cl
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import { emptyLayout, widgetKeyOf, type BoardView, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type WidgetFilter } from "@/lib/spec";
+import { emptyLayout, widgetKeyOf, type BoardDesign, type BoardView, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type WidgetFilter } from "@/lib/spec";
+
+const designOptions: { value: BoardDesign; label: string }[] = [
+  { value: "standard", label: "Standard" },
+  { value: "map-focus", label: "Map focus" },
+];
 
 const MIN_INSTRUCTION = 3;
 const MAX_INSTRUCTION = 500;
@@ -105,6 +111,11 @@ export function PersonalBoard({
     return () => clearTimeout(t);
   }, [hasNew, spec, data, current, board.version, change]);
 
+  const available = visibleWidgets(spec, data, isBuilding(board.status));
+  const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
+  const mapFocus = hasMap && current.design === "map-focus" && available.some((w) =>
+    w.type === "map" && !current.hidden.includes(widgetKeyOf(w)),
+  );
   const hiddenWidgets = (spec?.widgets ?? []).filter((w) => current.hidden.includes(widgetKeyOf(w)));
 
   async function sendEdit() {
@@ -219,8 +230,50 @@ export function PersonalBoard({
     );
   };
 
+  const designControl = hasMap && (
+    <Popover>
+      <PopoverTrigger variant="ghost" size="xs" radius={0} aria-label="Board design" title="Board design">Design</PopoverTrigger>
+      <PopoverContent align="end">
+        <div className="grid w-64 max-w-full gap-3">
+          <PopoverTitle>Board design</PopoverTitle>
+          <SegmentedControl<BoardDesign>
+            aria-label="Dashboard design"
+            value={mapFocus ? "map-focus" : "standard"}
+            options={designOptions}
+            onValueChange={(design) => commit({
+              ...current,
+              design,
+              hidden: design === "map-focus"
+                ? current.hidden.filter((key) => !available.some((widget) => widget.type === "map" && widgetKeyOf(widget) === key))
+                : current.hidden,
+            })}
+          />
+          {mapFocus && (
+            <fieldset className="grid max-h-56 gap-2 overflow-auto border-t border-hairline pt-2">
+              <legend className="px-1 text-sm">Visible sections</legend>
+              {available.filter((widget) => widget.type !== "map").map((widget) => {
+                const key = widgetKeyOf(widget);
+                return (
+                  <Switch key={key} size="sm" label={widget.title}
+                    checked={!current.hidden.includes(key)}
+                    onCheckedChange={(shown) => commit({
+                      ...current,
+                      hidden: shown ? current.hidden.filter((x) => x !== key) : [...current.hidden, key],
+                      pinned: shown ? current.pinned : current.pinned.filter((x) => x !== key),
+                    })} />
+                );
+              })}
+            </fieldset>
+          )}
+          {saving && <Text role="status" size="sm" tone="muted">Saving…</Text>}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
   const actions = (
     <>
+      {designControl}
       <Toggle variant="outline" size="sm" pressed={editing} onPressedChange={setEditing}>
         Edit layout
       </Toggle>
@@ -240,7 +293,7 @@ export function PersonalBoard({
   );
 
   return (
-    <div className="flex flex-col gap-4 pb-40">
+    <div className={mapFocus ? "fd-map-focus-personal" : "flex flex-col gap-4 pb-40"}>
       <Board
         spec={spec}
         data={data}
@@ -260,10 +313,18 @@ export function PersonalBoard({
         animate
         updatedAt={updatedAt}
         actions={actions}
+        mapFocus={mapFocus ? {
+          boardId: board.id,
+          designControl,
+          menu: <>
+            <MenuItem disabled={!!busy} onSelect={() => void undo()}>Undo dashboard change</MenuItem>
+            <MenuItem onSelect={() => router.push(boardUrl(board.slug))}>Open shared board</MenuItem>
+          </>,
+        } : undefined}
         tools={tools}
       />
 
-      {editing ? (
+      {editing && !mapFocus ? (
         <Card title="Hidden sections" count={hiddenWidgets.length} headingLevel={2}>
           <div className="flex flex-col gap-3">
             {hiddenWidgets.length ? (
@@ -305,7 +366,7 @@ export function PersonalBoard({
         </Card>
       ) : null}
 
-      <form
+      {!mapFocus && <form
         aria-label="Change your dashboard"
         className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-canvas/90 backdrop-blur-md"
         onSubmit={(e) => {
@@ -342,7 +403,7 @@ export function PersonalBoard({
             </Button>
           </div>
         </div>
-      </form>
+      </form>}
       <BoardToasts />
     </div>
   );

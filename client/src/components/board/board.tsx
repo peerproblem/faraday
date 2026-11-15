@@ -6,22 +6,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DashboardGrid } from "@/components/ui/dashboard";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu";
+import { Icon } from "@/components/ui/icon";
 import { Meter } from "@/components/ui/meter";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Caption, Display, Text } from "@/components/ui/typography";
+import { Caption, Display, Heading, Text } from "@/components/ui/typography";
 import { Separator } from "@/components/ui/separator";
 import { SourceStack } from "@/components/sources/source-mark";
 import { SourceWire } from "@/components/sources/source-wire";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { SourceChips } from "@/components/widgets/source-chips";
-import { WidgetFrame } from "@/components/widgets/widget-frame";
+import { WidgetBoundary, WidgetFrame } from "@/components/widgets/widget-frame";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
-import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, PersonalLayout, Source, Widget } from "@/lib/spec";
+import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, Source, Widget } from "@/lib/spec";
 import { outletsOf, wireItems } from "@/lib/source-brand";
 import { newest } from "@/lib/time";
+import { MapFocus } from "./map-focus";
 
 export type BoardProps = {
   spec: BoardSpecV2 | null;
@@ -49,6 +52,7 @@ export type BoardProps = {
   actions?: ReactNode;
   /** Edit-mode controls for one widget. */
   tools?: (w: LaidOutWidget) => ReactNode;
+  mapFocus?: { boardId: string; designControl: ReactNode; menu: ReactNode };
 };
 
 const stageText: Record<string, string> = {
@@ -134,6 +138,87 @@ export function Board(props: BoardProps) {
     } finally {
       setRefreshing(false);
     }
+  }
+
+  function widgetContent(entry: LaidOutWidget, mapFocus = false) {
+    const Comp = widgetComponent(entry.widget.type)!;
+    return (
+      <Comp
+        widget={entry.widget}
+        data={(entry.data ?? data?.widgets[entry.widget.id]) as never}
+        filter={entry.filter as never}
+        sources={byId}
+        allSources={sources}
+        events={events}
+        status={status}
+        tier={tier}
+        building={building}
+        mapFocus={mapFocus}
+      />
+    );
+  }
+
+  const map = props.mapFocus && widgets.find(({ widget }) => widget.type === "map");
+  if (map && props.mapFocus) {
+    const timeline = widgets.find(({ widget }) => widget.type === "timeline");
+    const sourceList = widgets.find(({ widget }) => widget.type === "sources");
+    const changes = widgets.find(({ widget }) => widget.type === "changelog");
+    const overview = widgets.filter(({ widget }) => widget.type === "stat-grid" || widget.type === "narrative" || widget.type === "status-grid");
+    const official = widgets.filter(({ widget, data: adjusted }) => {
+      if (widget.type !== "link-list") return false;
+      const links = (adjusted ?? data?.widgets[widget.id]) as LinkListData | undefined;
+      return !!links?.items?.length && links.items.every((item) => item.kind === "official");
+    });
+    const sections = widgets.filter((entry) =>
+      entry !== map && entry !== timeline && entry !== sourceList && entry !== changes &&
+      !overview.includes(entry) && !official.includes(entry),
+    );
+    const focusWidget = (entry: LaidOutWidget) => (
+      <WidgetBoundary resetKey={entry.data ?? data?.widgets[entry.widget.id]}>
+        {widgetContent(entry, true)}
+      </WidgetBoundary>
+    );
+    return (
+      <MapFocus
+        boardId={props.mapFocus.boardId}
+        title={title ?? "Live board"}
+        status={<div className="hidden shrink-0 items-center gap-1 @md:flex">
+          <Badge variant={live ? "success" : "neutral"} pulse={live}>{building ? "Building" : tier === "paused" ? "Paused" : live ? "Live" : "Offline"}</Badge>
+          {header?.status && <Badge variant="outline">{situationLabel[header.status] ?? header.status}</Badge>}
+        </div>}
+        actions={<div className="flex shrink-0 items-center gap-1">
+          {props.mapFocus.designControl}
+          <Menu>
+            <MenuTrigger asChild>
+              <Button size="xs" variant="ghost" radius={0} iconOnly aria-label="Board actions" leading={<Icon name="more" />} />
+            </MenuTrigger>
+            <MenuContent>
+              {onRefresh && status === "live" && tier !== "paused" && (
+                <MenuItem disabled={refreshing} onSelect={() => void refresh()}>Check for updates</MenuItem>
+              )}
+              {props.mapFocus.menu}
+            </MenuContent>
+          </Menu>
+        </div>}
+        map={focusWidget(map)}
+        timeline={timeline ? focusWidget(timeline) : undefined}
+        overview={<>
+          {header?.headline?.text && <Text size="sm">{header.headline.text} <SourceChips ids={header.headline.sources} sources={byId} /></Text>}
+          {overview.map((entry) => (
+            <section key={entry.key} aria-label={entry.widget.title} className="grid gap-2">
+              <Heading as="h3" size="sm">{entry.widget.title}</Heading>
+              {focusWidget(entry)}
+            </section>
+          ))}
+        </>}
+        sections={sections.map((entry) => ({ key: entry.key, title: entry.widget.title, content: focusWidget(entry) }))}
+        sources={sourceList || official.length ? <>
+          {sourceList && focusWidget(sourceList)}
+          {official.map((entry) => <section key={entry.key} aria-label={entry.widget.title}>{focusWidget(entry)}</section>)}
+        </> : undefined}
+        changes={changes ? focusWidget(changes) : undefined}
+      />
+    );
   }
 
   return (
@@ -243,7 +328,6 @@ export function Board(props: BoardProps) {
         <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
           {widgets.map((lw) => {
             const w = lw.widget;
-            const Comp = widgetComponent(w.type)!;
             const d = lw.data ?? data?.widgets[w.id];
             // Keyed by the stable widget key, so a moved map or chart is not remounted.
             return (
@@ -258,17 +342,7 @@ export function Board(props: BoardProps) {
                 isNew={lw.isNew}
                 tools={props.tools?.(lw)}
               >
-                <Comp
-                  widget={w}
-                  data={d as never}
-                  filter={lw.filter as never}
-                  sources={byId}
-                  allSources={sources}
-                  events={events}
-                  status={status}
-                  tier={tier}
-                  building={building}
-                />
+                {widgetContent(lw)}
               </WidgetFrame>
             );
           })}

@@ -1,10 +1,12 @@
 "use client";
 
+import type { Map } from "maplibre-gl";
 import { MapView, type MapMarker } from "@sw3/ui/map";
 
 // Next emits the MapLibre worker as a build asset from this URL. MapView passes it to MapLibre before the first map.
 const workerUrl = new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString();
 
+export type { Map as PointMapInstance } from "maplibre-gl";
 export type MapPointKind = NonNullable<MapMarker["kind"]>;
 export type MapPoint = { id: string; name: string; lat: number; lon: number; kind: MapPointKind; note?: string };
 
@@ -14,24 +16,32 @@ export default function PointMap({
   center,
   label = "Places on the map",
   height = 340,
+  fill = false,
+  onLoad,
 }: {
   points: MapPoint[];
   center: { lat: number; lon: number; zoom: number } | null;
   label?: string;
   height?: number;
+  fill?: boolean;
+  onLoad?: (map: Map) => void;
 }) {
   const first = points[0];
   return (
     <MapView
       workerUrl={workerUrl}
       height={height}
+      className={fill ? "fd-map-focus-canvas" : undefined}
+      radius={fill ? 0 : undefined}
+      bordered={!fill}
+      onLoad={onLoad}
       markerListLabel={label}
       markers={points.map((p) => ({
         lngLat: [p.lon, p.lat],
         kind: p.kind,
-        label: p.name,
+        label: fill ? undefined : p.name,
         description: p.note || undefined,
-        popup: p.note ? { title: p.name, description: p.note } : undefined,
+        popup: fill || p.note ? { title: p.name, description: p.note ?? "" } : undefined,
       }))}
       fitToData={points.length > 1}
       center={center ? [center.lon, center.lat] : first ? [first.lon, first.lat] : [0, 20]}

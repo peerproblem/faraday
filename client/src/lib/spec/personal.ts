@@ -6,6 +6,9 @@ import type { BoardCard } from "./view";
 /** A widget's stable key (Widget.key / widgetKeyOf): "map", "table:road-closures". */
 export type WidgetKey = string;
 
+export const boardDesigns = ["standard", "map-focus"] as const;
+export type BoardDesign = (typeof boardDesigns)[number];
+
 /** Display-only filters. A widget applies its filter when rendering; the board data never changes. */
 export type WidgetFilter =
   | { kind: "timeline"; minImportance: "high" | "medium" }
@@ -33,6 +36,8 @@ export type PersonalLayout = {
   filters: Record<WidgetKey, WidgetFilter>;
   extras: ExtraWidget[];
   header: { compact: boolean };
+  /** Optional so views saved before board designs still load as standard. */
+  design?: BoardDesign;
   /** The baseline version seen when this layout was last saved; widgets added after it get a "New" badge. */
   baseVersion: number;
 };

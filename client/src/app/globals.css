@@ -208,3 +208,116 @@
     }
   }
 }
+
+/* Map focus takes the site frame's remaining viewport height. */
+body:has(.fd-map-focus) {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.fd-site-main:has(.fd-map-focus) {
+  display: flex;
+  min-height: 0;
+  max-width: none;
+  padding: 0;
+}
+
+.fd-site-main:has(.fd-map-focus) + footer,
+.fd-personal-route:has(.fd-map-focus) > .fd-fixture-caption {
+  display: none;
+}
+
+.fd-personal-route:has(.fd-map-focus),
+.fd-map-focus-personal {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.fd-map-focus {
+  width: 100%;
+}
+
+.fd-map-focus-stage {
+  grid-area: main;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  background: var(--sw-canvas);
+}
+
+.fd-map-focus-map {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.fd-map-focus-canvas {
+  min-height: 0;
+  height: 100% !important; /* MapView sets a numeric height inline. */
+}
+
+.fd-map-focus-map > [data-sw="map-locations"] {
+  display: none; /* The keyboard-accessible Places popover exposes the same points and citations. */
+}
+
+.fd-map-focus-map:has(> [data-sw="map-attribution"]) .fd-map-focus-places {
+  bottom: 2rem;
+}
+
+.fd-map-focus-places {
+  position: absolute;
+  inset-inline-start: .75rem;
+  bottom: .75rem;
+  z-index: 1;
+}
+
+.fd-map-focus-pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 12px;
+  gap: 12px;
+  min-width: 0;
+}
+
+.fd-map-focus-pane[hidden] {
+  display: none;
+}
+
+.fd-map-focus-data-title {
+  width: 100%;
+  font-weight: var(--sw-font-weight-semibold, 600);
+}
+
+.fd-map-focus-table {
+  table-layout: auto;
+}
+
+.fd-map-focus-table :is(th, td) {
+  padding: 7px 8px;
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.fd-map-focus-table thead th {
+  font-family: var(--sw-font-sans);
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.fd-map-focus-table td {
+  vertical-align: top;
+}
+
+.fd-map-focus-table th button {
+  text-align: inherit;
+  white-space: normal;
+  overflow-wrap: normal;
+}

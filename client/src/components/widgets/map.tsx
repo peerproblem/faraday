@@ -1,5 +1,9 @@
 "use client";
 
+import { useRef, useState } from "react";
+import type { PointMapInstance } from "@/components/ui/point-map";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Caption, Text } from "@/components/ui/typography";
@@ -13,7 +17,9 @@ const PointMap = dynamic(() => import("@/components/ui/point-map"), {
   loading: () => <Skeleton height={340} radius="lg" />,
 });
 
-export function MapWidget({ data, sources, tier, building, filter }: WidgetProps<"map">) {
+export function MapWidget({ data, sources, tier, building, filter, mapFocus }: WidgetProps<"map">) {
+  const mapRef = useRef<PointMapInstance | null>(null);
+  const [placesOpen, setPlacesOpen] = useState(false);
   const kinds = filter?.pointKinds?.length ? new Set(filter.pointKinds) : null;
   const points = (data?.points ?? []).filter(
     (p) =>
@@ -28,12 +34,46 @@ export function MapWidget({ data, sources, tier, building, filter }: WidgetProps
   const c = data?.center ?? null;
   const center = c && Number.isFinite(c.lat) && Number.isFinite(c.lon) && Number.isFinite(c.zoom) ? c : null;
   if (!points.length && !center) return <Empty building={building} title="No places to map" description="The sources have not named any places yet." />;
+  const markers = points.map((p) => ({ id: p.id, name: p.name, lat: p.lat, lon: p.lon, kind: p.kind, note: p.note }));
+  if (mapFocus) {
+    return (
+      <div className="fd-map-focus-map">
+        <PointMap points={markers} center={center} fill onLoad={(map) => { mapRef.current = map; }} />
+        {points.length > 0 && (
+          <div className="fd-map-focus-places">
+            <Popover open={placesOpen} onOpenChange={setPlacesOpen}>
+              <PopoverTrigger variant="secondary" size="sm">Places · {points.length}</PopoverTrigger>
+              <PopoverContent side="top" align="start" aria-label="Places on the map" className="max-w-[min(22rem,calc(100vw-2rem))]">
+                <div className="max-h-80 overflow-auto">
+                  <ul className="flex flex-col divide-y divide-hairline">
+                    {points.map((point) => (
+                      <li key={point.id} className="grid min-w-0 gap-1 py-2">
+                        <Button size="sm" variant="ghost" aria-label={`Locate ${point.name} on the map`} onClick={() => {
+                          const map = mapRef.current;
+                          if (!map?.getContainer().isConnected) return;
+                          map.easeTo({ center: [point.lon, point.lat], zoom: Math.max(map.getZoom(), 12) });
+                          setPlacesOpen(false);
+                        }}>{point.name}</Button>
+                        {point.note && <Text size="sm" tone="muted">{point.note}</Text>}
+                        <SourceChips ids={point.sources} sources={sources} evidence={point.evidence} />
+                        <AsOf t={point.asOf} tier={tier} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+      </div>
+    );
+  }
   // MapView draws each kind with its own marker and lists every place with its kind and note under the map.
   // The citations cannot go in that plain-text list, so they follow it, one line per cited place.
   const cited = points.filter((p) => p.sources?.length || p.asOf);
   return (
     <div className="flex flex-col gap-4">
-      <PointMap points={points.map((p) => ({ id: p.id, name: p.name, lat: p.lat, lon: p.lon, kind: p.kind, note: p.note }))} center={center} />
+      <PointMap points={markers} center={center} />
       {cited.length ? (
         <section aria-label="Sources for the places" className="flex flex-col gap-2">
           <Caption>Sources</Caption>

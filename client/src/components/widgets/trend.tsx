@@ -8,7 +8,7 @@ import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
 
-export function TrendWidget({ data, sources, building }: WidgetProps<"trend">) {
+export function TrendWidget({ data, sources, building, mapFocus }: WidgetProps<"trend">) {
   const points = data?.points ?? [];
   const pts = cleanPoints(points);
   if (pts.length < 2 || !data) return <Empty building={building} title="Not enough reports for a trend" description="A trend needs at least two reports of the figure." />;
@@ -22,7 +22,8 @@ export function TrendWidget({ data, sources, building }: WidgetProps<"trend">) {
         labels={pts.map((p) => shortTime(p.x))}
         seriesLabels={[data.unit ? `${data.label} (${data.unit})` : data.label, "Previous"]}
         format={(n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 })}
-        height={220}
+        variant={mapFocus && pts.length <= 12 ? "bars" : undefined}
+        height={mapFocus ? 186 : 220}
       />
       <figcaption className="flex flex-wrap items-center gap-2">
         <Text as="span" size="sm" tone="muted">

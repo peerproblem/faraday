@@ -35,6 +35,17 @@ describe("sanitizeLayout", () => {
     expect(l.size).toEqual({ map: "half" });
   });
 
+  it("persists known designs without resetting older or future layout records", () => {
+    expect(sanitizeLayout({ design: "map-focus", hidden: ["feed"] }, spec, plan)).toMatchObject({
+      design: "map-focus",
+      hidden: ["feed"],
+    });
+    expect(sanitizeLayout({ design: "future", hidden: ["feed"] }, spec, plan)).toEqual({
+      ...emptyLayout(0),
+      hidden: ["feed"],
+    });
+  });
+
   it("never pins a hidden widget", () => {
     expect(sanitizeLayout({ hidden: ["map"], pinned: ["map", "narrative"] }, spec, plan).pinned).toEqual(["narrative"]);
   });
@@ -122,6 +133,15 @@ const output = (over: Partial<LayoutEditOutput> = {}): LayoutEditOutput => ({
 
 describe("editLayout", () => {
   const input = { spec, plan, layout: emptyLayout(3), instruction: "Map first", baseVersion: 5 };
+
+  it("keeps the selected design when applying a prompted change", async () => {
+    const result = await editLayout(
+      { ...input, layout: { ...input.layout, design: "map-focus" } },
+      AbortSignal.timeout(1000),
+      async () => output({ hidden: ["feed"] }),
+    );
+    expect(result.layout).toMatchObject({ design: "map-focus", hidden: ["feed"] });
+  });
 
   it("turns the flat model output into a sanitized layout", async () => {
     const model = vi.fn(async (_req: { system: string; prompt: string; signal: AbortSignal }) =>

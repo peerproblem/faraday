@@ -140,7 +140,7 @@ export async function editLayout(
   model: LayoutModel = defaultLayoutModel,
 ): Promise<EditLayoutResult> {
   const out = await model({ system: SYSTEM, prompt: buildPrompt(input.spec, input.plan, input.layout, input.instruction), signal });
-  const layout = sanitizeLayout(toLayoutInput(out, input.baseVersion), input.spec, input.plan);
+  const layout = sanitizeLayout({ ...toLayoutInput(out, input.baseVersion), design: input.layout.design }, input.spec, input.plan);
   const raw = (out.unsupported ?? []).map((u) => u.replace(/\s+/g, " ").trim().slice(0, 120)).filter(Boolean).slice(0, 5);
   const named = raw.filter((u) => !nonLatin(u));
   let reply = english(out.reply ?? "", "Updated your dashboard.");
