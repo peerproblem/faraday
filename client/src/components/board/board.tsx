@@ -23,13 +23,16 @@ import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
-import type { BoardCardContent, BoardCardSettings, BoardData, BoardEvent, BoardLayoutCard, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
+import type { BoardCardContent, BoardCardSettings, BoardData, BoardEvent, BoardLayoutCard, BoardMapRegion, BoardSpecV2, BoardStatus, BoardTier, LinkListData, MapData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
 import { BoardHeaderButton } from "./header-button";
 import { ContextEvidence } from "./context-evidence";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
+import { IncidentReports } from "./incident-reports";
+import { RegionSwitch, RegionInset } from "./map-regions";
+import { MapWidget } from "@/components/widgets/map";
 
 export type BoardProps = {
   boardId?: string;
@@ -68,6 +71,8 @@ export type BoardProps = {
   workspaceEditor?: ReactNode;
   sidebarSettings?: BoardCardSettings | null;
   configuredCards?: BoardLayoutCard[];
+  mapCard?: BoardCardSettings;
+  mapRegions?: BoardMapRegion[];
 };
 
 const stageText: Record<string, string> = {
@@ -106,9 +111,16 @@ export function Board(props: BoardProps) {
   const { spec, data, sources, events, status, tier, connected, lastPolledAt, onRefresh } = props;
   const byId = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const [refreshing, setRefreshing] = useState(false);
+  const [regionLabel, setRegionLabel] = useState<string>();
+  const regions = props.workspace ? props.mapRegions ?? [] : [];
+  const activeRegion = regions.find((region) => region.label === regionLabel) ?? regions[0];
   const building = isBuilding(status);
   const header = data?.header ?? null;
   const visible = visibleWidgets(spec, data, building);
+  if (activeRegion && !visible.some((widget) => widget.type === "map")) {
+    const configuredMap = spec?.widgets.find((widget) => widget.type === "map");
+    if (configuredMap) visible.push(configuredMap);
+  }
   const laid = applyLayout({ version: 2, widgets: visible }, data, props.layout ?? null, { version: props.version });
   const widgets = laid.widgets;
   const map = widgets.find(({ widget }) => widget.type === "map");
@@ -256,7 +268,8 @@ export function Board(props: BoardProps) {
     </div>
   );
 
-  function cardEntry(content: Exclude<BoardCardContent, { kind: "summary" }>) {
+  function cardEntry(content: BoardCardContent) {
+    if (content.kind !== "widget" && content.kind !== "status-chart") return;
     const type = content.kind === "widget" ? content.type : "table";
     return widgets.find((entry) => {
       if (entry.widget.type !== type || (content.key && content.key !== entry.key)) return false;
@@ -269,6 +282,10 @@ export function Board(props: BoardProps) {
   function renderCardContents(contents: BoardCardContent[]) {
     const sections = contents.flatMap((content) => {
       if (content.kind === "summary") return [summary];
+      if (content.kind === "incident-status" || content.kind === "official-tally") return [
+        <IncidentReports kind={content.kind} chart={content.kind === "official-tally" ? content.chart : undefined}
+          widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />,
+      ];
       const entry = cardEntry(content);
       if (!entry || (props.workspace && entry === map)) return [];
       return [content.kind === "status-chart"
@@ -284,7 +301,7 @@ export function Board(props: BoardProps) {
   }
   const configuredCards = props.configuredCards?.map((card) => ({ ...card, content: renderCardContents(card.contents) }));
   const cardIncludes = (entry: LaidOutWidget) =>
-    [...(props.configuredCards ?? []), ...(props.sidebarSettings ? [props.sidebarSettings] : [])]
+    [...(props.configuredCards ?? []), ...(props.sidebarSettings ? [props.sidebarSettings] : []), ...(props.mapCard ? [props.mapCard] : [])]
       .some(({ contents }) => contents.some((content) => content.kind !== "summary" && cardEntry(content) === entry));
 
   if (props.workspace) {
@@ -316,6 +333,7 @@ export function Board(props: BoardProps) {
     const mapFigures = restrictionFigure ? [restrictionFigure] : selectMapFigures(figureItems, summaryText ?? undefined);
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
     const mapTools = map && props.tools?.(map);
+    const mapData = (map && (map.data ?? data?.widgets[map.widget.id])) as MapData | undefined;
     const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
     const narrativeData = (narrative && (narrative.data ?? data?.widgets[narrative.widget.id])) as NarrativeData | undefined;
     const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
@@ -330,10 +348,23 @@ export function Board(props: BoardProps) {
               id: `card:${card.id}`, label: card.title, content: card.content, open: card.open,
             }))}
             map={map ? <>
-              <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
+              <WidgetBoundary resetKey={mapData}>
+                {activeRegion ? (
+                  <MapWidget key={activeRegion.label} widget={{ ...map.widget, type: "map" }}
+                    data={{ points: mapData?.points ?? [], center: { ...activeRegion, name: activeRegion.label } }}
+                    sources={byId} allSources={sources} events={events} status={status} tier={tier} building={building} fillMap fixedCamera />
+                ) : renderContent(map, true, true)}
+              </WidgetBoundary>
+              {(props.mapCard || regions.length > 1) && <div className="fd-board-map-overlay">
+                {props.mapCard && <Card title={props.mapCard.title} headingLevel={2} padding="sm" radius="lg">
+                  {renderCardContents(props.mapCard.contents)}
+                </Card>}
+                {activeRegion && regions.length > 1 && <RegionSwitch regions={regions} selected={activeRegion.label} onChange={setRegionLabel} />}
+              </div>}
+              {activeRegion?.inset && <RegionInset key={activeRegion.label} inset={activeRegion.inset} points={mapData?.points ?? []} />}
               {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
             </> : undefined}
-            mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
+            mapFigures={!props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
             overview={<>
               {evacuation && (

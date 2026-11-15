@@ -6,3 +6,5 @@ export * from "./facts";
 export * from "./view";
 export * from "./personal";
 export * from "./presentation";
+
+export * from "./incident";

@@ -19,6 +19,8 @@ const widgetTitles: Record<Widget["type"], string> = {
 
 function contentValue(content: BoardCardContent) {
   if (content.kind === "summary") return "summary";
+  if (content.kind === "incident-status") return "incident-status";
+  if (content.kind === "official-tally") return `official-tally:${content.chart}`;
   if (content.kind === "status-chart") return `${content.chart}:${content.key ?? ""}`;
   return `widget:${content.type}:${content.key ?? ""}`;
 }
@@ -85,7 +87,13 @@ export function CardCompositionFields({ settings, onChange, widgets }: {
   const map = settings.layout === "map";
   const available = (widgets ?? widgetTypes.map((type): WidgetChoice => ({ type, title: widgetTitles[type] })))
     .filter(({ type }) => !map || type !== "map");
-  const options: ContentOption[] = [{ label: "Board summary", content: { kind: "summary" } }];
+  const options: ContentOption[] = [
+    { label: "Board summary", content: { kind: "summary" } },
+    { label: "Incidents requiring a response", content: { kind: "incident-status" } },
+    { label: "Latest official tally", content: { kind: "official-tally", chart: "none" } },
+    { label: "Latest official tally with donut", content: { kind: "official-tally", chart: "donut" } },
+    { label: "Latest official tally with bars", content: { kind: "official-tally", chart: "bars" } },
+  ];
   for (const { key, title, type, hasStatus } of available) {
     options.push({ label: title, content: { kind: "widget", type, key } });
     if (type === "table" && hasStatus !== false) {
@@ -126,6 +134,18 @@ export function CardCompositionFields({ settings, onChange, widgets }: {
             onCheckedChange={(timelineOpen) => onChange({ ...settings, timelineOpen })} />}
           {sidebar && <CardFields card={sidebar} options={options} foldable titleLabel="Sidebar title"
             update={(patch) => onChange({ ...settings, sidebar: { ...sidebar, ...patch } })} />}
+        </fieldset>
+      )}
+      {map && (
+        <fieldset className="grid min-w-0 gap-2 border-t border-hairline pt-2">
+          <legend className="pr-2 text-sm font-medium">Map overlay card</legend>
+          {settings.mapCard ? <>
+            <CardFields card={settings.mapCard} options={options} foldable={false}
+              update={(patch) => onChange({ ...settings, mapCard: { ...settings.mapCard!, ...patch } })} />
+            <Button type="button" size="xs" variant="ghost" onClick={() => onChange({ ...settings, mapCard: undefined })}>Remove map overlay card</Button>
+          </> : <Button type="button" size="sm" variant="outline" onClick={() => onChange({
+            ...settings, mapCard: { title: "Current warnings", open: true, contents: [{ kind: "widget", type: "alert-list" }] },
+          })}>Add map overlay card</Button>}
         </fieldset>
       )}
       <fieldset className="grid min-w-0 gap-3 border-t border-hairline pt-2">
