@@ -24,7 +24,7 @@ import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
 import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, Widget } from "@/lib/spec";
-import { newest } from "@/lib/time";
+import { newest, when } from "@/lib/time";
 import { BoardHeaderButton } from "./header-button";
 import { selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
@@ -78,13 +78,6 @@ const situationLabel: Record<string, string> = {
   contained: "Contained",
   recovering: "Recovering",
   resolved: "Resolved",
-};
-
-const tierLabel: Record<BoardTier, string> = {
-  hot: "Checked every 2 minutes",
-  warm: "Checked every 5 minutes",
-  cold: "Checked every 30 minutes",
-  paused: "Updates paused",
 };
 
 export function isBuilding(status: BoardStatus) {
@@ -229,6 +222,10 @@ export function Board(props: BoardProps) {
     );
   }
 
+  const lastCheckedAt = lastPolledAt == null ? null : new Date(lastPolledAt).toISOString();
+  const lastChecked = lastCheckedAt && (
+    <span>Last checked <time dateTime={lastCheckedAt}>{when(lastCheckedAt)}</time></span>
+  );
   const conciseSummary = props.workspace && !!map;
   const headline = compact ? undefined : header?.headline;
   const summaryText = compact ? undefined : headline?.text || header?.subtitle;
@@ -241,8 +238,9 @@ export function Board(props: BoardProps) {
         {!conciseSummary && header?.crisisType ? <span>{header.crisisType}</span> : null}
         {newestSource && (!conciseSummary || !lastPolledAt) ? <span>Newest source <Ago t={newestSource} /></span> : null}
         {!conciseSummary && header?.asOf ? <span>Latest figure <Ago t={header.asOf} /></span> : null}
-        {lastPolledAt ? <span>Checked <Ago t={lastPolledAt} /></span> : null}
-        {building ? (props.workspace ? <span role="status">{props.stage ?? stageText[status] ?? "Working"}</span> : null) : !conciseSummary && <span>{tierLabel[tier]}</span>}
+        {lastChecked}
+        {building && props.workspace && <span role="status">{props.stage ?? stageText[status] ?? "Working"}</span>}
+        {!building && !conciseSummary && tier === "paused" && <span>Updates paused</span>}
       </Text>
       {typeof header?.severity === "number" && (
         <Meter label="Severity" value={Math.min(5, Math.max(0, header.severity))} min={0} max={5}
@@ -412,12 +410,8 @@ export function Board(props: BoardProps) {
                   latest figure <Ago t={header.asOf} />
                 </span>
               ) : null}
-              {lastPolledAt ? (
-                <span>
-                  checked <Ago t={lastPolledAt} />
-                </span>
-              ) : null}
-              {!building ? <span>{tierLabel[tier]}</span> : null}
+              {lastChecked}
+              {!building && tier === "paused" && <span>Updates paused</span>}
             </Text>
             {onRefresh && status === "live" && tier !== "paused" ? (
               <div className="@2xl:ml-auto">
