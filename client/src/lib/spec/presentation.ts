@@ -75,6 +75,7 @@ export function incidentReporting(settings: BoardLayout | null, category?: strin
 export type BoardPresentation = {
   workspace: boolean;
   marketPrices?: true;
+  stormBriefing?: true;
   cardsOnMap?: boolean;
   timelineOpen?: boolean;
   evidenceOpen?: boolean;

@@ -11,6 +11,7 @@ const boards: Record<string, { version: number; presentation: BoardPresentation 
   ps92ji01jll9: {
     version: 1,
     presentation: {
+      stormBriefing: true,
       workspace: true, cardsOnMap: false, timelineOpen: true, evidenceOpen: true,
       mapRegions: [
         {
