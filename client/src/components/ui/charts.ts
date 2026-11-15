@@ -1,1 +1,1 @@
-export { BarList, ChartCard, DonutChart, LineChart, Sparkline, Tracker, TrendChart } from "@sw3/ui/charts";
+export { BarList, ChartCard, ChartSurface, DonutChart, LineChart, Sparkline, Tracker, TrendChart } from "@sw3/ui/charts";

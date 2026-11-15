@@ -262,6 +262,7 @@ function metricItem(key: string, plan: Plan, active: Fact<"metric">[], history: 
   return {
     key,
     label,
+    ...(spec?.cyberRole ? { cyberRole: spec.cyberRole } : {}),
     valueText: p.valueText,
     valueNum: cur.valueNum ?? p.valueNum ?? null,
     unit,
@@ -449,14 +450,14 @@ export function assemble(input: {
             cells: Object.fromEntries(t.columns.map((c) => [c.key, String(f.payload.cells?.[c.key] ?? "")])),
             ...cited(f, ctx.sources),
           }));
-        set(w, rows.length ? ({ columns: t.columns.map((c) => ({ ...c })), rows } satisfies TableData) : null);
+        set(w, rows.length ? ({ ...(t.cyberRole ? { cyberRole: t.cyberRole } : {}), columns: t.columns.map((c) => ({ ...c })), rows } satisfies TableData) : null);
         break;
       }
       case "status-grid": {
         const items = of("status")
           .filter((f) => f.payload.group === w.bind || f.key.startsWith(`${w.bind}:`))
           .sort((a, b) => STATE_ORDER[a.payload.state] - STATE_ORDER[b.payload.state] || a.payload.name.localeCompare(b.payload.name) || a.id - b.id)
-          .map((f) => ({ id: `st${f.id}`, name: f.payload.name, state: f.payload.state, note: f.payload.note ?? "", ...cited(f, ctx.sources) }));
+          .map((f) => ({ id: `st${f.id}`, name: f.payload.name, state: f.payload.state, ...(f.payload.scope ? { scope: f.payload.scope } : {}), note: f.payload.note ?? "", ...cited(f, ctx.sources) }));
         set(w, items.length ? ({ items } satisfies StatusGridData) : null);
         break;
       }
@@ -475,6 +476,7 @@ export function assemble(input: {
             level: f.payload.level,
             url: f.payload.url ?? null,
             active: f.payload.active !== false,
+            ...(f.payload.audience ? { audience: f.payload.audience } : {}),
             ...cited(f, ctx.sources),
           }));
         set(w, items.length ? ({ items } satisfies AlertListData) : null);
@@ -487,7 +489,7 @@ export function assemble(input: {
             const kb = RESOURCE_KINDS.indexOf(b.payload.resourceKind);
             return (ka < 0 ? 99 : ka) - (kb < 0 ? 99 : kb) || a.payload.label.localeCompare(b.payload.label) || a.id - b.id;
           })
-          .map((f) => ({ id: `l${f.id}`, label: f.payload.label, url: f.payload.url, kind: f.payload.resourceKind, note: f.payload.note ?? "", sources: [...f.sourceIds] }));
+          .map((f) => ({ id: `l${f.id}`, label: f.payload.label, url: f.payload.url, kind: f.payload.resourceKind, ...(f.payload.purpose ? { purpose: f.payload.purpose } : {}), note: f.payload.note ?? "", sources: [...f.sourceIds] }));
         set(w, items.length ? ({ items } satisfies LinkListData) : null);
         break;
       }

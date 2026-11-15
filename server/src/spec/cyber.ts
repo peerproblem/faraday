@@ -1,0 +1,11 @@
+/** Semantic hints for the cyber overview; absent on boards created before these hints existed. */
+export const cyberMetricRoles = ["impact", "response", "recovery", "context"] as const;
+export type CyberMetricRole = (typeof cyberMetricRoles)[number];
+export const cyberColumnRoles = ["subject", "status", "note", "context"] as const;
+export type CyberColumnRole = (typeof cyberColumnRoles)[number];
+export const advisoryAudiences = ["users", "operators", "both", "unknown"] as const;
+export type AdvisoryAudience = (typeof advisoryAudiences)[number];
+export const resourcePurposes = ["availability", "verification", "guidance", "updates", "other"] as const;
+export type ResourcePurpose = (typeof resourcePurposes)[number];
+export const statusScopes = ["overall", "component", "unknown"] as const;
+export type StatusScope = (typeof statusScopes)[number];

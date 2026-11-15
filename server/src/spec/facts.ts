@@ -7,10 +7,10 @@ export type MetricPayload = { valueText: string; valueNum: number | null; unit: 
 export type EventPayload = { title: string; detail: string; importance: "high" | "medium" | "low" };
 /** lat and lon are filled by geocoding, never by a model. */
 export type PlacePayload = { name: string; placeKind: MapPointKind; note: string; lat?: number | null; lon?: number | null };
-export type AdvisoryPayload = { issuer: string; title: string; text: string; level: "warning" | "watch" | "info"; url: string | null; active: boolean };
-export type ResourcePayload = { label: string; url: string; resourceKind: ResourceKind; note: string };
+export type AdvisoryPayload = { issuer: string; title: string; text: string; level: "warning" | "watch" | "info"; url: string | null; active: boolean; audience?: import("./cyber").AdvisoryAudience | null };
+export type ResourcePayload = { label: string; url: string; resourceKind: ResourceKind; note: string; purpose?: import("./cyber").ResourcePurpose | null };
 export type RowPayload = { table: string; cells: Record<string, string> };
-export type StatusPayload = { group: string; name: string; state: ServiceState; note: string };
+export type StatusPayload = { group: string; name: string; state: ServiceState; note: string; scope?: import("./cyber").StatusScope | null };
 
 export type PayloadMap = {
   metric: MetricPayload;
