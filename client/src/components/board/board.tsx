@@ -8,8 +8,6 @@ import { Card } from "@/components/ui/card";
 import { DashboardGrid } from "@/components/ui/dashboard";
 import { Menu, MenuContent, MenuTrigger } from "@/components/ui/menu";
 import { Icon } from "@/components/ui/icon";
-import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Meter } from "@/components/ui/meter";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
@@ -20,15 +18,17 @@ import { SourceStack } from "@/components/sources/source-mark";
 import { SourceWire } from "@/components/sources/source-wire";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { SourceChips } from "@/components/widgets/source-chips";
+import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { WidgetBoundary, WidgetFrame } from "@/components/widgets/widget-frame";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
-import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, Source, Widget } from "@/lib/spec";
+import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, Source, StatGridData, Widget } from "@/lib/spec";
 import { outletsOf, wireItems } from "@/lib/source-brand";
 import { newest } from "@/lib/time";
 import { BoardHeaderButton } from "./header-button";
 import { StatusBreakdown } from "./status-breakdown";
 import { MapFocus } from "./map-focus";
+import { selectMapFigures } from "./map-figures";
 
 export type BoardProps = {
   spec: BoardSpecV2 | null;
@@ -144,7 +144,7 @@ export function Board(props: BoardProps) {
     }
   }
 
-  function widgetContent(entry: LaidOutWidget, mapFocus = false, statOverlay = false) {
+  function widgetContent(entry: LaidOutWidget, mapFocus = false) {
     const Comp = widgetComponent(entry.widget.type)!;
     return (
       <Comp
@@ -158,7 +158,6 @@ export function Board(props: BoardProps) {
         tier={tier}
         building={building}
         mapFocus={mapFocus}
-        statOverlay={statOverlay}
       />
     );
   }
@@ -179,9 +178,14 @@ export function Board(props: BoardProps) {
       !overview.includes(entry) && !official.includes(entry),
     );
     const figures = overview.filter(({ widget }) => widget.type === "stat-grid");
-    const focusWidget = (entry: LaidOutWidget, statOverlay = false) => (
+    const summaryText = header?.headline?.text || header?.subtitle || undefined;
+    const mapFigures = selectMapFigures(figures.flatMap((entry) => {
+      const stats = (entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined;
+      return getStatItems(stats, entry.filter?.kind === "stat-grid" ? entry.filter.metrics : undefined);
+    }), summaryText);
+    const focusWidget = (entry: LaidOutWidget) => (
       <WidgetBoundary resetKey={entry.data ?? data?.widgets[entry.widget.id]}>
-        {widgetContent(entry, true, statOverlay)}
+        {widgetContent(entry, true)}
       </WidgetBoundary>
     );
     return (
@@ -207,25 +211,16 @@ export function Board(props: BoardProps) {
           </Menu>
         </div>}
         map={focusWidget(map)}
-        mapFigures={figures.length ? figures.map((entry) => (
-          <section key={entry.key} className="grid gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">{entry.widget.title}</h2>
-              <Popover>
-                <PopoverTrigger variant="ghost" size="sm" iconOnly aria-label={`Details for ${entry.widget.title}`}
-                  leading={<Icon name="info" width={16} height={16} />} />
-                <PopoverContent align="start" padding="sm">
-                  <PopoverTitle>{entry.widget.title} · Sources and notes</PopoverTitle>
-                  <ScrollArea maxHeight={340} aria-label="Figure sources and notes">{focusWidget(entry)}</ScrollArea>
-                </PopoverContent>
-              </Popover>
-            </div>
-            {focusWidget(entry, true)}
-          </section>
-        )) : undefined}
+        mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} /> : undefined}
         timeline={timeline ? focusWidget(timeline) : undefined}
         overview={<>
-          {header?.headline?.text && <Text size="sm">{header.headline.text} <SourceChips ids={header.headline.sources} sources={byId} /></Text>}
+          {summaryText && <Text size="sm">{summaryText} <SourceChips ids={header?.headline?.sources} sources={byId} /></Text>}
+          {lastPolledAt && <Text size="sm" tone="muted">Checked <Ago t={lastPolledAt} /></Text>}
+          {typeof header?.severity === "number" && (
+            <Meter label="Severity" value={Math.min(5, Math.max(0, header.severity))} min={0} max={5}
+              low={2} high={4} optimum={0} size="sm"
+              formatOptions={{ style: "decimal", maximumFractionDigits: 1 }} getValueLabel={(v) => `${v} of 5`} />
+          )}
           <StatusBreakdown sections={sections} data={data} />
           {overview.filter((entry) => entry.widget.type !== "stat-grid").map((entry) => (
             <section key={entry.key} aria-label={entry.widget.title} className="grid gap-2">
@@ -234,7 +229,12 @@ export function Board(props: BoardProps) {
             </section>
           ))}
         </>}
-        sections={sections.map((entry) => ({ key: entry.key, title: entry.widget.title, content: focusWidget(entry) }))}
+        sections={[...sections, ...figures].map((entry) => ({
+          key: entry.key,
+          title: entry.widget.type === "stat-grid" ? "Figures and sources" : entry.widget.title,
+          showsMapFigures: entry.widget.type === "stat-grid",
+          content: focusWidget(entry),
+        }))}
         sources={sourceList || official.length ? <>
           {sourceList && focusWidget(sourceList)}
           {official.map((entry) => <section key={entry.key} aria-label={entry.widget.title}>{focusWidget(entry)}</section>)}

@@ -1,1 +1,1 @@
-export { AppShell, AppShellHeader, AppShellInspector, AppShellSidebar, ShellToggle } from "@sw3/ui";
+export { AppShell, AppShellHeader, AppShellInspector, AppShellSidebar, ShellToggle, useAppShell } from "@sw3/ui";

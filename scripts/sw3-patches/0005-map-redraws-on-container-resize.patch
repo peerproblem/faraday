@@ -1,0 +1,35 @@
+--- a/packages/ui/src/map/map-view.tsx
++++ b/packages/ui/src/map/map-view.tsx
+@@ -238,12 +238,15 @@
+     const container = el.current
+     if (!container) return
+     if (workerUrl) maplibregl.setWorkerUrl(workerUrl)
++    let width = container.clientWidth
++    let height = container.clientHeight
+     const map = new maplibregl.Map({
+       container,
+       style: styleUrl,
+       center: (center ?? allCoords[0] ?? [0, 0]) as LngLatLike,
+       zoom,
+       interactive,
++      trackResize: false,
+       attributionControl: officialBasemap ? false : { compact: true },
+     })
+     mapRef.current = map
+@@ -327,7 +330,15 @@
+       onLoad?.(map)
+     })
+
+-    const ro = new ResizeObserver(() => map.resize())
++    const ro = new ResizeObserver(() => {
++      const nextWidth = container.clientWidth
++      const nextHeight = container.clientHeight
++      if (!nextWidth || !nextHeight || (nextWidth === width && nextHeight === height)) return
++      width = nextWidth
++      height = nextHeight
++      // Resizing clears the canvas. Redraw before the browser paints the new size.
++      map.resize().redraw()
++    })
+     ro.observe(container)
+     return () => {
+       ro.disconnect()

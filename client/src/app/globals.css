@@ -395,6 +395,7 @@ body:has(.fd-map-focus) {
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
 }
 
@@ -495,21 +496,39 @@ body:has(.fd-map-focus) {
 .fd-workspace-resize:focus-visible {
   color: var(--sw-foreground);
 }
-.fd-workspace-resize:focus-visible {
-  outline: 2px solid var(--sw-accent);
-  outline-offset: -2px;
+.fd-workspace-resize--height:focus-visible {
+  outline: none;
+}
+.fd-workspace-resize-focus {
+  visibility: hidden;
+}
+.fd-workspace-resize--height:focus-visible:not([data-dragging]) .fd-workspace-resize-focus {
+  visibility: visible;
+  stroke: var(--sw-accent);
 }
 .fd-workspace-resize--height {
   display: grid;
   place-items: center;
-  inset-inline-end: var(--sw-space-1);
+  inset-inline-start: var(--sw-space-1);
   inset-block-end: var(--sw-space-1);
   width: var(--sw-space-6);
   height: var(--sw-space-6);
   cursor: ns-resize;
 }
+.fd-workspace-resize--height[data-two-axis] {
+  cursor: nesw-resize;
+}
+.fd-workspace-resize--height[data-two-axis][data-edge="start"] {
+  cursor: nwse-resize;
+}
+.fd-map-focus-inspector:has(.fd-workspace-resize[data-dragging]) {
+  transition: none;
+}
+.fd-map-focus-detail-card[data-resize-edge="end"] .fd-map-focus-pane {
+  padding-block-end: var(--sw-space-8);
+}
 .fd-map-focus-detail-card[data-open][data-resize-edge="start"] .fd-map-focus-card-header {
-  padding-inline-end: var(--sw-space-10);
+  padding-inline-start: var(--sw-space-8);
 }
 .fd-workspace-resize--height[data-edge="start"] {
   inset-block-start: var(--sw-space-1);
@@ -519,21 +538,33 @@ body:has(.fd-map-focus) {
   transform: scaleY(-1);
 }
 .fd-map-focus-figures {
-  --sw-sq-bg: var(--sw-background);
   position: absolute;
   z-index: 1;
   inset-block-start: var(--sw-space-3);
   inset-inline-start: var(--sw-space-3);
-  width: min(19rem, calc(100% - var(--sw-space-20)));
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--sw-space-2);
+  inline-size: max-content;
+  max-inline-size: calc(100% - var(--sw-space-20));
+  pointer-events: none;
 }
-.fd-map-focus-figures-body {
-  max-height: min(42dvh, 17rem);
-  padding: var(--sw-space-2) var(--sw-space-3) var(--sw-space-3);
-  overflow: auto;
-  overscroll-behavior: contain;
+.fd-map-focus-figures > li {
+  inline-size: 8.5rem;
+  max-inline-size: 100%;
 }
-.fd-map-focus-figures-body > [data-widget] + [data-widget] {
-  margin-block-start: var(--sw-space-3);
+.fd-map-focus-figure {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sw-space-1);
+  padding: var(--sw-space-3);
+  overflow-wrap: anywhere;
+}
+.fd-map-focus:has(.fd-map-focus-inspector[data-state="open"][data-showing-figures]) .fd-map-focus-figures {
+  display: none;
 }
 .fd-map-focus-breakdown {
   display: grid;

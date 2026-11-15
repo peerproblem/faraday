@@ -1,19 +1,18 @@
 "use client";
 
-import { useId, useState, type CSSProperties, type ReactNode } from "react";
-import { AppShell, AppShellHeader, AppShellInspector, AppShellSidebar, ShellToggle } from "@/components/ui/app-shell";
+import { useId, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
+import { AppShell, AppShellHeader, AppShellInspector, AppShellSidebar, ShellToggle, useAppShell } from "@/components/ui/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Icon } from "@/components/ui/icon";
 import { useReorder } from "@/components/ui/reorder";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Squircle } from "@/components/ui/squircle";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 import { Heading } from "@/components/ui/typography";
 import { cardBounds, useWorkspaceSizes, WorkspaceResizeHandle } from "./workspace-resize";
 
-type DataSection = { key: string; title: string; content: ReactNode };
+type DataSection = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
 type MapFocusProps = {
   boardId: string;
   title: string;
@@ -28,6 +27,21 @@ type MapFocusProps = {
   changes?: ReactNode;
 };
 const cardLabels = { situation: "Situation", evidence: "Evidence" };
+const inspectorWidths = { min: 340, default: 440, max: 660 };
+
+function MapCardResizeHandle(props: ComponentProps<typeof WorkspaceResizeHandle>) {
+  const { inspector, narrow } = useAppShell();
+  const cornerWidth = narrow ? undefined : {
+    measure: () => ({
+      size: Math.min(inspectorWidths.max, Math.max(inspectorWidths.min, inspector.width || inspectorWidths.default)),
+      bounds: inspectorWidths,
+    }),
+    onResize: (size: number | null, startSize: number) => inspector.setWidth(size ?? startSize),
+    onCommit: inspector.setWidth,
+  };
+
+  return <WorkspaceResizeHandle {...props} cornerWidth={cornerWidth} />;
+}
 
 export function MapFocus({ boardId, title, status, actions, map, mapFigures, timeline, overview, sections, sources, changes }: MapFocusProps) {
   const id = useId();
@@ -97,12 +111,11 @@ export function MapFocus({ boardId, title, status, actions, map, mapFigures, tim
       )}
       <section className="fd-map-focus-stage" aria-label="Situation map">
         {map}
-        {mapFigures && <Squircle radius="lg" borderWidth={0} className="fd-map-focus-figures" role="region" aria-label="Map key figures">
-          <div className="fd-map-focus-figures-body">{mapFigures}</div>
-        </Squircle>}
+        {mapFigures}
       </section>
-      <AppShellInspector label="Board details" header={<h2 className="text-sm font-semibold">Details</h2>}
-        defaultWidth={440} minWidth={340} maxWidth={660}>
+      <AppShellInspector label="Board details" className="fd-map-focus-inspector"
+        data-showing-figures={tab === "data" && open.situation && activeSection?.showsMapFigures ? "" : undefined} header={<h2 className="text-sm font-semibold">Details</h2>}
+        defaultWidth={inspectorWidths.default} minWidth={inspectorWidths.min} maxWidth={inspectorWidths.max}>
         <div {...reorder.getContainerProps()} className="fd-map-focus-card-stack">
           {visibleCards.map((key, index) => {
             const name = key as keyof typeof cardLabels;
@@ -126,7 +139,7 @@ export function MapFocus({ boardId, title, status, actions, map, mapFigures, tim
                   </div>
                   <CollapsiblePanel className="fd-map-focus-card-body">{name === "situation" ? situation : evidence}</CollapsiblePanel>
                 </Collapsible>
-                {open[name] && <WorkspaceResizeHandle {...size} target={cardId} label={`Resize ${cardLabels[name]} height`}
+                {open[name] && <MapCardResizeHandle {...size} target={cardId} label={`Resize ${cardLabels[name]} card`}
                   edge={edge} getBounds={cardBounds} />}
               </Card>
             );

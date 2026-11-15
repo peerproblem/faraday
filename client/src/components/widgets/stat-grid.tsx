@@ -1,10 +1,11 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { TrendChart } from "@/components/ui/charts";
 import { Stat } from "@/components/ui/stat";
 import { Text } from "@/components/ui/typography";
-import type { StatItem } from "@/lib/spec";
+import type { StatGridData, StatItem } from "@/lib/spec";
 import { AsOf } from "./as-of";
 import { cleanPoints, trendSummary } from "./chart";
 import { SourceChips } from "./source-chips";
@@ -24,24 +25,38 @@ export function pickMetrics<T extends { key: string }>(items: T[], metrics: stri
  */
 const statTone: Record<StatItem["tone"], "danger" | "warning" | "success" | "neutral"> = { critical: "danger", warning: "warning", ok: "success", info: "neutral" };
 
-export function StatGridWidget({ data, sources, tier, building, filter, statOverlay }: WidgetProps<"stat-grid">) {
-  const items = pickMetrics(
-    (data?.items ?? []).filter((k) => k && typeof k.key === "string" && typeof k.valueText === "string"),
-    filter?.metrics,
+export function getStatItems(data: StatGridData | undefined, metrics: string[] | undefined) {
+  return pickMetrics(
+    (data?.items ?? []).filter((item) =>
+      item && typeof item.key === "string" && typeof item.label === "string" && typeof item.valueText === "string"),
+    metrics,
   );
-  if (!items.length) return <Empty building={building} title="No figures yet" description="The sources have not given any figures." />;
-  if (statOverlay) {
-    return (
-      <ul className="grid grid-cols-2 gap-2">
-        {items.map((item) => (
-          <li key={item.key} className="min-w-0">
-            <Stat size="sm" label={item.label} value={item.unit ? `${item.valueText} ${item.unit}` : item.valueText}
-              tone={statTone[item.tone] ?? "neutral"} caption={item.tone === "warning" ? "Disruption" : undefined} />
+}
+
+export function MapFigureCards({ items }: { items: StatItem[] }) {
+  return (
+    <ul className="fd-map-focus-figures" aria-label="Map figures">
+      {items.map((item) => {
+        const tone = statTone[item.tone];
+        return (
+          <li key={`${item.key}:${item.label}`}>
+            <Card padding="none" radius="md" className="fd-map-focus-figure">
+              <Text as="span" size="sm" tone="muted">{item.label}</Text>
+              <Text as="span" size="lg" className="font-semibold tabular-nums"
+                style={tone && tone !== "neutral" ? { color: `var(--sw-${tone})` } : undefined}>
+                {item.valueText}{item.unit && ` ${item.unit}`}
+              </Text>
+            </Card>
           </li>
-        ))}
-      </ul>
-    );
-  }
+        );
+      })}
+    </ul>
+  );
+}
+
+export function StatGridWidget({ data, sources, tier, building, filter }: WidgetProps<"stat-grid">) {
+  const items = getStatItems(data, filter?.metrics);
+  if (!items.length) return <Empty building={building} title="No figures yet" description="The sources have not given any figures." />;
   return (
     // Metric cells inside the tile, no cards of their own: the tile is the frame. At least 14rem wide, so the widest
     // board fits five across, which is as many as the design system allows in a row.
