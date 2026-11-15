@@ -37,6 +37,7 @@ export default function PointMap({
   fill = false,
   fixedCamera = false,
   interactive = true,
+  initialStyle = "streets",
   fitPadding,
   nameMarkers = false,
   onLoad,
@@ -50,13 +51,14 @@ export default function PointMap({
   fill?: boolean;
   fixedCamera?: boolean;
   interactive?: boolean;
+  initialStyle?: MapStyle;
   /** Room kept clear around the fitted places, for panels that sit over the map. */
   fitPadding?: { top: number; right: number; bottom: number; left: number };
   /** Name each marker in its tag even on a full-height map, for a board that shows the tags on hover. */
   nameMarkers?: boolean;
   onLoad?: (map: Map) => void;
 }) {
-  const [style, setStyle] = useState<MapStyle>("streets");
+  const [style, setStyle] = useState<MapStyle>(initialStyle);
   const [styleOpen, setStyleOpen] = useState(false);
   const mapRef = useRef<Map | null>(null);
   const pendingCamera = useRef<JumpToOptions | null>(null);

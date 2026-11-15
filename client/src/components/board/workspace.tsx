@@ -19,6 +19,7 @@ type WorkspaceProps = {
   defaultEvidenceOpen?: boolean;
   showSavedSources?: boolean;
   map?: ReactNode;
+  mapFooter?: ReactNode;
   mapFigures?: ReactNode;
   sidebar?: WorkspaceSidebarContent;
   overview: ReactNode;
@@ -32,7 +33,7 @@ type WorkspaceProps = {
   details?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, defaultEvidenceOpen, showSavedSources, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards, details }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, defaultEvidenceOpen, showSavedSources, map, mapFooter, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards, details }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -133,13 +134,30 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main,
       }}
       resize={resize}
       detailsWidth={detailsWidth}
-      flowing={flowingDetails && !overlay}
+      flowing={flowingDetails}
+      fadeScrollEdges={overlay && !!mapFooter}
     />
   );
   const detailsStyle = detailsSize.value
     ? { "--fd-workspace-details-width": `${detailsSize.value}px` } as CSSProperties
     : undefined;
   const visibleMobilePanel = (overlay && mobilePanel === "details") || (!sidebar && mobilePanel === "sidebar") ? null : mobilePanel;
+  const mapContent = <>
+    {map}
+    {!figuresOpen && mapFigures}
+    {overlay && cards && (
+      <div id={`${id}-details`} className="fd-workspace-map-cards" role="group" aria-label="Map cards"
+        style={flowingDetails ? {
+          insetBlockStart: mapFooter ? 0 : "var(--sw-space-3)",
+          insetBlockEnd: mapFooter ? 0 : "auto",
+          blockSize: "auto",
+          maxBlockSize: mapFooter ? undefined : "65%",
+          alignItems: "flex-start",
+        } : undefined}>
+        {cards}
+      </div>
+    )}
+  </>;
 
   return (
     <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined} data-has-main={main ? "" : undefined}
@@ -166,13 +184,12 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main,
 
       {map && <div className="fd-workspace-map" aria-label="Situation map" role="region"
         data-cards-on-map={overlay && cards ? "" : undefined} style={overlay ? detailsStyle : undefined}>
-        {map}
-        {!figuresOpen && mapFigures}
-        {overlay && cards && (
-          <div id={`${id}-details`} className="fd-workspace-map-cards" role="group" aria-label="Map cards">
-            {cards}
+        {mapFooter ? (
+          <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateRows: "minmax(0, 1fr) auto" }}>
+            <div style={{ position: "relative", minHeight: 0, minWidth: 0 }}>{mapContent}</div>
+            {mapFooter}
           </div>
-        )}
+        ) : mapContent}
       </div>}
 
       {!overlay && <aside id={`${id}-details`} className="fd-workspace-details" aria-label="Board details" data-open={detailsOpen ? "" : undefined} data-wide={wide && !detailsSize.resizing ? "" : undefined}

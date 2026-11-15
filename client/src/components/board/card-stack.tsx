@@ -18,9 +18,10 @@ type BoardCardStackProps = {
   resize: ReturnType<typeof useWorkspaceSizes>;
   detailsWidth?: CornerWidth;
   flowing?: boolean;
+  fadeScrollEdges?: boolean;
 };
 
-export function BoardCardStack({ id, cards, onOpenChange, resize, detailsWidth, flowing }: BoardCardStackProps) {
+export function BoardCardStack({ id, cards, onOpenChange, resize, detailsWidth, flowing, fadeScrollEdges }: BoardCardStackProps) {
   const [order, setOrder] = useState<string[]>([]);
   const byId = new Map<string, StackCard>(cards.map((card) => [card.id, card]));
   const ids = [...order.filter((key) => byId.has(key)), ...cards.map((card) => card.id).filter((key) => !order.includes(key))];
@@ -32,7 +33,15 @@ export function BoardCardStack({ id, cards, onOpenChange, resize, detailsWidth, 
   });
 
   return (
-    <div {...reorder.getContainerProps()} id={id} className="fd-workspace-card-stack">
+    <div {...reorder.getContainerProps()} id={id} className="fd-workspace-card-stack"
+      style={flowing ? {
+        overflow: "hidden auto", overscrollBehavior: "contain", pointerEvents: "auto",
+        ...(fadeScrollEdges && {
+          paddingBlock: "var(--sw-space-3)",
+          scrollPaddingBlock: "var(--sw-space-3)",
+          maskImage: "linear-gradient(to bottom, transparent, black var(--sw-space-3), black calc(100% - var(--sw-space-3)), transparent)",
+        }),
+      } : undefined}>
       {ids.map((key) => {
         const { id: name, label, content, open } = byId.get(key)!;
         const cardId = `${id}-${name}`;
@@ -41,7 +50,8 @@ export function BoardCardStack({ id, cards, onOpenChange, resize, detailsWidth, 
           <Card key={name} {...reorder.getItemProps(name)} id={cardId} role="region" aria-label={label}
             radius="lg" padding="none" bordered className="fd-workspace-detail-card" data-open={open ? "" : undefined}
             data-fixed-height={!flowing && cardSize.value ? "" : undefined}
-            style={!flowing && cardSize.value ? { "--fd-workspace-card-height": `${cardSize.value}px` } as CSSProperties : undefined}>
+            style={flowing ? { flex: "0 0 auto", minHeight: 0 }
+              : cardSize.value ? { "--fd-workspace-card-height": `${cardSize.value}px` } as CSSProperties : undefined}>
             <Collapsible open={open} onOpenChange={(value) => onOpenChange(name, value)}
               keepMounted={name === "situation"} className="fd-workspace-card-fold">
               <div className="fd-workspace-card-header">

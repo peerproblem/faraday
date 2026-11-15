@@ -35,6 +35,7 @@ import { StrikeDayChart, StrikeMapFigures, StrikeOverview } from "./strike-overv
 import { automaticChartEntry } from "./automatic-chart";
 import { IncidentReports } from "./incident-reports";
 import { RegionSwitch, RegionInset } from "./map-regions";
+import { StormBriefing } from "./storm-briefing";
 import { MapWidget } from "@/components/widgets/map";
 import "@/components/wildfire/wildfire.css";
 import type { WildfireBoard } from "@/components/wildfire/boards";
@@ -57,6 +58,7 @@ export type BoardProps = {
   connected: boolean;
   lastPolledAt: number | null;
   snapshotAt?: number;
+  stormBriefing?: boolean;
   onRefresh?: () => Promise<unknown>;
   /** When the stream last changed each widget's data, by widget id. */
   updatedAt?: Record<string, number>;
@@ -335,6 +337,39 @@ export function Board(props: BoardProps) {
         {renderWorkspaceWidget(timeline, true)}
       </> : renderWorkspaceWidget(timeline, true),
     } : undefined;
+    const workspaceCards = configuredCards?.map((card) => ({
+      id: `card:${card.id}` as const, label: card.title, content: card.content, open: card.open,
+    }));
+    const workspaceEvidence = {
+      defaultEvidenceOpen: props.defaultEvidenceOpen,
+      showSavedSources: props.snapshotAt !== undefined,
+      sources: sourcesWidget || releases.length ? <>
+        {!props.wildfire && <SourceWire items={wire} />}
+        {sourcesWidget && renderWorkspaceWidget(sourcesWidget, true)}
+        {!sourcesWidget && <OfficialReleases releases={releases} />}
+      </> : undefined,
+      sourceCount: sources.length,
+      changes: changelog ? renderWorkspaceWidget(changelog, true) : undefined,
+      contextEvidence: props.boardId ? <ContextEvidence boardId={props.boardId} checkedAt={lastPolledAt} /> : undefined,
+    };
+    if (props.stormBriefing && props.snapshotAt !== undefined) {
+      const getData = <T,>(key: string) => {
+        const entry = widgets.find((widget) => widget.key === key);
+        return entry ? data?.widgets[entry.widget.id] as T | undefined : undefined;
+      };
+      return (
+        <OfficialReleasesContext.Provider value={releases}>
+          <StormBriefing key={props.workspaceKey} snapshotAt={props.snapshotAt}
+            header={boardHeader} headline={header?.headline} sources={byId}
+            alerts={getData<AlertListData>("alert-list")}
+            impacts={getData<TableData>("table:affected-regions")}
+            travel={getData<TableData>("table:transport-closures")}
+            timeline={getData<TimelineData>("timeline")}
+            workspace={{ ...workspaceEvidence, workspaceKey: props.workspaceKey, sidebar: leftPanel, configuredCards: workspaceCards }}
+          />
+        </OfficialReleasesContext.Provider>
+      );
+    }
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
     const overviewChart = props.overviewStatusChart && sections.find((entry) => entry.key === props.overviewStatusChart);
@@ -412,12 +447,9 @@ export function Board(props: BoardProps) {
         <div className={`@container fd-workspace-board${props.wildfire ? " fd-wildfire-workspace" : ""}${props.strikeOverview ? " fd-strike-workspace" : ""}${outage ? " fd-outage-workspace" : ""}`}>
           {boardHeader}
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={!!props.wildfire}
+            {...workspaceEvidence}
             main={outageOverview ?? cyberOverview}
-            defaultEvidenceOpen={props.defaultEvidenceOpen}
-            showSavedSources={props.snapshotAt !== undefined}
-            configuredCards={configuredCards?.map((card) => ({
-              id: `card:${card.id}`, label: card.title, content: card.content, open: card.open,
-            }))}
+            configuredCards={workspaceCards}
             map={map ? <>
               <WidgetBoundary resetKey={mapData}>
                 {activeRegion ? (
@@ -472,14 +504,6 @@ export function Board(props: BoardProps) {
               showsMapFigures: entry.widget.type === "stat-grid",
               content: renderWorkspaceWidget(entry, true),
             }))}
-            sources={sourcesWidget || releases.length ? <>
-              {!props.wildfire && <SourceWire items={wire} />}
-              {sourcesWidget && renderWorkspaceWidget(sourcesWidget, true)}
-              {!sourcesWidget && <OfficialReleases releases={releases} />}
-            </> : undefined}
-            sourceCount={sources.length}
-            changes={changelog ? renderWorkspaceWidget(changelog, true) : undefined}
-            contextEvidence={props.boardId ? <ContextEvidence boardId={props.boardId} checkedAt={lastPolledAt} /> : undefined}
           />
         </div>
       </OfficialReleasesContext.Provider>

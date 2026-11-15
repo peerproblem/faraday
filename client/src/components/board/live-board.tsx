@@ -62,6 +62,7 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfire, 
         updatedAt={updatedAt}
         actions={actions}
         workspace={workspace}
+        stormBriefing={board.presentation?.stormBriefing}
         cardsOnMap={board.presentation?.cardsOnMap}
         mapCard={board.presentation?.mapCard}
         mapRegions={board.presentation?.mapRegions}
