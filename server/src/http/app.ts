@@ -17,6 +17,8 @@ import {
   deleteBoard,
   getBoard,
   getBoardView,
+  getBoardVersion,
+  finlandAirspaceBaseline,
   listBoards,
   listEvents,
   listTopics,
@@ -39,7 +41,7 @@ import { listCandidates } from "../repo/candidates";
 import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
 import { discoverEnabled, distributeLive, setDiscoverEnabled, setDistributeLive } from "../repo/settings";
 import { listAdminTopics, setTopicCategory, setTopicState } from "../repo/topics";
-import { boardLayoutSchema, parseTopicFilter, resolveBoardPresentation, topicCategories, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
+import { boardLayoutSchema, parseTopicFilter, resolveBoardPresentation, topicCategories, widgetKeyOf, type BoardEvent, type BoardPresentation, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
 import { ADMIN_COOKIE, ADMIN_SESSION_MS, adminCookie, checkAdminLogin, issueAdminToken, readCookie, verifyAdminToken } from "./admin-auth";
 import { errMessage, log } from "./log";
 import { createLimiter } from "./rate-limit";
@@ -58,6 +60,13 @@ export type AppOptions = {
 export const sseState = { connections: 0, touchedAt: new Map<string, number>() };
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+const finlandPresentation: BoardPresentation = {
+  workspace: true,
+  cardsOnMap: true,
+  timelineOpen: true,
+  evidenceOpen: true,
+  overviewStatusChart: "table:temporary-restrictions",
+};
 
 function publicSpec(spec: BoardSpecV2): BoardSpecV2 {
   return { version: spec.version, widgets: spec.widgets };
@@ -149,9 +158,15 @@ export function createApp(opts: AppOptions = {}) {
     const stored = await getBoardView(id);
     if (!stored) return null;
     const { assignment } = await getBoardLayout(id);
-    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance", stored.topicCategory);
+    const defaultFinland = !assignment && stored.id === finlandAirspaceBaseline.id;
+    const presentation = defaultFinland ? finlandPresentation
+      : resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance", stored.topicCategory);
+    const snapshot = defaultFinland ? await getBoardVersion(stored.id, finlandAirspaceBaseline.version) : null;
     // English only: non-English source titles and snippets never leave the server.
-    const v: BoardView = { ...stored, presentation, sources: publicSources(stored.sources) };
+    const v: BoardView = {
+      ...stored, presentation, sources: publicSources(stored.sources),
+      ...(snapshot ? { displaySnapshot: { ...snapshot, spec: publicSpec(snapshot.spec) } } : {}),
+    };
     cache.set(id, v);
     return v;
   }

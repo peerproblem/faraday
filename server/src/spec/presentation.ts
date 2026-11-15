@@ -77,6 +77,7 @@ export type BoardPresentation = {
   cardsOnMap?: boolean;
   timelineOpen?: boolean;
   evidenceOpen?: boolean;
+  overviewStatusChart?: string;
   incidentOverview?: { status: boolean; tally: boolean };
   sidebar?: BoardLayout["sidebar"];
   mapCard?: BoardLayout["mapCard"];

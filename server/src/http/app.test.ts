@@ -10,6 +10,8 @@ const boards = vi.hoisted(() => ({
   deleteBoard: vi.fn(),
   getBoard: vi.fn(),
   getBoardView: vi.fn(),
+  getBoardVersion: vi.fn(),
+  finlandAirspaceBaseline: { id: "oznxapju2rna", version: 2 },
   listBoards: vi.fn(),
   listEvents: vi.fn(),
   listTopics: vi.fn(async () => []),
@@ -115,6 +117,34 @@ beforeEach(() => {
 });
 
 describe("board views", () => {
+  it("restores Finland's map layout and returns its saved version for display", async () => {
+    const app = createApp();
+    const id = "oznxapju2rna";
+    const saved = { version: 2, spec: { version: 2, widgets: [], template: "finance" }, data: { widgets: {} } };
+    boards.getBoardView.mockResolvedValue(view({ id, version: 5 }));
+    boards.getBoardVersion.mockResolvedValue(saved);
+    const response = await app.request(`/api/boards/${id}`);
+    const board = (await response.json()) as BoardView;
+    expect(board.version).toBe(5);
+    expect(board.displaySnapshot).toEqual({ ...saved, spec: { version: 2, widgets: [] } });
+    expect(board.presentation).toEqual({
+      workspace: true, cardsOnMap: true, timelineOpen: true, evidenceOpen: true,
+      overviewStatusChart: "table:temporary-restrictions",
+    });
+    expect(boards.getBoardVersion).toHaveBeenCalledWith(id, 2);
+    layouts.getBoardLayout.mockResolvedValue({ rev: 1, assignment: { templateId: null, settings: {
+      layout: "map", timelineOpen: false, evidenceOpen: false,
+    } } });
+    publish(id, { type: "status", status: "live", tier: "hot" });
+    const override = await app.request(`/api/boards/${id}`);
+    const updated = (await override.json()) as BoardView;
+    expect(updated.displaySnapshot).toBeUndefined();
+    expect(updated.presentation).toEqual({
+      workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: false,
+    });
+    app.dispose();
+  });
+
   it("pages evidence for the requested board and validates the search group and cursor", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValueOnce(undefined);

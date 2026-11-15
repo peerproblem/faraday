@@ -364,6 +364,18 @@ export async function savePlan(id: string, plan: Plan): Promise<void> {
 
 const KEEP_VERSIONS = 50;
 
+export const finlandAirspaceBaseline = { id: "oznxapju2rna", version: 2 };
+
+export async function getBoardVersion(id: string, version: number) {
+  const row = await one<{ spec: string | object; data: string | object }>(
+    "SELECT spec, data FROM board_versions WHERE board_id = ? AND version = ?", [id, version],
+  );
+  if (!row) return null;
+  const spec = typeof row.spec === "string" ? json<BoardSpecV2>(row.spec) : row.spec as BoardSpecV2;
+  const data = typeof row.data === "string" ? json<BoardData>(row.data) : row.data as BoardData;
+  return spec && data ? { version, spec, data } : null;
+}
+
 /**
  * Writes spec, data, spec_version = 2, the list columns (crisis_type, severity, headline, accent, title, language),
  * bumps version, inserts board_versions (keeps the latest 50), optionally sets status. Returns the new version.
@@ -402,7 +414,8 @@ export async function saveBoardVersion(
        ON DUPLICATE KEY UPDATE spec = VALUES(spec), data = VALUES(data), change_note = VALUES(change_note)`,
       [id, version, JSON.stringify(v.spec), JSON.stringify(v.data), v.changeNote, now],
     );
-    await db.run(`DELETE FROM board_versions WHERE board_id = ? AND version <= ?`, [id, version - KEEP_VERSIONS]);
+    await db.run(`DELETE FROM board_versions WHERE board_id = ? AND version <= ? AND NOT (board_id = ? AND version = ?)`,
+      [id, version - KEEP_VERSIONS, finlandAirspaceBaseline.id, finlandAirspaceBaseline.version]);
     return version;
   });
 }
@@ -965,8 +978,8 @@ export async function pruneOldData(now: number): Promise<{ events: number; versi
   const oldVersions = await all<{ board_id: string; version: number }>(
     `SELECT board_id, version FROM (
        SELECT board_id, version, ROW_NUMBER() OVER (PARTITION BY board_id ORDER BY version DESC) AS rn FROM board_versions
-     ) x WHERE rn > ?`,
-    [KEEP_VERSIONS],
+     ) x WHERE rn > ? AND NOT (board_id = ? AND version = ?)`,
+    [KEEP_VERSIONS, finlandAirspaceBaseline.id, finlandAirspaceBaseline.version],
   );
   let versions = 0;
   for (const v of oldVersions) {

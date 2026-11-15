@@ -22,6 +22,7 @@ export type BoardView = {
   specVersion: number;
   spec: BoardSpecV2 | null;
   presentation?: BoardPresentation;
+  displaySnapshot?: { version: number; spec: BoardSpecV2; data: BoardData };
   data: BoardData | null;
   version: number;
   sources: Source[];
