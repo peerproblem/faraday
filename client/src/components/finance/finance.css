@@ -5,6 +5,18 @@
   padding: 0 0 4rem;
 }
 
+/* The board draws its own slim header, like the workspace boards. */
+body:has(.fd-fin) .fd-site-header {
+  display: none;
+}
+.fd-fin__topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* The page canvas, as behind the workspace header. */
+  background: var(--sw-canvas);
+}
+
 .fd-fin {
   --fin-up: var(--sw-success);
   --fin-down: var(--sw-danger);

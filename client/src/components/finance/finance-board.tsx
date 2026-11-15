@@ -3,6 +3,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
 import { isBuilding } from "@/components/board/board";
+import { LogoMark } from "@/components/logo";
+import { WorkspaceNavigation } from "@/components/site-header";
 import { SourceStack } from "@/components/sources/source-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +13,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/
 import { Meter } from "@/components/ui/meter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/components/ui/toast";
+import { Heading } from "@/components/ui/typography";
 import { AsOf } from "@/components/widgets/as-of";
 import { ChangelogWidget } from "@/components/widgets/changelog";
 import { NarrativeWidget } from "@/components/widgets/narrative";
@@ -20,6 +23,7 @@ import { SourcesWidget } from "@/components/widgets/sources";
 import { TimelineWidget } from "@/components/widgets/timeline";
 import type { WidgetProps } from "@/components/widgets/types";
 import type { MarketData } from "@/lib/market";
+import { SITE_URL } from "@/lib/config";
 import { outletsOf } from "@/lib/source-brand";
 import type { BoardData, BoardSpecV2, BoardView, StatItem, Widget } from "@/lib/spec";
 import { newest } from "@/lib/time";
@@ -86,6 +90,15 @@ export function FinanceBoard({ board, spec, data, connected, onRefresh, actions,
 
   return (
     <div className="fd-fin">
+      {/* The same slim header as the workspace boards, in place of the site header. */}
+      <header className="fd-workspace-header fd-fin__topbar flex min-w-0 shrink-0 items-center gap-2 border-b border-hairline">
+        <Button href={`${SITE_URL}/`} variant="ghost" size="sm" iconOnly aria-label="Faraday home"
+          className="shrink-0" leading={<LogoMark className="h-5 w-5" />} />
+        <Heading as="h2" size="sm" className="fd-workspace-title min-w-0 flex-1 truncate" title={header?.title ?? board.title ?? undefined}>
+          {header?.title ?? board.title ?? "Live board"}
+        </Heading>
+        <WorkspaceNavigation />
+      </header>
       <div className="fd-fin__strip fd-fin-kicker">
         <Badge variant={building ? "accent" : live ? "success" : "neutral"} pulse={live || building}>{building ? "Building" : live ? "Live" : connected ? "Paused" : "Offline"}</Badge>
         {header?.status ? <span>{header.status}</span> : null}
