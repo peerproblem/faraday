@@ -33,14 +33,14 @@ export function getStatItems(data: StatGridData | undefined, metrics: string[] |
   );
 }
 
-export function MapFigureCards({ items }: { items: StatItem[] }) {
+export function MapFigureCards({ items, bordered = false }: { items: StatItem[]; bordered?: boolean }) {
   return (
     <ul className="fd-workspace-map-figures" aria-label="Map figures">
       {items.map((item) => {
         const tone = statTone[item.tone];
         return (
           <li key={`${item.key}:${item.label}`}>
-            <Card padding="none" radius="md" className="fd-map-figure" style={{ padding: "var(--sw-space-3)" }}>
+            <Card bordered={bordered} padding="none" radius="md" className="fd-map-figure" style={{ padding: "var(--sw-space-3)" }}>
               <Text as="span" size="sm" tone="muted">{item.label}</Text>
               <Text as="span" size="lg" className="font-semibold tabular-nums"
                 style={tone && tone !== "neutral" ? { color: `var(--sw-${tone})` } : undefined}>
