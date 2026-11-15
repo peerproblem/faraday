@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { PersonalBoard } from "@/components/personal/personal-board";
+import { LiveBoard } from "@/components/board/live-board";
 import { WorkspaceNavigation } from "@/components/site-header";
 import { getBoardBySlug } from "@/lib/engine";
-import { emptyLayout } from "@/lib/spec";
 
 export default async function BoardPreview({ params }: PageProps<"/dev/boards/[slug]">) {
   if (process.env.NODE_ENV !== "development") notFound();
@@ -11,18 +10,12 @@ export default async function BoardPreview({ params }: PageProps<"/dev/boards/[s
   const board = await getBoardBySlug(slug);
   if (!board) notFound();
 
-  const hasMap = board.presentation?.workspace !== false && board.spec?.template !== "finance" && board.spec?.widgets.some((widget) => widget.type === "map");
+  if (board.presentation?.workspace === false || board.spec?.template === "finance") {
+    return <div className="pt-6"><LiveBoard key={board.id} initial={board} live={false} /></div>;
+  }
   return (
-    <PersonalBoard
-      key={board.id}
-      initial={board}
-      initialView={{
-        rev: 0,
-        layout: { ...emptyLayout(board.version), design: hasMap ? "map-overlay" : "standard" },
-      }}
-      live={false}
-      localPreview
-      workspaceNavigation={<WorkspaceNavigation />}
-    />
+    <div className="fd-workspace-shell">
+      <LiveBoard key={board.id} initial={board} live={false} workspace workspaceNavigation={<WorkspaceNavigation />} />
+    </div>
   );
 }

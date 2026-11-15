@@ -1,6 +1,6 @@
-// Browser calls for personal dashboards. The engine reads the session cookie (credentials: "include").
+// Browser calls for the admin console. The engine reads the admin session cookie (credentials: "include").
 import { api } from "@/lib/config";
-import type { AdminSettings, BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutState, BoardLayoutTemplate, PersonalLayout, TopicCandidateView, TopicRequestView, TopicState, ViewEditResult, ViewSaveResult, Widget } from "@/lib/spec";
+import type { AdminSettings, BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutState, BoardLayoutTemplate, TopicCandidateView, TopicState, Widget } from "@/lib/spec";
 
 export class ApiError extends Error {
   constructor(
@@ -26,7 +26,7 @@ async function call<T>(path: string, init: { method?: string; body?: unknown; ke
   if (!res.ok) {
     const fallback =
       res.status === 401
-        ? "Sign in first."
+        ? "Sign in to /admin first."
         : res.status === 429
           ? "Too many changes. Try again in a few minutes."
           : `Request failed (${res.status})`;
@@ -35,24 +35,9 @@ async function call<T>(path: string, init: { method?: string; body?: unknown; ke
   return body as T;
 }
 
-const path = (boardId: string, rest = "") => `/api/me/views/${encodeURIComponent(boardId)}${rest}`;
-
-export const saveView = (boardId: string, layout: PersonalLayout, rev: number) =>
-  call<ViewSaveResult>(path(boardId), { method: "POST", body: { layout, rev }, keepalive: true });
-
-export const editView = (boardId: string, instruction: string) =>
-  call<ViewEditResult>(path(boardId, "/edit"), { method: "POST", body: { instruction } });
-
-export const undoView = (boardId: string) => call<ViewSaveResult>(path(boardId, "/undo"), { method: "POST", body: {} });
-
-export const removeView = (boardId: string) => call<{ ok: true }>(path(boardId), { method: "DELETE" });
-
 // Admin. Every admin route answers 403 without an admin session (the fd_admin cookie or an admin Google account).
 
 export const listCandidates = (limit = 50) => call<{ candidates: TopicCandidateView[] }>(`/api/admin/candidates?limit=${limit}`);
-
-export const listRequests = (boardId?: string) =>
-  call<{ requests: TopicRequestView[] }>(`/api/admin/requests${boardId ? `?boardId=${encodeURIComponent(boardId)}` : ""}`);
 
 export const adminLogin = (username: string, password: string) =>
   call<{ admin: true }>("/api/admin/login", { method: "POST", body: { username, password } });

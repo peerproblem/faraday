@@ -14,25 +14,15 @@ import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
 
-/** The items to show: with a personal metric filter, only those metrics and in that order. */
-export function pickMetrics<T extends { key: string }>(items: T[], metrics: string[] | undefined): T[] {
-  if (!metrics?.length) return items;
-  const byKey = new Map(items.map((i) => [i.key, i]));
-  return metrics.map((m) => byKey.get(m)).filter((i): i is T => !!i);
-}
-
 /**
  * The value's tone, from the kind of figure (deaths are critical, evacuations a disruption, reopenings good news).
  * sw3 colours the value; a warning also carries its label in words.
  */
 const statTone: Record<StatItem["tone"], "danger" | "warning" | "success" | "neutral"> = { critical: "danger", warning: "warning", ok: "success", info: "neutral" };
 
-export function getStatItems(data: StatGridData | undefined, metrics: string[] | undefined) {
-  return pickMetrics(
-    (data?.items ?? []).filter((item) =>
-      item && typeof item.key === "string" && typeof item.label === "string" && typeof item.valueText === "string"),
-    metrics,
-  );
+export function getStatItems(data: StatGridData | undefined) {
+  return (data?.items ?? []).filter((item) =>
+    item && typeof item.key === "string" && typeof item.label === "string" && typeof item.valueText === "string");
 }
 
 export function MapFigureCards({ items, sources, bordered = false }: {
@@ -66,8 +56,8 @@ export function MapFigureCards({ items, sources, bordered = false }: {
   );
 }
 
-export function StatGridWidget({ data, sources, tier, building, filter, mapFocus }: WidgetProps<"stat-grid">) {
-  const items = getStatItems(data, filter?.metrics);
+export function StatGridWidget({ data, sources, tier, building, mapFocus }: WidgetProps<"stat-grid">) {
+  const items = getStatItems(data);
   if (!items.length) return <Empty building={building} title="No figures yet" description="The sources have not given any figures." />;
   return (
     // Metric cells inside the tile, no cards of their own: the tile is the frame. At least 14rem wide, so the widest

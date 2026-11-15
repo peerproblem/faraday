@@ -24,11 +24,10 @@ type WorkspaceProps = {
   sources?: ReactNode;
   sourceCount: number;
   changes?: ReactNode;
-  editor?: ReactNode;
   configuredCards?: WorkspaceCard[];
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, editor, configuredCards }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, configuredCards }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -58,33 +57,20 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
       detailsSize.onCommit(size);
     },
   } : undefined;
-  const editing = !!editor;
-  const [selection, setSelection] = useState({ tab: editing ? "layout" : "overview", editing });
+  const [selection, setSelection] = useState({ tab: "overview" });
   const [open, setOpen] = useState({ situation: true, evidence: defaultEvidenceOpen ?? false });
   const [customOpen, setCustomOpen] = useState<Record<string, boolean>>({});
   const [evidenceTab, setEvidenceTab] = useState<string | null>(null);
   const [sectionKey, setSectionKey] = useState<string | null>(null);
-  if (selection.editing !== editing) {
-    setSelection({ editing, tab: editing ? "layout" : "overview" });
-    if (editing) {
-      setOpen({ ...open, situation: true });
-      setDetailsOpen(true);
-      if (map && !overlay) setMobilePanel("details");
-    }
-  }
-
   const activeSection = sections.find((section) => section.key === sectionKey) ?? sections[0];
-  const situationTab = ((selection.tab === "layout" && editor) || (selection.tab === "data" && activeSection))
-    ? selection.tab
-    : "overview";
+  const situationTab = selection.tab === "data" && activeSection ? "data" : "overview";
   const figuresOpen = !configuredCards && (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
   const visibleEvidenceTab = evidenceTab === "changes" && changes ? "changes" : sources ? "sources" : "changes";
   const situation = (
-    <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab, editing })} size="sm" className="fd-workspace-tabs">
+    <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab })} size="sm" className="fd-workspace-tabs">
       <TabsList aria-label="Situation views" className="fd-workspace-tab-list">
         <Tab value="overview">Overview</Tab>
         {activeSection && <Tab value="data">Data</Tab>}
-        {editor && <Tab value="layout">Layout</Tab>}
       </TabsList>
       <TabsPanel value="overview" className="fd-workspace-tab-body fd-workspace-overview">{overview}</TabsPanel>
       {activeSection && (
@@ -98,7 +84,6 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
           <div key={activeSection.key} className="min-w-0">{activeSection.content}</div>
         </TabsPanel>
       )}
-      {editor && <TabsPanel value="layout" className="fd-workspace-tab-body">{editor}</TabsPanel>}
     </Tabs>
   );
 
@@ -114,13 +99,9 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   );
 
   const stackCards = configuredCards?.map((card) => ({ ...card, open: customOpen[card.id] ?? card.open }));
-  if (stackCards && editor) stackCards.unshift({
-    id: "card:layout-editor", label: "Edit layout", open: customOpen["card:layout-editor"] ?? true,
-    content: <div className="fd-configured-card-content">{editor}</div>,
-  });
   const cards = stackCards?.length === 0 ? null : (
     <BoardCardStack
-      key={stackCards?.filter((card) => card.id !== "card:layout-editor").map((card) => card.id).join(",")}
+      key={stackCards?.map((card) => card.id).join(",")}
       id={`${id}-detail-cards`}
       cards={stackCards ?? [
         { id: "situation", label: "Situation", content: situation, open: open.situation },

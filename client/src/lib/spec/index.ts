@@ -4,5 +4,5 @@ export * from "./widgets";
 export * from "./plan";
 export * from "./facts";
 export * from "./view";
-export * from "./personal";
+export * from "./topics";
 export * from "./presentation";

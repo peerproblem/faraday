@@ -12,15 +12,14 @@ import { Empty } from "./widget-frame";
 const levelTone: Record<string, BadgeVariant> = { warning: "danger", watch: "warning", info: "neutral" };
 const levelLabel: Record<string, string> = { warning: "Warning", watch: "Watch", info: "Info" };
 
-export function AlertListWidget({ widget, data, sources, tier, building, filter }: WidgetProps<"alert-list">) {
-  const all = (data?.items ?? []).filter((a) => a && typeof a.id === "string" && a.title);
-  const items = filter?.activeOnly ? all.filter((a) => a.active) : all;
+export function AlertListWidget({ widget, data, sources, tier, building }: WidgetProps<"alert-list">) {
+  const items = (data?.items ?? []).filter((a) => a && typeof a.id === "string" && a.title);
   if (!items.length)
     return (
       <Empty
         building={building}
-        title={all.length ? "No advisories in force" : "No official advisories"}
-        description={all.length ? "Every advisory in the sources has been lifted." : "The sources have no official advisories for this topic."}
+        title="No official advisories"
+        description="The sources have no official advisories for this topic."
       />
     );
   const sorted = [...items].sort((a, b) => Number(b.active) - Number(a.active));

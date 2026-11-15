@@ -24,19 +24,7 @@ const boards = vi.hoisted(() => ({
 const jobs = vi.hoisted(() => ({ enqueue: vi.fn(), hasPendingJob: vi.fn(), queueStats: vi.fn() }));
 const runs = vi.hoisted(() => ({ latestRunView: vi.fn(), latestWorkerHeartbeat: vi.fn(), nodeStats: vi.fn() }));
 const monitors = vi.hoisted(() => ({ removeBoardMonitors: vi.fn(), runBoardMonitors: vi.fn() }));
-const session = vi.hoisted(() => ({ sessionUserId: vi.fn() }));
-const views = vi.hoisted(() => ({
-  addTopicRequests: vi.fn(),
-  countViews: vi.fn(async () => 0),
-  deleteView: vi.fn(),
-  getView: vi.fn(),
-  listCandidates: vi.fn(async () => []),
-  listTopicRequests: vi.fn(async () => []),
-  listViews: vi.fn(async () => []),
-  saveView: vi.fn(),
-  undoView: vi.fn(),
-}));
-const users = vi.hoisted(() => ({ upsertUser: vi.fn(async () => "u-new"), getUser: vi.fn() }));
+const candidates = vi.hoisted(() => ({ listCandidates: vi.fn(async () => []) }));
 const conn = vi.hoisted(() => ({ address: "203.0.113.9" }));
 const settings = vi.hoisted(() => ({
   discoverEnabled: vi.fn(async () => false),
@@ -59,18 +47,38 @@ vi.mock("../repo/board-layouts", () => layouts);
 vi.mock("../repo/jobs", () => jobs);
 vi.mock("../repo/runs", () => runs);
 vi.mock("../monitors", () => monitors);
-vi.mock("../session", () => session);
-vi.mock("../repo/views", () => views);
+vi.mock("../repo/candidates", () => candidates);
 vi.mock("../repo/settings", () => settings);
 vi.mock("../repo/topics", () => topicsRepo);
-vi.mock("../users", async (orig) => ({ ...(await orig<typeof import("../users")>()), ...users }));
 vi.mock("../db/pool", () => ({ one: vi.fn(async () => ({ ok: 1 })), all: vi.fn(async () => []) }));
 vi.mock("@hono/node-server/conninfo", () => ({ getConnInfo: () => ({ remote: { address: conn.address } }) }));
 
-const { createApp, sseState } = await import("./app");
+const { createApp: createRealApp, sseState } = await import("./app");
 const { publish } = await import("../bus");
 const { sign } = await import("./signature");
 const { issueAdminToken } = await import("./admin-auth");
+
+/** Whether the requests of the next calls carry a valid /admin session cookie. */
+const who = { admin: false };
+const TEST_ADMIN_SALT = "ffeeddccbbaa99887766554433221100";
+function adminEnv() {
+  process.env.ADMIN_USERNAME = "tester";
+  process.env.ADMIN_PASSWORD_HASH = `scrypt:${TEST_ADMIN_SALT}:${scryptSync("admin-pass", TEST_ADMIN_SALT, 64).toString("hex")}`;
+  process.env.ADMIN_SESSION_SECRET = "test-secret";
+}
+/** The real app, with an admin cookie added to each request while who.admin is set. */
+function createApp(opts?: Parameters<typeof createRealApp>[0]) {
+  const app = createRealApp(opts);
+  const request = app.request.bind(app);
+  app.request = ((input: string, init: RequestInit = {}) => {
+    if (!who.admin) return request(input, init);
+    const headers = new Headers(init.headers);
+    const token = issueAdminToken();
+    if (token) headers.set("cookie", [headers.get("cookie"), `fd_admin=${encodeURIComponent(token)}`].filter(Boolean).join("; "));
+    return request(input, { ...init, headers });
+  }) as typeof app.request;
+  return app;
+}
 
 const row = (over: Record<string, unknown> = {}) => ({
   id: "b1",
@@ -93,15 +101,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   layouts.getBoardLayout.mockResolvedValue({ rev: 0, assignment: null });
   layouts.setBoardLayout.mockImplementation(async (_id, assignment, rev) => ({ ok: true, value: { assignment, rev: rev + 1 } }));
-  process.env.ADMIN_EMAILS = "Admin@Example.com, other@example.com";
-  users.getUser.mockImplementation(async (id: string) =>
-    id === "admin" ? { id, email: "admin@example.com", name: "A", image: null } : { id, email: `${id}@example.com`, name: null, image: null },
-  );
-  views.getView.mockResolvedValue(null);
-  views.countViews.mockResolvedValue(0);
-  views.saveView.mockImplementation(async (_u: string, _b: string, _l: unknown, rev: number) => ({ ok: true, rev: rev + 1 }));
+  adminEnv();
   conn.address = "203.0.113.9";
-  session.sessionUserId.mockResolvedValue(null);
+  who.admin = false;
   jobs.queueStats.mockResolvedValue({ queued: { build: 0, edit: 0, poll: 0, cleanup: 0 }, running: 0, failedLastHour: 0 });
   jobs.hasPendingJob.mockResolvedValue(false);
   jobs.enqueue.mockResolvedValue(1);
@@ -148,10 +150,8 @@ describe("board views", () => {
     const path = "/api/admin/boards/b1/layout";
     const request = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: "t1", rev: 0 }) };
     expect((await app.request(path, request)).status).toBe(401);
-    session.sessionUserId.mockResolvedValue("u1");
-    expect((await app.request(path, request)).status).toBe(403);
     expect(layouts.setBoardLayout).not.toHaveBeenCalled();
-    session.sessionUserId.mockResolvedValue("admin");
+    who.admin = true;
     boards.getBoard.mockResolvedValue(row());
     layouts.getBoardLayoutTemplate.mockResolvedValue({ id: "t1", name: "Grid", settings });
     expect((await app.request(path, request)).status).toBe(200);
@@ -202,7 +202,7 @@ describe("board views", () => {
       expect(body.plan).toBeNull();
       expect(body.messages).toEqual([]);
     }
-    session.sessionUserId.mockResolvedValue("admin");
+    who.admin = true;
     const admin = (await (await app.request("/api/boards/b1")).json()) as BoardView;
     expect(admin.ownerId).toBe("u1");
     expect(admin.messages).toHaveLength(1);
@@ -214,9 +214,7 @@ describe("board views", () => {
     boards.getBoard.mockResolvedValue(row());
     runs.latestRunView.mockResolvedValue({ run: null, steps: [], totals: {} });
     expect((await app.request("/api/boards/b1/runs/latest")).status).toBe(401);
-    session.sessionUserId.mockResolvedValue("u1");
-    expect((await app.request("/api/boards/b1/runs/latest")).status).toBe(403);
-    session.sessionUserId.mockResolvedValue("admin");
+    who.admin = true;
     expect((await app.request("/api/boards/b1/runs/latest")).status).toBe(200);
     app.dispose();
   });
@@ -245,7 +243,6 @@ const json = (body: unknown, method = "POST") => ({ method, headers: { "Content-
 describe("removed prompt boards", () => {
   it("has no POST /api/boards", async () => {
     const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
     const r = await app.request("/api/boards", json({ prompt: "Floods in Valencia now" }));
     expect(r.status).toBe(404);
     expect(boards.createBoard).not.toHaveBeenCalled();
@@ -270,165 +267,12 @@ describe("GET /api/topics", () => {
   });
 });
 
-describe("GET /api/me", () => {
-  it("needs a session and reports admins from ADMIN_EMAILS, case-insensitively", async () => {
-    const app = createApp();
-    expect((await app.request("/api/me")).status).toBe(401);
-    session.sessionUserId.mockResolvedValue("admin");
-    expect(await (await app.request("/api/me")).json()).toEqual({ id: "admin", email: "admin@example.com", name: "A", image: null, isAdmin: true });
-    session.sessionUserId.mockResolvedValue("u1");
-    expect((await (await app.request("/api/me")).json()).isAdmin).toBe(false);
-    app.dispose();
-  });
-});
-
-describe("personal views", () => {
-  it("needs a session on every /api/me/views route", async () => {
-    const app = createApp();
-    boards.getBoard.mockResolvedValue(topic());
-    for (const [path, init] of [
-      ["/api/me/views", undefined],
-      ["/api/me/views/b1", undefined],
-      ["/api/me/views/b1", json({ layout: {}, rev: 0 })],
-      ["/api/me/views/b1/edit", json({ instruction: "Map bigger" })],
-      ["/api/me/views/b1/undo", { method: "POST" }],
-      ["/api/me/views/b1", { method: "DELETE" }],
-    ] as const) {
-      expect((await app.request(path, init)).status, path).toBe(401);
-    }
-    app.dispose();
-  });
-
-  it("returns an empty state when there is no view, 404 for an unknown board", async () => {
-    const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
-    boards.getBoard.mockResolvedValue(topic());
-    expect(await (await app.request("/api/me/views/b1")).json()).toEqual({ layout: null, rev: 0 });
-    boards.getBoard.mockResolvedValue(null);
-    expect((await app.request("/api/me/views/zz")).status).toBe(404);
-    app.dispose();
-  });
-
-  it("sanitizes and saves a layout, and answers 409 with the stored view on a stale rev", async () => {
-    const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
-    boards.getBoard.mockResolvedValue(topic());
-    const layout = { order: ["map", "ghost"], hidden: [], size: { map: "half" }, pinned: [], filters: {}, extras: [], header: { compact: false }, baseVersion: 3 };
-    const r = await app.request("/api/me/views/b1", json({ layout, rev: 0 }));
-    expect(r.status).toBe(200);
-    const body = await r.json();
-    expect(body.rev).toBe(1);
-    expect(body.layout.order).toEqual(["map"]);
-    expect(views.saveView).toHaveBeenCalledWith("u1", "b1", expect.objectContaining({ order: ["map"], size: { map: "half" } }), 0);
-
-    const stored = { layout: { ...layout, order: ["narrative"] }, rev: 4 };
-    views.saveView.mockResolvedValueOnce({ ok: false, current: stored });
-    const conflict = await app.request("/api/me/views/b1", json({ layout, rev: 2 }));
-    expect(conflict.status).toBe(409);
-    expect(await conflict.json()).toEqual(expect.objectContaining({ layout: stored.layout, rev: 4 }));
-    expect((await app.request("/api/me/views/b1", json({ layout: "nope", rev: 0 }))).status).toBe(400);
-    app.dispose();
-  });
-
-  it("caps views per user and saves per hour", async () => {
-    const app = createApp({ maxViews: 2, viewSavesPerHour: 2 });
-    session.sessionUserId.mockResolvedValue("u1");
-    boards.getBoard.mockResolvedValue(topic());
-    views.countViews.mockResolvedValue(2);
-    expect((await app.request("/api/me/views/b1", json({ layout: {}, rev: 0 }))).status).toBe(429);
-    views.countViews.mockResolvedValue(0);
-    expect((await app.request("/api/me/views/b1", json({ layout: {}, rev: 1 }))).status).toBe(200);
-    expect((await app.request("/api/me/views/b1", json({ layout: {}, rev: 2 }))).status).toBe(200);
-    const r = await app.request("/api/me/views/b1", json({ layout: {}, rev: 3 }));
-    expect(r.status).toBe(429);
-    expect(r.headers.get("retry-after")).toBeTruthy();
-    app.dispose();
-  });
-
-  it("edits by prompt with the injected model, stores unsupported parts as requests and limits edits per hour", async () => {
-    const layoutModel = vi.fn(async () => ({
-      reply: "Moved the map to the top.",
-      order: ["map", "ghost"],
-      hidden: [],
-      size: [{ key: "map", span: "full" as const }],
-      pinned: [],
-      filters: [],
-      extras: [],
-      compactHeader: false,
-      unsupported: ["shelter capacity"],
-    }));
-    const app = createApp({ layoutModel, viewEditsPerHour: 1 });
-    session.sessionUserId.mockResolvedValue("u1");
-    boards.getBoard.mockResolvedValue(topic());
-    const r = await app.request("/api/me/views/b1/edit", json({ instruction: "Map first, and shelter capacity" }));
-    expect(r.status).toBe(200);
-    const body = await r.json();
-    expect(body.layout.order).toEqual(["map"]);
-    expect(body.rev).toBe(1);
-    expect(body.unsupported).toEqual(["shelter capacity"]);
-    expect(body.reply).toBe("Moved the map to the top. This topic doesn't track shelter capacity yet. I left a request.");
-    expect(views.addTopicRequests).toHaveBeenCalledWith("b1", "u1", ["shelter capacity"]);
-    expect(views.saveView).toHaveBeenCalledWith("u1", "b1", expect.anything(), 0, expect.objectContaining({ instruction: "Map first, and shelter capacity" }));
-    expect((await app.request("/api/me/views/b1/edit", json({ instruction: "Hide the map" }))).status).toBe(429);
-    expect((await app.request("/api/me/views/b1/edit", json({ instruction: "x" }))).status).toBe(400);
-    app.dispose();
-  });
-
-  it("answers 504 when the edit model times out", async () => {
-    const layoutModel = vi.fn(
-      ({ signal }: { signal: AbortSignal }) => new Promise<never>((_, reject) => signal.addEventListener("abort", () => reject(signal.reason))),
-    );
-    const app = createApp({ layoutModel, viewEditTimeoutMs: 20 });
-    session.sessionUserId.mockResolvedValue("u1");
-    boards.getBoard.mockResolvedValue(topic());
-    const r = await app.request("/api/me/views/b1/edit", json({ instruction: "Map bigger" }));
-    expect(r.status).toBe(504);
-    expect(views.saveView).not.toHaveBeenCalled();
-    app.dispose();
-  });
-
-  it("refuses edits and saves on a board that is still building", async () => {
-    const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
-    boards.getBoard.mockResolvedValue(topic({ spec: null }));
-    expect((await app.request("/api/me/views/b1", json({ layout: {}, rev: 0 }))).status).toBe(409);
-    expect((await app.request("/api/me/views/b1/edit", json({ instruction: "Map bigger" }))).status).toBe(409);
-    app.dispose();
-  });
-
-  it("undoes, 404s with nothing to undo, and deletes", async () => {
-    const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
-    boards.getBoard.mockResolvedValue(topic());
-    views.undoView.mockResolvedValueOnce(null);
-    expect((await app.request("/api/me/views/b1/undo", { method: "POST" })).status).toBe(404);
-    views.undoView.mockResolvedValueOnce({ layout: { order: ["gone", "map"], hidden: [], size: {}, pinned: [], filters: {}, extras: [], header: { compact: false }, baseVersion: 1 }, rev: 6 });
-    const r = await app.request("/api/me/views/b1/undo", { method: "POST" });
-    expect(r.status).toBe(200);
-    expect(await r.json()).toEqual(expect.objectContaining({ rev: 6, layout: expect.objectContaining({ order: ["map"] }) }));
-    expect(await (await app.request("/api/me/views/b1", { method: "DELETE" })).json()).toEqual({ ok: true });
-    expect(views.deleteView).toHaveBeenCalledWith("u1", "b1");
-    app.dispose();
-  });
-
-  it("lists the user's views", async () => {
-    const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
-    views.listViews.mockResolvedValue([{ id: "b1", changedSinceVisit: true }] as never);
-    expect(await (await app.request("/api/me/views")).json()).toEqual({ views: [{ id: "b1", changedSinceVisit: true }] });
-    expect(views.listViews).toHaveBeenCalledWith("u1", 20);
-    app.dispose();
-  });
-});
-
 describe("admin", () => {
   it("creates a system topic and queues its build, for admins only", async () => {
     const app = createApp();
     const post = () => app.request("/api/admin/topics", json({ prompt: "Floods in Valencia, Spain" }));
     expect((await post()).status).toBe(401);
-    session.sessionUserId.mockResolvedValue("u1");
-    expect((await post()).status).toBe(403);
-    session.sessionUserId.mockResolvedValue("admin");
+    who.admin = true;
     boards.createBoard.mockResolvedValue({ id: "b9", slug: "s9" });
     const r = await post();
     expect(r.status).toBe(200);
@@ -438,29 +282,24 @@ describe("admin", () => {
     app.dispose();
   });
 
-  it("lists candidates and requests for admins only", async () => {
+  it("lists candidates for admins only, and has no topic requests any more", async () => {
     const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
-    expect((await app.request("/api/admin/candidates")).status).toBe(403);
-    expect((await app.request("/api/admin/requests")).status).toBe(403);
-    session.sessionUserId.mockResolvedValue("admin");
+    expect((await app.request("/api/admin/candidates")).status).toBe(401);
+    who.admin = true;
     expect(await (await app.request("/api/admin/candidates?limit=5")).json()).toEqual({ candidates: [] });
-    expect(views.listCandidates).toHaveBeenCalledWith(5);
-    expect((await app.request("/api/admin/requests?boardId=b1&status=open")).status).toBe(200);
-    expect(views.listTopicRequests).toHaveBeenCalledWith({ boardId: "b1", status: "open", limit: 100 });
-    expect((await app.request("/api/admin/requests?status=bogus")).status).toBe(400);
+    expect(candidates.listCandidates).toHaveBeenCalledWith(5);
+    expect((await app.request("/api/admin/requests")).status).toBe(404);
     app.dispose();
   });
 
   it("lets only admins change a shared topic", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(topic());
-    session.sessionUserId.mockResolvedValue("u1");
     expect((await app.request("/api/boards/b1/edit", json({ instruction: "Add road closures" }))).status).toBe(403);
     expect((await app.request("/api/boards/b1/pause", { method: "POST" })).status).toBe(403);
     expect((await app.request("/api/boards/b1/visibility", json({ visibility: "unlisted" }))).status).toBe(403);
     expect((await app.request("/api/boards/b1", { method: "DELETE" })).status).toBe(403);
-    session.sessionUserId.mockResolvedValue("admin");
+    who.admin = true;
     expect((await app.request("/api/boards/b1/edit", json({ instruction: "Add road closures" }))).status).toBe(200);
     expect((await app.request("/api/boards/b1/pause", { method: "POST" })).status).toBe(200);
     app.dispose();
@@ -469,10 +308,9 @@ describe("admin", () => {
   it("runs monitors on refresh for an admin of a shared topic, not for others", async () => {
     const app = createApp();
     boards.getBoard.mockImplementation(async (id: string) => topic({ id }));
-    session.sessionUserId.mockResolvedValue("u1");
     expect((await app.request("/api/boards/t1/refresh", { method: "POST" })).status).toBe(200);
     expect(monitors.runBoardMonitors).not.toHaveBeenCalled();
-    session.sessionUserId.mockResolvedValue("admin");
+    who.admin = true;
     expect((await app.request("/api/boards/t2/refresh", { method: "POST" })).status).toBe(200);
     expect(monitors.runBoardMonitors).toHaveBeenCalledWith("t2");
     app.dispose();
@@ -576,9 +414,6 @@ describe("admin login, session and settings", () => {
     const app = createApp();
     expect((await app.request("/api/admin/settings")).status).toBe(401);
     expect((await app.request("/api/admin/settings", json({ discoverEnabled: true }))).status).toBe(401);
-    session.sessionUserId.mockResolvedValue("u1");
-    expect((await app.request("/api/admin/settings")).status).toBe(403);
-    session.sessionUserId.mockResolvedValue(null);
     const cookie = cookieOf(await login(app, "tester", PASSWORD));
     const off = { discoverEnabled: false, distributeLive: false, distributeReady: false };
     expect(await (await app.request("/api/admin/settings", withCookie(cookie))).json()).toEqual(off);
@@ -623,13 +458,11 @@ describe("admin login, session and settings", () => {
     app.dispose();
   });
 
-  it("lets an admin cookie change a shared topic while other users get 403", async () => {
+  it("lets an admin cookie change a shared topic while everyone else gets 403", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(topic());
-    session.sessionUserId.mockResolvedValue("u1");
     expect((await app.request("/api/boards/b1/edit", json({ instruction: "Add road closures" }))).status).toBe(403);
     const cookie = cookieOf(await login(app, "tester", PASSWORD));
-    session.sessionUserId.mockResolvedValue(null);
     expect((await app.request("/api/boards/b1/edit", withCookie(cookie, json({ instruction: "Add road closures" })))).status).toBe(200);
     boards.createBoard.mockResolvedValue({ id: "b9", slug: "s9" });
     expect((await app.request("/api/admin/topics", withCookie(cookie, json({ prompt: "Floods in Valencia, Spain" })))).status).toBe(200);
@@ -649,7 +482,7 @@ describe("admin login, session and settings", () => {
 });
 
 describe("refresh", () => {
-  it("allows one check per board per minute and only runs monitors for the owner", async () => {
+  it("allows one check per board per minute and only runs monitors for an admin", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(row());
     const r1 = await app.request("/api/boards/b1/refresh", { method: "POST" });
@@ -664,7 +497,7 @@ describe("refresh", () => {
 
   it("limits one address to 5 checks a minute across boards", async () => {
     const app = createApp();
-    session.sessionUserId.mockResolvedValue("u1");
+    who.admin = true;
     boards.getBoard.mockImplementation(async (id: string) => row({ id }));
     for (let i = 0; i < 5; i++) expect((await app.request(`/api/boards/x${i}/refresh`, { method: "POST" })).status).toBe(200);
     expect(monitors.runBoardMonitors).toHaveBeenCalledTimes(5);
@@ -692,11 +525,10 @@ describe("refresh", () => {
   });
 });
 
-describe("owner actions", () => {
-  it("refuses non-owners", async () => {
+describe("legacy prompt board actions", () => {
+  it("refuses everyone but an admin, including the board's old owner", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(row());
-    session.sessionUserId.mockResolvedValue("u2");
     expect((await app.request("/api/boards/b1/pause", { method: "POST" })).status).toBe(403);
     expect((await app.request("/api/boards/b1", { method: "DELETE" })).status).toBe(403);
     expect(boards.deleteBoard).not.toHaveBeenCalled();
@@ -706,7 +538,7 @@ describe("owner actions", () => {
   it("pauses (removing monitors) and resumes (queueing a poll)", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(row());
-    session.sessionUserId.mockResolvedValue("u1");
+    who.admin = true;
     expect((await app.request("/api/boards/b1/pause", { method: "POST" })).status).toBe(200);
     expect(boards.setSchedule).toHaveBeenCalledWith("b1", { tier: "paused", nextPollAt: null });
     expect(monitors.removeBoardMonitors).toHaveBeenCalledWith("b1");
@@ -719,7 +551,7 @@ describe("owner actions", () => {
   it("queues an edit, and refuses it while a build or edit is pending", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(row());
-    session.sessionUserId.mockResolvedValue("u1");
+    who.admin = true;
     const edit = () =>
       app.request("/api/boards/b1/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction: "Add road closures" }) });
     expect((await edit()).status).toBe(200);
@@ -733,7 +565,7 @@ describe("owner actions", () => {
   it("deletes the board and its monitors", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(row());
-    session.sessionUserId.mockResolvedValue("u1");
+    who.admin = true;
     expect((await app.request("/api/boards/b1", { method: "DELETE" })).status).toBe(200);
     expect(monitors.removeBoardMonitors).toHaveBeenCalledWith("b1");
     expect(boards.addEvent).toHaveBeenCalledWith("b1", "info", "This board was deleted.", null);

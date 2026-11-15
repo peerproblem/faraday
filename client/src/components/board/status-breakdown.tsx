@@ -4,13 +4,13 @@ import type { ReactNode } from "react";
 import { BarList, ChartCard, DonutChart } from "@/components/ui/charts";
 import { Text } from "@/components/ui/typography";
 import type { BoardData, TableData } from "@/lib/spec";
-import type { LaidOutWidget } from "@/lib/client/apply-layout";
-import { matchRows, statusTone } from "@/components/widgets/table";
+import type { BoardEntry } from "./entry";
+import { statusTone } from "@/components/widgets/table";
 
-function tableBreakdown(table: TableData, query: string | null | undefined) {
+function tableBreakdown(table: TableData) {
   const column = table.columns.find((column) => column.kind === "status");
   if (!column) return null;
-  const rows = matchRows(table.rows, query);
+  const rows = table.rows;
   const buckets = new Map<string, { label: string; value: number }>();
   for (const row of rows) {
     const status = row.cells[column.key]?.trim();
@@ -23,12 +23,12 @@ function tableBreakdown(table: TableData, query: string | null | undefined) {
 }
 
 export function StatusBreakdown({ entry, data, chart = "donut", fallback = null }: {
-  entry: LaidOutWidget; data: BoardData | null; chart?: "donut" | "bars"; fallback?: ReactNode;
+  entry: BoardEntry; data: BoardData | null; chart?: "donut" | "bars"; fallback?: ReactNode;
 }) {
   if (entry.widget.type !== "table") return fallback;
-  const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+  const table = data?.widgets[entry.widget.id] as TableData | undefined;
   if (!table?.columns?.length || !table.rows?.length) return fallback;
-  const breakdown = tableBreakdown(table, entry.filter?.kind === "table" ? entry.filter.query : undefined);
+  const breakdown = tableBreakdown(table);
   if (!breakdown?.total || (chart === "donut" && (breakdown.slices.length < 2 || breakdown.slices.length > 6))) return fallback;
 
   const title = `${entry.widget.title} by status`;

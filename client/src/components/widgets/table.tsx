@@ -127,19 +127,11 @@ export function sortRows(data: TableData, sort: TableSort | null) {
 }
 
 /** Rows whose cells contain the text, ignoring case. */
-export function matchRows(rows: TableData["rows"], query: string | null | undefined) {
-  const q = query?.trim().toLowerCase();
-  if (!q) return rows;
-  return rows.filter((r) => Object.values(r.cells).some((v) => (v ?? "").toLowerCase().includes(q)));
-}
-
-export function TableWidget({ widget, data, sources, tier, building, filter, mapFocus: compact }: WidgetProps<"table">) {
+export function TableWidget({ widget, data, sources, tier, building, mapFocus: compact }: WidgetProps<"table">) {
   const [sort, setSort] = useState<TableSort | null>(null);
   const [page, setPage] = useState(1);
-  const query = filter?.query ?? null;
-  const rows = useMemo(() => (data ? matchRows(sortRows(data, sort), query) : []), [data, sort, query]);
+  const rows = useMemo(() => (data ? sortRows(data, sort) : []), [data, sort]);
   if (!data?.columns?.length || !data.rows?.length) return <Empty building={building} title="No rows yet" />;
-  if (!rows.length) return <Empty building={false} title={`No rows match “${query}”`} description="Change the filter to see the other rows." />;
   const pageSize = compact ? MAP_FOCUS_PAGE_SIZE : PAGE_SIZE;
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const current = Math.min(page, pageCount);
