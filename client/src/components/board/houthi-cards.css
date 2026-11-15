@@ -1,0 +1,91 @@
+.fd-houthi-cards {
+  display: grid;
+  align-content: start;
+  gap: var(--sw-space-3);
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.fd-houthi-cards-surface {
+  position: relative;
+  min-inline-size: 0;
+  pointer-events: auto;
+}
+
+.fd-houthi-brief-pane {
+  min-block-size: 4rem;
+}
+
+.fd-houthi-resizable-content {
+  margin-block-end: var(--sw-space-4);
+}
+
+.fd-houthi-cards-scroll {
+  --fd-houthi-default-height: var(--fd-houthi-card-content-height, clamp(6rem, 22dvh, 14rem));
+  block-size: var(--fd-houthi-preferred-height, auto);
+  max-block-size: min(35rem, 62dvh, var(--fd-houthi-preferred-height, var(--fd-houthi-default-height)));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.fd-houthi-strikes-pane {
+  --fd-houthi-default-height: var(--fd-houthi-strike-content-height, clamp(8rem, 25dvh, 18rem));
+}
+
+.fd-houthi-strike-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fd-houthi-strike-row {
+  display: grid;
+  gap: var(--sw-space-1);
+  min-inline-size: 0;
+  padding-block: var(--sw-space-3);
+}
+
+.fd-houthi-strike-row:first-child {
+  padding-block-start: var(--sw-space-1);
+}
+
+.fd-houthi-strike-row + .fd-houthi-strike-row {
+  border-block-start: 1px solid var(--sw-hairline);
+}
+
+.fd-houthi-strike-meta,
+.fd-houthi-strike-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sw-space-1) var(--sw-space-2);
+  min-inline-size: 0;
+}
+
+.fd-houthi-strike-meta:empty {
+  display: none;
+}
+
+.fd-houthi-strike-date {
+  margin-inline-end: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.fd-houthi-strike-status {
+  block-size: auto;
+  min-block-size: var(--sw-space-5);
+  max-inline-size: 100%;
+  white-space: normal;
+}
+
+.fd-houthi-strike-event {
+  font-weight: 600;
+}
+
+.fd-houthi-strike-sources {
+  margin-block-start: var(--sw-space-1);
+}

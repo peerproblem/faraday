@@ -1,0 +1,160 @@
+.fd-houthi-replay {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  container-type: inline-size;
+}
+
+.fd-houthi-map-stage {
+  position: relative;
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-areas: "map" "charts" "timeline" "cards";
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: var(--sw-space-3);
+  padding-block-end: var(--sw-space-3);
+  --fd-houthi-map-inset: var(--sw-space-3);
+}
+.fd-houthi-map-window {
+  grid-area: map;
+  height: clamp(19rem, 52dvh, 34rem);
+  min-width: 0;
+}
+.fd-houthi-timeline-overlay,
+.fd-houthi-overlay,
+.fd-houthi-activity-charts {
+  min-width: 0;
+  margin-inline: var(--fd-houthi-map-inset);
+}
+.fd-houthi-timeline-overlay { grid-area: timeline; }
+.fd-houthi-overlay { grid-area: cards; }
+
+.fd-houthi-timeline-body {
+  min-height: 0;
+  max-height: var(--fd-houthi-timeline-body-height, 22rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.fd-houthi-activity-charts {
+  grid-area: charts;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--sw-space-3);
+}
+.fd-houthi-chart { min-width: 0; }
+.fd-houthi-report-mix {
+  display: grid;
+  grid-template-columns: minmax(4rem, 0.9fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sw-space-2);
+  width: min(100%, 24rem);
+  margin-inline: auto;
+}
+.fd-houthi-report-totals {
+  display: grid;
+  gap: var(--sw-space-1);
+  font-size: var(--sw-text-xs, 0.75rem);
+  line-height: 1.25;
+}
+.fd-houthi-report-totals li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sw-space-1);
+}
+.fd-houthi-report-totals strong { font-variant-numeric: tabular-nums; }
+
+.fd-houthi-location-trigger {
+  min-width: 0;
+  white-space: nowrap;
+}
+.fd-houthi-location-popup {
+  display: grid;
+  gap: var(--sw-space-2);
+  width: min(22rem, var(--sw-popup-available-width, calc(100vw - 2rem)));
+  overflow-wrap: anywhere;
+}
+
+@container (width >= 42rem) {
+  .fd-houthi-map-stage {
+    grid-template-areas:
+      "map map"
+      "charts charts"
+      "timeline cards";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fd-houthi-activity-charts {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+  .fd-houthi-timeline-overlay { margin-inline-end: 0; }
+  .fd-houthi-overlay { margin-inline-start: 0; }
+}
+
+@container (width >= 70rem) {
+  .fd-houthi-map-stage {
+    display: block;
+    min-height: 30rem;
+    padding-block-end: 0;
+    container-type: size;
+    --fd-houthi-map-bottom-inset: var(--sw-space-8);
+    --fd-houthi-timeline-width: clamp(13rem, 17%, 19rem);
+    --fd-houthi-overlay-width: clamp(17rem, var(--fd-houthi-preferred-width, clamp(17rem, 24%, 25rem)), min(32rem, 36%));
+    --fd-houthi-center-left: var(--fd-houthi-map-inset);
+    --fd-houthi-center-right: var(--fd-houthi-map-inset);
+  }
+  .fd-houthi-map-stage:has(.fd-houthi-timeline-overlay) {
+    --fd-houthi-center-left: calc(var(--fd-houthi-timeline-width) + 2 * var(--fd-houthi-map-inset));
+  }
+  .fd-houthi-map-stage:has(.fd-houthi-overlay) {
+    --fd-houthi-center-right: calc(var(--fd-houthi-overlay-width) + 2 * var(--fd-houthi-map-inset));
+  }
+  .fd-houthi-map-stage:has(.fd-houthi-overlay) [data-sw="map-controls"] {
+    right: var(--fd-houthi-center-right);
+  }
+  .fd-houthi-map-stage:has(.fd-houthi-overlay) .maplibregl-ctrl-top-right:has(> [data-sw="map-zoom"]) {
+    right: calc(var(--fd-houthi-center-right) - var(--sw-map-control-inset));
+  }
+  .fd-houthi-map-window {
+    position: absolute;
+    inset: 0;
+    height: auto;
+  }
+  .fd-houthi-timeline-overlay,
+  .fd-houthi-overlay {
+    position: absolute;
+    z-index: 5;
+    top: var(--fd-houthi-map-inset);
+    max-height: calc(100% - var(--fd-houthi-map-bottom-inset) - var(--fd-houthi-map-inset));
+    margin: 0;
+  }
+  .fd-houthi-timeline-overlay {
+    left: var(--fd-houthi-map-inset);
+    width: var(--fd-houthi-timeline-width);
+    --fd-houthi-timeline-body-height: calc(100cqb - var(--fd-houthi-map-bottom-inset) - var(--fd-houthi-map-inset) - 4rem);
+  }
+  .fd-houthi-overlay {
+    right: var(--fd-houthi-map-inset);
+    width: var(--fd-houthi-overlay-width);
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    --fd-houthi-panel-body-space: min(28rem, calc(100cqb - 13.5rem));
+    --fd-houthi-card-content-height: calc(var(--fd-houthi-panel-body-space) * 0.45);
+    --fd-houthi-strike-content-height: calc(var(--fd-houthi-panel-body-space) * 0.55);
+  }
+  .fd-houthi-activity-charts {
+    position: absolute;
+    z-index: 4;
+    right: var(--fd-houthi-center-right);
+    bottom: var(--fd-houthi-map-bottom-inset);
+    left: var(--fd-houthi-center-left);
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+}
