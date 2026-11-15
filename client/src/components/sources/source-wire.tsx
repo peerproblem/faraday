@@ -32,15 +32,17 @@ function Items({ items, hidden = false }: { items: WireItem[]; hidden?: boolean 
  * The newest headlines the board has read, each with its publisher's logo, as a slow moving line. Every item
  * links to the original. People who ask for less motion get a still row they can scroll.
  */
-export function SourceWire({ items, label = "On the wire" }: { items: WireItem[]; label?: string }) {
+export function SourceWire({ items, label }: { items: WireItem[]; label?: string }) {
   if (items.length < 3) return null;
   // About six seconds of reading per headline, whatever the length of the list.
   const style = { "--fd-wire-duration": `${Math.max(30, items.length * 6)}s` } as CSSProperties;
   return (
-    <section aria-label={label} className="flex min-w-0 items-center gap-3">
-      <Badge variant="outline" mono pulse className="shrink-0">
-        {label}
-      </Badge>
+    <section aria-label={label ?? "Recent source headlines"} className="flex min-w-0 items-center gap-3">
+      {label && (
+        <Badge variant="outline" mono pulse className="shrink-0">
+          {label}
+        </Badge>
+      )}
       <div className="fd-wire min-w-0 flex-1">
         <div className="fd-wire__track" style={style}>
           <Items items={items} />

@@ -22,10 +22,11 @@ type WorkspaceProps = {
   sources?: ReactNode;
   sourceCount: number;
   changes?: ReactNode;
+  editAction?: ReactNode;
   editor?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editAction, editor }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -78,11 +79,14 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   const visibleEvidenceTab = evidenceTab === "changes" && changes ? "changes" : sources ? "sources" : "changes";
   const situation = (
     <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab, editing })} size="sm" className="fd-workspace-tabs">
-      <TabsList aria-label="Situation views" className="fd-workspace-tab-list">
-        <Tab value="overview">Overview</Tab>
-        {activeSection && <Tab value="data">Data</Tab>}
-        {editor && <Tab value="layout">Layout</Tab>}
-      </TabsList>
+      <div className="fd-workspace-situation-bar">
+        <TabsList aria-label="Situation views" className="fd-workspace-tab-list">
+          <Tab value="overview">Overview</Tab>
+          {activeSection && <Tab value="data">Data</Tab>}
+          {editor && <Tab value="layout">Layout</Tab>}
+        </TabsList>
+        {editAction}
+      </div>
       <TabsPanel value="overview" className="fd-workspace-tab-body fd-workspace-overview">{overview}</TabsPanel>
       {activeSection && (
         <TabsPanel value="data" className="fd-workspace-tab-body" keepMounted>
