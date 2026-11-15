@@ -145,7 +145,7 @@ export function specFromPlan(plan: Plan, prev?: BoardSpecV2 | null): BoardSpecV2
     const display = displays.get(sigOf(w));
     return { id: `w${i + 1}`, key: sigOf(w), ...w, ...(display ? { display } : {}) };
   });
-  return { version: 2, widgets };
+  return { version: 2, widgets, ...(prev?.template ? { template: prev.template } : {}) };
 }
 
 export type HeaderOverrides = {
@@ -527,7 +527,7 @@ export function assemble(input: {
 
   if (header.headline && !safeCitations(header.headline)) header.headline = null;
   return {
-    spec: { version: 2, widgets },
+    spec: { version: 2, widgets, ...(input.spec.template ? { template: input.spec.template } : {}) },
     data: { header, widgets: data, hidden, generatedAt: input.now },
   };
 }

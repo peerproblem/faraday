@@ -75,6 +75,11 @@ describe("specFromPlan", () => {
     expect(s.widgets.filter((w) => w.display)).toHaveLength(1);
     expect(specFromPlan(plan).widgets.some((w) => "display" in w)).toBe(false);
   });
+
+  it("keeps the board template from the previous spec", () => {
+    expect(specFromPlan(plan, { ...spec, template: "finance" }).template).toBe("finance");
+    expect("template" in specFromPlan(plan, spec)).toBe(false);
+  });
 });
 
 let id = 1;
@@ -202,6 +207,11 @@ describe("assemble", () => {
     expect(data("narrative").sentences).toHaveLength(1);
     expect(out.data.hidden).toEqual([]);
     expect(out.data.generatedAt).toBe(1_000);
+  });
+
+  it("keeps the board template when it recomposes", () => {
+    expect(assemble({ plan, spec: { ...spec, template: "finance" }, facts: [], metricHistory: [], sources, prev: null, overrides: {}, now: 2_000 }).spec.template).toBe("finance");
+    expect("template" in out.spec).toBe(false);
   });
 
   it("keeps header and narrative from prev when there are no overrides, and hides empty widgets", () => {

@@ -50,7 +50,15 @@ export const widgetSchema = z.object({
 });
 export type Widget = z.infer<typeof widgetSchema>;
 
-export type BoardSpecV2 = { version: 2; widgets: Widget[] };
+/**
+ * A family of boards that share a page layout. "finance" boards keep the card grid (no map, so the map-centred
+ * workspace has nothing to centre on); boards without a template get the workspace. Set on a stored spec;
+ * assemble and plan edits keep it.
+ */
+export const boardTemplates = ["finance"] as const;
+export type BoardTemplate = (typeof boardTemplates)[number];
+
+export type BoardSpecV2 = { version: 2; widgets: Widget[]; template?: BoardTemplate };
 
 /** Widget types that appear at most once on a board. table, status-grid and trend are unique per binding. */
 export const singleWidgetTypes: readonly WidgetType[] = [
