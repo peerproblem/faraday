@@ -1,10 +1,13 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
+import { flushSync } from "react-dom";
 
 type SizeKey = "timeline" | "details" | "situation" | "evidence";
 type Sizes = Partial<Record<SizeKey, number>>;
-type SizeBounds = { min: number; max: number };
+type AdjacentCard = { key: "situation" | "evidence"; height: number; available: number };
+type SizeBounds = { min: number; max: number; adjacent?: AdjacentCard };
+type CardSize = { key: AdjacentCard["key"]; height?: number };
 
 const sizeKeys: SizeKey[] = ["timeline", "details", "situation", "evidence"];
 const resizeEvent = "faraday-workspace-resize";
@@ -69,15 +72,26 @@ export function useWorkspaceSizes(scope: string | undefined, fallback: Sizes) {
   const sizes = { ...fallback, ...decode(stored), ...local };
 
   function handle(sizeKey: SizeKey) {
+    function updateDraft(size: number | null, adjacent?: CardSize) {
+      const next = size ?? undefined;
+      const adjacentHeight = size == null ? undefined : adjacent?.height;
+      setDraft((current) => {
+        if (current[sizeKey] === next && (!adjacent || current[adjacent.key] === adjacentHeight)) return current;
+        return { ...current, ...(adjacent && { [adjacent.key]: adjacentHeight }), [sizeKey]: next };
+      });
+    }
+
     return {
       value: draft[sizeKey] ?? sizes[sizeKey],
       resizing: draft[sizeKey] != null,
-      onResize: (size: number | null) => setDraft((current) => ({ ...current, [sizeKey]: size ?? undefined })),
-      onCommit: (size: number) => {
-        setDraft((current) => ({ ...current, [sizeKey]: undefined }));
+      onResize: updateDraft,
+      onCommit: (size: number, adjacent?: CardSize) => {
+        updateDraft(null, adjacent);
+        const next: Sizes = { [sizeKey]: size };
+        if (adjacent?.height !== undefined) next[adjacent.key] = adjacent.height;
         if (key) {
           try {
-            window.localStorage.setItem(key, JSON.stringify({ ...decode(read(key)), ...local, [sizeKey]: size }));
+            window.localStorage.setItem(key, JSON.stringify({ ...decode(read(key)), ...local, ...next }));
             setLocal({});
             window.dispatchEvent(new Event(resizeEvent));
             return;
@@ -85,7 +99,7 @@ export function useWorkspaceSizes(scope: string | undefined, fallback: Sizes) {
             // Keep the adjustment usable when browser storage is unavailable.
           }
         }
-        setLocal((current) => ({ ...current, [sizeKey]: size }));
+        setLocal((current) => ({ ...current, ...next }));
       },
     };
   }
@@ -103,28 +117,36 @@ export function timelineBounds(target: HTMLElement): SizeBounds {
   return { min, max: Math.max(min, Math.min(26.25 * rem, width * 0.32, width - peers - 14 * rem)) };
 }
 
-/** Leave room for the other card's header or its open content. */
+/** Keep the dragged card's starting edge in place and fit the card below it into the remaining height. */
 export function cardBounds(target: HTMLElement): SizeBounds {
+  const height = target.getBoundingClientRect().height;
   const stack = target.parentElement;
-  if (!stack) return { min: 1, max: target.offsetHeight };
+  if (!stack) return { min: 1, max: height };
 
-  const peers = Array.from(stack.children).filter((child): child is HTMLElement =>
+  const other = Array.from(stack.children).find((child): child is HTMLElement =>
     child instanceof HTMLElement && child !== target && child.hasAttribute("data-reorder-id"),
   );
   const css = getComputedStyle(stack);
-  const inner = stack.clientHeight - (parseFloat(css.paddingTop) || 0) - (parseFloat(css.paddingBottom) || 0);
-  const gap = (parseFloat(css.rowGap) || 0) * peers.length;
-  const min = Math.max(1, Math.floor(Math.min(144, inner * 0.24)));
-  const peerSpace = peers.reduce((height, peer) => height + (
-    peer.hasAttribute("data-open") ? min : peer.offsetHeight
-  ), 0);
+  const inner = stack.getBoundingClientRect().height - (parseFloat(css.paddingTop) || 0) - (parseFloat(css.paddingBottom) || 0);
+  const min = Math.max(1, Math.min(144, inner * 0.24));
+  const available = inner - (other ? parseFloat(css.rowGap) || 0 : 0);
+  const key = other?.getAttribute("data-reorder-id");
+  const otherHeight = other?.getBoundingClientRect().height ?? 0;
+  if (!other?.hasAttribute("data-open") || (key !== "situation" && key !== "evidence")) {
+    return { min, max: Math.max(min, height, available - otherHeight) };
+  }
 
-  return { min, max: Math.max(min, target.offsetHeight, Math.floor(inner - gap - peerSpace)) };
+  const otherIsAbove = Boolean(other.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING);
+  return {
+    min,
+    max: Math.max(min, height, available - (otherIsAbove ? otherHeight : min)),
+    adjacent: { key, height: otherHeight, available },
+  };
 }
 
 export type CornerWidth = {
   measure: () => { size: number; bounds: SizeBounds } | null;
-  onResize: (size: number | null, startSize: number) => void;
+  onResize: (size: number | null) => void;
   onCommit: (size: number) => void;
 };
 
@@ -135,12 +157,18 @@ type HandleProps = {
   axis: "height" | "width";
   value: number | undefined;
   getBounds: (target: HTMLElement) => SizeBounds;
-  onResize: (size: number | null) => void;
-  onCommit: (size: number) => void;
+  onResize: (size: number | null, adjacent?: CardSize) => void;
+  onCommit: (size: number, adjacent?: CardSize) => void;
 };
 
 function constrain(value: number, { min, max }: SizeBounds) {
-  return Math.round(Math.min(max, Math.max(min, value)));
+  return Math.min(max, Math.max(min, value));
+}
+
+function fitAdjacent(size: number, { adjacent, min }: SizeBounds): CardSize | undefined {
+  if (!adjacent) return undefined;
+  const height = Math.max(min, adjacent.available - size);
+  return { key: adjacent.key, height: height < adjacent.height ? height : undefined };
 }
 
 export function WorkspaceResizeHandle({ target, label, axis, value, getBounds, onResize, onCommit, cornerWidth }: HandleProps) {
@@ -150,16 +178,23 @@ export function WorkspaceResizeHandle({ target, label, axis, value, getBounds, o
     startX: number;
     size: number;
     bounds: SizeBounds;
-    width?: { size: number; bounds: SizeBounds; moved: boolean };
+    width?: { size: number; bounds: SizeBounds };
+    latest: { position: number; x: number };
+    frame: number | null;
   } | null>(null);
   const [dragging, setDragging] = useState(false);
+  useEffect(() => () => {
+    const frame = drag.current?.frame;
+    if (frame != null) cancelAnimationFrame(frame);
+  }, []);
   const vertical = axis === "height";
   const position = (event: PointerEvent) => vertical ? event.clientY : event.clientX;
 
   function measure() {
     const element = document.getElementById(target);
     if (!element) return null;
-    return { size: vertical ? element.offsetHeight : element.offsetWidth, bounds: getBounds(element) };
+    const box = element.getBoundingClientRect();
+    return { size: vertical ? box.height : box.width, bounds: getBounds(element) };
   }
 
   function widthAt(current: NonNullable<typeof drag.current>, clientX: number) {
@@ -167,18 +202,24 @@ export function WorkspaceResizeHandle({ target, label, axis, value, getBounds, o
     return width ? constrain(width.size + current.startX - clientX, width.bounds) : null;
   }
 
+  function sizeAt(current: NonNullable<typeof drag.current>, nextPosition: number) {
+    return constrain(current.size + nextPosition - current.start, current.bounds);
+  }
+
   function finish(event: PointerEvent, commit: boolean) {
     const current = drag.current;
     if (!current || current.id !== event.pointerId) return;
     drag.current = null;
+    if (current.frame != null) cancelAnimationFrame(current.frame);
     setDragging(false);
-    const size = constrain(current.size + position(event) - current.start, current.bounds);
-    if (commit && size !== current.size) onCommit(size);
-    else onResize(null);
+    const size = sizeAt(current, position(event));
+    const adjacent = fitAdjacent(size, current.bounds);
+    if (commit && size !== current.size) onCommit(size, adjacent);
+    else onResize(null, adjacent);
     if (current.width && cornerWidth) {
       const width = widthAt(current, event.clientX);
       if (commit && width != null && width !== current.width.size) cornerWidth.onCommit(width);
-      else if (current.width.moved) cornerWidth.onResize(null, current.width.size);
+      else cornerWidth.onResize(null);
     }
   }
 
@@ -189,7 +230,7 @@ export function WorkspaceResizeHandle({ target, label, axis, value, getBounds, o
       aria-label={label}
       aria-controls={target}
       aria-orientation={vertical ? "horizontal" : "vertical"}
-      aria-valuetext={value ? `${value} pixels` : "Automatic"}
+      aria-valuetext={value ? `${Math.round(value)} pixels` : "Automatic"}
       title={label}
       className={`fd-workspace-resize fd-workspace-resize--${axis}`}
       data-two-axis={cornerWidth ? "" : undefined}
@@ -203,21 +244,28 @@ export function WorkspaceResizeHandle({ target, label, axis, value, getBounds, o
         const width = cornerWidth?.measure();
         drag.current = {
           ...measured, start: position(event), startX: event.clientX, id: event.pointerId,
-          width: width ? { ...width, moved: false } : undefined,
+          width: width ?? undefined,
+          latest: { position: position(event), x: event.clientX }, frame: null,
         };
         setDragging(true);
       }}
       onPointerMove={(event) => {
         const current = drag.current;
-        if (current?.id === event.pointerId) {
-          const size = constrain(current.size + position(event) - current.start, current.bounds);
-          onResize(size === current.size ? null : size);
-          const width = widthAt(current, event.clientX);
-          if (current.width && cornerWidth && width != null) {
-            current.width.moved ||= width !== current.width.size;
-            if (current.width.moved) cornerWidth.onResize(width, current.width.size);
-          }
-        }
+        if (current?.id !== event.pointerId) return;
+        current.latest = { position: position(event), x: event.clientX };
+        if (current.frame != null) return;
+        current.frame = requestAnimationFrame(() => {
+          current.frame = null;
+          const size = sizeAt(current, current.latest.position);
+          const width = widthAt(current, current.latest.x);
+          // Paint both axes together, with the same peer heights that will be saved at drop.
+          flushSync(() => {
+            onResize(size === current.size ? null : size, fitAdjacent(size, current.bounds));
+            if (current.width && cornerWidth && width != null) {
+              cornerWidth.onResize(width === current.width.size ? null : width);
+            }
+          });
+        });
       }}
       onPointerUp={(event) => finish(event, true)}
       onPointerCancel={(event) => finish(event, false)}
@@ -241,7 +289,8 @@ export function WorkspaceResizeHandle({ target, label, axis, value, getBounds, o
         const { size, bounds } = measured;
         const next = event.key === "Home" ? bounds.min : event.key === "End" ? bounds.max
           : size + (event.key === backwards ? -step : step);
-        onCommit(constrain(next, bounds));
+        const fitted = constrain(next, bounds);
+        if (fitted !== size) onCommit(fitted, fitAdjacent(fitted, bounds));
       }}
     >
       {vertical && <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">

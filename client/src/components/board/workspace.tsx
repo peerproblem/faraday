@@ -44,7 +44,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
       const min = 23 * rem;
       const max = Math.max(min, Math.min(board.clientWidth * 0.54, 46 * rem));
-      return { size: details.offsetWidth, bounds: { min, max } };
+      return { size: details.getBoundingClientRect().width, bounds: { min, max } };
     },
     onResize: detailsSize.onResize,
     onCommit: (size) => {
