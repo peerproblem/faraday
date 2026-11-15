@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendChart } from "@/components/ui/charts";
 import { Stat } from "@/components/ui/stat";
 import { Text } from "@/components/ui/typography";
+import { pacificReportDate } from "@/lib/time";
 import type { StatGridData, StatItem } from "@/lib/spec";
 import { AsOf } from "./as-of";
 import { cleanPoints, trendSummary } from "./chart";
@@ -54,29 +55,34 @@ export function MapFigureCards({ items }: { items: StatItem[] }) {
   );
 }
 
-export function StatGridWidget({ data, sources, tier, building, filter, mapFocus }: WidgetProps<"stat-grid">) {
+export function StatGridWidget({ data, sources, tier, building, filter, mapFocus, wildfirePresentation }: WidgetProps<"stat-grid">) {
   const items = getStatItems(data, filter?.metrics);
   if (!items.length) return <Empty building={building} title="No figures yet" description="The sources have not given any figures." />;
   return (
     // Metric cells inside the tile, no cards of their own: the tile is the frame. At least 14rem wide, so the widest
     // board fits five across, which is as many as the design system allows in a row.
-    <ul className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-x-6 gap-y-5">
+    <ul className={wildfirePresentation
+      ? "grid grid-cols-2 gap-2"
+      : "grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-x-6 gap-y-5"}>
       {items.map((k) => {
         const history = cleanPoints(k.history ?? []);
         return (
-          <li key={k.key} className="flex min-w-0 flex-col gap-3">
+          <li key={k.key} className={wildfirePresentation
+            ? "flex min-w-0 flex-col gap-2 rounded-md border border-hairline p-2"
+            : "flex min-w-0 flex-col gap-3"}>
               <Stat
                 size="sm"
                 label={k.label}
                 value={k.unit ? `${k.valueText} ${k.unit}` : k.valueText}
-                delta={k.delta ?? undefined}
-                trend={k.delta ? "flat" : undefined}
+                delta={wildfirePresentation ? undefined : k.delta ?? undefined}
+                trend={!wildfirePresentation && k.delta ? "flat" : undefined}
                 tone={statTone[k.tone] ?? "neutral"}
                 // The dashboard Stat shows no warning badge, so a disruption is named in its caption.
-                caption={k.tone === "warning" ? "Disruption" : undefined}
+                caption={!wildfirePresentation && k.tone === "warning" ? "Disruption" : undefined}
               >
                 {!mapFocus && history.length > 1 ? <TrendChart spark values={history.map((p) => p.v)} aria-label={trendSummary(k.label, k.history ?? [], k.unit)} /> : null}
               </Stat>
+              {wildfirePresentation && k.delta && <Text size="sm" tone="muted">{k.delta}</Text>}
               {k.conflict?.length ? (
                 <Text size="sm" tone="subtle">
                   <Badge variant="warning">Sources disagree</Badge>{" "}
@@ -88,9 +94,11 @@ export function StatGridWidget({ data, sources, tier, building, filter, mapFocus
                   ))}
                 </Text>
               ) : null}
-              <div className="mt-auto flex flex-wrap items-center gap-2">
-                <AsOf t={k.asOf} tier={tier} />
-                <SourceChips ids={k.sources} sources={sources} evidence={k.evidence} />
+              <div className={wildfirePresentation ? "mt-auto grid gap-1.5" : "mt-auto flex flex-wrap items-center gap-2"}>
+                {wildfirePresentation ? k.asOf && (
+                  <time className="text-xs text-muted-foreground" dateTime={k.asOf}>Reported {pacificReportDate(k.asOf)}</time>
+                ) : <AsOf t={k.asOf} tier={tier} />}
+                <SourceChips ids={k.sources} sources={sources} evidence={k.evidence} collapseAt={wildfirePresentation ? 5 : undefined} />
               </div>
           </li>
         );

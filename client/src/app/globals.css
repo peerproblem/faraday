@@ -785,8 +785,3 @@ body:has(.fd-workspace-shell) .fd-site-header {
   overflow-wrap: anywhere;
   padding-block: var(--sw-space-3);
 }
-
-/* Compact trends render the report range below the plot; full labels stay in the chart tooltip. */
-.fd-compact-trend .sw-trend__xlabel {
-  display: none;
-}

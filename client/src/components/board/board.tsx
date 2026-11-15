@@ -64,6 +64,20 @@ export type BoardProps = {
   workspaceEditor?: ReactNode;
 };
 
+const wildfireReportGroups = [
+  { value: "evacuation", label: "Evacuation" },
+  { value: "fire", label: "Fire" },
+  { value: "impact", label: "Impact" },
+  { value: "records", label: "Records" },
+];
+
+function wildfireReportGroup({ type, bind }: Widget) {
+  if (type === "narrative" || type === "alert-list" || bind?.startsWith("evacuation")) return "evacuation";
+  if (type === "stat-grid" || bind === "community-impact" || bind === "damaged-structures" || bind === "injuries") return "impact";
+  if (type === "trend" || bind === "containment-reports") return "fire";
+  return "records";
+}
+
 const stageText: Record<string, string> = {
   queued: "Queued",
   planning: "Planning what to track",
@@ -208,7 +222,7 @@ export function Board(props: BoardProps) {
         fillMap={fillMap}
         wrapSourceTitles={props.wildfireOverview}
         collapseSourceGroups={props.wildfireOverview}
-        compactTrendAxis={props.wildfireOverview && compact}
+        wildfirePresentation={props.wildfireOverview && compact}
       />
     );
   }
@@ -244,11 +258,18 @@ export function Board(props: BoardProps) {
         {lastPolledAt ? <span>Checked <Ago t={lastPolledAt} /></span> : null}
         {building ? (props.workspace ? <span role="status">{props.stage ?? stageText[status] ?? "Working"}</span> : null) : !conciseSummary && <span>{tierLabel[tier]}</span>}
       </Text>
-      {typeof header?.severity === "number" && (
+      {typeof header?.severity === "number" && (props.wildfireOverview ? (
+        <div className="grid gap-1.5">
+          <Meter label="Estimated severity" value={Math.min(5, Math.max(1, header.severity))} min={1} max={5}
+            low={2} high={4} optimum={0} size="sm"
+            formatOptions={{ style: "decimal", maximumFractionDigits: 1 }} getValueLabel={(v) => `${v} of 5`} />
+          <Text size="sm" tone="muted">Faraday estimate based on reported impacts. Scale: 1 (minor) to 5 (catastrophic).</Text>
+        </div>
+      ) : (
         <Meter label="Severity" value={Math.min(5, Math.max(0, header.severity))} min={0} max={5}
           low={2} high={4} optimum={0} size="sm"
           formatOptions={{ style: "decimal", maximumFractionDigits: 1 }} getValueLabel={(v) => `${v} of 5`} />
-      )}
+      ))}
     </div>
   );
 
@@ -267,6 +288,7 @@ export function Board(props: BoardProps) {
     const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
     const narrativeData = (narrative && (narrative.data ?? data?.widgets[narrative.widget.id])) as NarrativeData | undefined;
     const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
+    const [orderStatus, accessNotice] = evacuation?.text.split(/\s+(?=The evening notice\b)/i) ?? [];
     const housing = props.wildfireOverview ? figureItems.filter((item) => /homes-(?:destroyed|damaged)$/.test(item.key)) : [];
     return (
       <OfficialReleasesContext.Provider value={releases}>
@@ -283,7 +305,19 @@ export function Board(props: BoardProps) {
               {evacuation && (
                 <section className="grid gap-1.5" aria-label="Evacuation and access">
                   <h3 className="text-base font-semibold">Evacuation &amp; access</h3>
-                  <Text size="sm">{evacuation.text} <SourceChips ids={evacuation.sources} sources={byId} collapseAt={5} /></Text>
+                  <dl className="grid gap-2">
+                    <div>
+                      <dt className="text-sm font-medium">Evacuation orders</dt>
+                      <dd className="text-sm">{orderStatus}</dd>
+                    </div>
+                    {accessNotice && (
+                      <div>
+                        <dt className="text-sm font-medium">Road &amp; burn-area access</dt>
+                        <dd className="text-sm">{accessNotice}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  <SourceChips ids={evacuation.sources} sources={byId} collapseAt={5} />
                 </section>
               )}
               {housing.length > 0 && (
@@ -310,8 +344,10 @@ export function Board(props: BoardProps) {
               )}
               {status === "error" && !widgets.length ? <EmptyState title="The board could not be built" description={events.find((e) => e.kind === "error")?.message} /> : null}
             </>}
+            sectionGroups={props.wildfireOverview ? wildfireReportGroups : undefined}
             sections={[...sections, ...figureSections].map((entry) => ({
               key: entry.key,
+              group: props.wildfireOverview ? wildfireReportGroup(entry.widget) : undefined,
               title: entry.widget.type === "stat-grid" ? "Figures and sources" : entry.widget.title,
               showsMapFigures: entry.widget.type === "stat-grid",
               content: renderWorkspaceWidget(entry, true),

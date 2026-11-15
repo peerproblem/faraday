@@ -7,7 +7,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Table, type TableColumn, type TableRow, type TableSort } from "@/components/ui/table";
 import { Text } from "@/components/ui/typography";
 import type { ColumnKind, TableData } from "@/lib/spec";
-import { toMs, when } from "@/lib/time";
+import { pacificReportDate, pacificReportTime, toMs, when } from "@/lib/time";
 import { AsOf } from "./as-of";
 import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
@@ -72,7 +72,12 @@ export function statusTone(v: string): BadgeVariant {
   return "neutral";
 }
 
-function Cell({ kind, value, compact }: { kind: ColumnKind; value: string; compact?: boolean }) {
+function Cell({ kind, value, compact, preserveReportTime }: {
+  kind: ColumnKind;
+  value: string;
+  compact?: boolean;
+  preserveReportTime?: boolean;
+}) {
   if (!value)
     return (
       <Text as="span" size="sm" tone="muted">
@@ -89,6 +94,12 @@ function Cell({ kind, value, compact }: { kind: ColumnKind; value: string; compa
         {host}
       </Link>
     );
+  }
+  if (kind === "time" && preserveReportTime) {
+    // Leave the original wording and uncertain dates intact. Convert only an explicit timestamp.
+    return /T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) && toMs(value) !== null
+      ? <time dateTime={value}>{pacificReportTime(value)}</time>
+      : value;
   }
   if (kind === "time") return <time dateTime={toMs(value) !== null ? value : undefined}>{toMs(value) !== null ? when(value) : value}</time>;
   if (kind === "status") {
@@ -133,7 +144,7 @@ export function matchRows(rows: TableData["rows"], query: string | null | undefi
   return rows.filter((r) => Object.values(r.cells).some((v) => (v ?? "").toLowerCase().includes(q)));
 }
 
-export function TableWidget({ widget, data, sources, tier, building, filter, mapFocus: compact }: WidgetProps<"table">) {
+export function TableWidget({ widget, data, sources, tier, building, filter, mapFocus: compact, wildfirePresentation }: WidgetProps<"table">) {
   const [sort, setSort] = useState<TableSort | null>(null);
   const [page, setPage] = useState(1);
   const query = filter?.query ?? null;
@@ -158,6 +169,19 @@ export function TableWidget({ widget, data, sources, tier, building, filter, map
     if (!urls.length) return value;
     return /^https?:\/\//.test(value) && !urls.includes(value) ? value : "";
   }
+  const stacked = wildfirePresentation && dataColumns.length > 0 && (widget.bind === "evacuation-zones" || widget.bind === "damaged-structures");
+  function sourceContent(row: TableData["rows"][number]) {
+    const fallback = citationFallback(row);
+    return (
+      <span className="flex flex-wrap items-center gap-1.5">
+        {fallback && <Cell kind="link" value={fallback} compact={compact} />}
+        <SourceChips ids={row.sources} sources={sources} evidence={row.evidence} />
+        {stacked ? row.asOf && (
+          <time className="text-xs text-muted-foreground" dateTime={row.asOf}>Reported {pacificReportDate(row.asOf)}</time>
+        ) : <AsOf t={row.asOf} tier={tier} prefix="" />}
+      </span>
+    );
+  }
   const positions = new Map(shown.map((r, index) => [r.id, index]));
   const direction = sort?.direction === "descending" ? -1 : 1;
 
@@ -171,6 +195,30 @@ export function TableWidget({ widget, data, sources, tier, building, filter, map
     { id: "__source", label: "Source" },
   ];
 
+  const table = (
+    <Table
+      // The card already shows the title. Keep the caption as the accessible table and scroll region name.
+      caption={`${widget.title}: ${rows.length === 1 ? "1 row" : `${rows.length} rows`}`}
+      className={compact ? "fd-workspace-table [&>caption]:sr-only" : "[&>caption]:sr-only"}
+      columns={columns}
+      sort={sort}
+      onSortChange={(next) => {
+        setPage(1);
+        setSort(next);
+      }}
+      rows={shown.map((row) => ({
+        id: row.id,
+        cells: {
+          ...Object.fromEntries(dataColumns.map((column) => [column.key, (
+            <Cell key={column.key} kind={column.kind} compact={compact}
+              value={row.cells[column.key] ?? ""} preserveReportTime={wildfirePresentation} />
+          )])),
+          __source: sourceContent(row),
+        },
+      }))}
+    />
+  );
+
   return (
     <div className={compact ? "flex flex-col gap-2" : "flex flex-col gap-4"}>
       {compact && (
@@ -181,33 +229,28 @@ export function TableWidget({ widget, data, sources, tier, building, filter, map
           {pageCount > 1 && <Pagination aria-label={`${widget.title} pages`} size="sm" variant="compact" pageCount={pageCount} page={current} onPageChange={setPage} />}
         </div>
       )}
-      <Table
-        // The card already shows the title. Keep the caption as the accessible table and scroll region name.
-        caption={`${widget.title}: ${rows.length === 1 ? "1 row" : `${rows.length} rows`}`}
-        className={compact ? "fd-workspace-table [&>caption]:sr-only" : "[&>caption]:sr-only"}
-        columns={columns}
-        sort={sort}
-        onSortChange={(next) => {
-          setPage(1);
-          setSort(next);
-        }}
-        rows={shown.map((r) => {
-          const fallback = citationFallback(r);
-          return {
-            id: r.id,
-            cells: {
-              ...Object.fromEntries(dataColumns.map((c) => [c.key, <Cell key={c.key} kind={c.kind} compact={compact} value={r.cells[c.key] ?? ""} />])),
-              __source: (
-                <span className="flex flex-wrap items-center gap-1.5">
-                  {fallback && <Cell kind="link" value={fallback} compact={compact} />}
-                  <SourceChips ids={r.sources} sources={sources} evidence={r.evidence} />
-                  <AsOf t={r.asOf} tier={tier} prefix="" />
-                </span>
-              ),
-            },
-          };
-        })}
-      />
+      {stacked && (
+        <ul className="grid gap-2 @xl:hidden" aria-label={widget.title}>
+          {shown.map((row) => {
+            const [area, ...fields] = dataColumns;
+            return (
+              <li key={row.id} className="grid min-w-0 gap-2 rounded-md border border-hairline p-3">
+                <h4 className="text-sm font-semibold">{row.cells[area.key] || "Area not specified"}</h4>
+                <dl className="grid gap-1.5 text-sm">
+                  {fields.map((field) => (
+                    <div key={field.key} className="grid min-w-0 gap-0.5">
+                      <dt className="text-xs text-muted-foreground">{field.label}</dt>
+                      <dd><Cell kind={field.kind} value={row.cells[field.key] ?? ""} compact preserveReportTime /></dd>
+                    </div>
+                  ))}
+                </dl>
+                {sourceContent(row)}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {stacked ? <div className="hidden min-w-0 @xl:block">{table}</div> : table}
       {!compact && pageCount > 1 ? (
         <div className="flex flex-wrap items-center justify-end gap-3">
           <Pagination aria-label={`${widget.title} pages`} size="sm" pageCount={pageCount} page={current} onPageChange={setPage} />

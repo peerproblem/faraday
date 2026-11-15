@@ -3,13 +3,14 @@
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 
 import { BoardCardStack } from "./card-stack";
 import { timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
 
-type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
+type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean; group?: string };
 type WorkspaceProps = {
   workspaceKey?: string;
   cardsOnMap?: boolean;
@@ -19,13 +20,14 @@ type WorkspaceProps = {
   timeline?: ReactNode;
   overview: ReactNode;
   sections: Panel[];
+  sectionGroups?: { value: string; label: string }[];
   sources?: ReactNode;
   sourceCount: number;
   changes?: ReactNode;
   editor?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sectionGroups, sources, sourceCount, changes, editor }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -71,6 +73,10 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   }
 
   const activeSection = sections.find((section) => section.key === sectionKey) ?? sections[0];
+  const availableGroups = sectionGroups?.filter(({ value }) => sections.some((section) => section.group === value));
+  const visibleSections = activeSection?.group
+    ? sections.filter((section) => section.group === activeSection.group)
+    : sections;
   const situationTab = ((selection.tab === "layout" && editor) || (selection.tab === "data" && activeSection))
     ? selection.tab
     : "overview";
@@ -86,10 +92,20 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
       <TabsPanel value="overview" className="fd-workspace-tab-body fd-workspace-overview">{overview}</TabsPanel>
       {activeSection && (
         <TabsPanel value="data" className="fd-workspace-tab-body" keepMounted>
+          {availableGroups && availableGroups.length > 1 && activeSection.group && (
+            <SegmentedControl
+              aria-label="Report category"
+              size="sm"
+              fullWidth
+              options={availableGroups}
+              value={activeSection.group}
+              onValueChange={(group) => setSectionKey(sections.find((section) => section.group === group)?.key ?? null)}
+            />
+          )}
           <Select aria-label="Data section" value={activeSection.key} onValueChange={setSectionKey} size="sm">
             <SelectTrigger title={activeSection.title} className="w-full min-w-0" />
             <SelectContent>
-              {sections.map((section) => <SelectItem key={section.key} value={section.key}>{section.title}</SelectItem>)}
+              {visibleSections.map((section) => <SelectItem key={section.key} value={section.key}>{section.title}</SelectItem>)}
             </SelectContent>
           </Select>
           <div key={activeSection.key} className="min-w-0">{activeSection.content}</div>
