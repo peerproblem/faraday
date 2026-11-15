@@ -22,6 +22,17 @@ describe("unverified social reports", () => {
     expect(screen.getByText(social.snippet!)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Source sx/ })).toBeTruthy();
   });
+  it("names the author by display name and @handle", () => {
+    const named: Source = { ...social, publisher: "Valencia Local News" };
+    const props: WidgetProps<"on-the-ground"> = {
+      widget: { id: "ground", type: "on-the-ground", title: "On the ground (unverified)", span: "full", bind: null, metrics: [] },
+      data: { items: [{ id: "r1", quote: named.snippet!, sources: [named.id], asOf: null }] },
+      sources: new Map([[named.id, named]]), allSources: [named], events: [], status: "live", tier: "hot", building: false,
+    };
+    render(<OnTheGroundWidget {...props} />);
+    expect(screen.getByText("Valencia Local News")).toBeTruthy();
+    expect(screen.getByText("@local")).toBeTruthy();
+  });
   it("reads a post from another language in English and keeps its own words one press away", async () => {
     const user = userEvent.setup();
     const post: Source = { ...social, snippet: null };

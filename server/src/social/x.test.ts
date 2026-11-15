@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cassetteKey, CassetteMissError } from "../contextdev";
-import { freshCursor, gatherX, searchX, xQuery } from "./x";
+import { displayName, freshCursor, gatherX, searchX, xQuery } from "./x";
 
 vi.mock("../repo/social", () => ({ reserveSocialReads: vi.fn(), getSocialCursor: vi.fn(async () => ({})) }));
 const { reserveSocialReads, getSocialCursor } = await import("../repo/social");
@@ -43,6 +43,16 @@ describe("X recent search", () => {
     expect(url.searchParams.get("tweet.fields")).toBe("author_id,created_at,note_tweet");
     expect(url.searchParams.has("post.fields")).toBe(false);
   });
+  it("names the author by display name next to the handle, and by handle alone for a non-Latin or missing name", async () => {
+    const two = { ...body, data: [...body.data, { ...body.data[0], id: "1900000000000000002", author_id: "2" }],
+      includes: { users: [{ id: "1", username: "local_report", name: "Valencia Local News" }, { id: "2", username: "tokyo", name: "\u6771\u4eac" }] } };
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json(two));
+    const docs = await searchX("flood");
+    expect(docs.map((d) => [d.title, d.publisher])).toEqual([["@local_report", "Valencia Local News"], ["@tokyo", "@tokyo"]]);
+    expect(displayName(undefined)).toBeNull();
+    expect(displayName("  Ana\u200b  Garc\u00eda ")).toBe("Ana Garc\u00eda");
+    expect(displayName("x".repeat(51))).toBeNull();
+  });
   it("records the raw response, then replays without token or network", async () => {
     vi.stubEnv("EVAL_RECORD", "1");
     const docs = await searchX("flood -is:retweet");
@@ -75,15 +85,15 @@ describe("X recent search", () => {
     expect(await searchX("flood")).toEqual([]);
   });
   it("combines local keywords/hashtags and preserves language filters while excluding retweets", () => {
-    expect(xQuery(["Valencia #DANA lang:es", "inundaciones"])).toBe("((Valencia #DANA lang:es) OR (inundaciones)) -is:retweet");
-    expect(xQuery(["flood -is:retweet"])).toBe("((flood)) -is:retweet");
+    expect(xQuery(["Valencia #DANA lang:es", "inundaciones"])).toBe("((Valencia #DANA lang:es) OR (inundaciones)) -is:retweet -is:reply");
+    expect(xQuery(["flood -is:retweet"])).toBe("((flood)) -is:retweet -is:reply");
     // Website-only operators fail the whole v2 request with HTTP 400, so they are removed.
     expect(xQuery(["(huelga general OR huelga vivienda) (Madrid OR Barcelona) -filter:retweets lang:es", "#HuelgaGeneral min_faves:10 since:2026-11-01"]))
-      .toBe("(((huelga general OR huelga vivienda) (Madrid OR Barcelona) lang:es) OR (#HuelgaGeneral)) -is:retweet");
+      .toBe("(((huelga general OR huelga vivienda) (Madrid OR Barcelona) lang:es) OR (#HuelgaGeneral)) -is:retweet -is:reply");
     expect(xQuery(["filter:media"])).toBeNull();
     // An operator value never swallows a closing parenthesis, so groups stay balanced.
-    expect(xQuery(["(flood since:2026-11-01)"])).toBe("(((flood))) -is:retweet");
-    expect(xQuery(["(a OR filter:media) lang:es"])).toBe("(((a) lang:es)) -is:retweet");
+    expect(xQuery(["(flood since:2026-11-01)"])).toBe("(((flood))) -is:retweet -is:reply");
+    expect(xQuery(["(a OR filter:media) lang:es"])).toBe("(((a) lang:es)) -is:retweet -is:reply");
     expect(xQuery([])).toBeNull();
     expect(xQuery(["x".repeat(513)])).toBeNull();
   });
