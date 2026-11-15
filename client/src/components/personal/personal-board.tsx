@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
+import { Listbox } from "@/components/ui/listbox";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EmptyState } from "@/components/ui/skeleton";
@@ -34,10 +36,10 @@ import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api
 import { boardUrl } from "@/lib/config";
 import { emptyLayout, widgetKeyOf, type BoardDesign, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type WidgetFilter } from "@/lib/spec";
 
-const designOptions: { value: BoardDesign; label: string }[] = [
-  { value: "standard", label: "Standard" },
-  { value: "map-focus", label: "Map focus" },
-  { value: "map-overlay", label: "Cards on map" },
+const designOptions: { value: BoardDesign; label: string; description: string }[] = [
+  { value: "standard", label: "Standard", description: "Widgets in a grid" },
+  { value: "map-focus", label: "Map focus", description: "Map beside a details panel" },
+  { value: "map-overlay", label: "Cards on map", description: "Situation and Evidence over the map" },
 ];
 const mapOverlayCategories = new Set<CrisisType>(["flood", "wildfire", "earthquake", "storm", "heatwave", "conflict"]);
 
@@ -94,6 +96,8 @@ export function PersonalBoard({
   const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
   const { layout, saving, change, replace, saveNow } = useLayout(board.id, initialView);
   const [editing, setEditing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [sending, setSending] = useState(false);
   const [reply, setReply] = useState<{ text: string; unsupported: string[] } | null>(null);
@@ -118,7 +122,7 @@ export function PersonalBoard({
   const available = visibleWidgets(spec, data, isBuilding(board.status));
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
   const crisisType = data?.header?.crisisType;
-  const recommendedDesign: BoardDesign = crisisType && mapOverlayCategories.has(crisisType)
+  const recommendedDesign: BoardDesign = spec?.template !== "finance" && crisisType && mapOverlayCategories.has(crisisType)
     ? "map-overlay"
     : "standard";
   const mapDesign = current.design === "map-focus" || current.design === "map-overlay";
@@ -246,84 +250,92 @@ export function PersonalBoard({
     );
   };
 
-  const designControl = hasMap && (
-    <Popover>
-      <PopoverTrigger render={<BoardHeaderButton icon="layers" aria-label="Board design" title="Board design" />} />
-      <PopoverContent align="end">
-        <div className="grid w-64 max-w-full gap-3">
-          <PopoverTitle>Board design</PopoverTitle>
-          <SegmentedControl<BoardDesign>
-            aria-label="Dashboard design"
-            value={workspace && current.design ? current.design : "standard"}
-            options={designOptions}
-            onValueChange={(design) => commit({
-              ...current,
-              design,
-              hidden: design !== "standard"
-                ? current.hidden.filter((key) => !available.some((widget) => widget.type === "map" && widgetKeyOf(widget) === key))
-                : current.hidden,
-            })}
-          />
-          <Text size="sm" tone="muted">
-            Recommended for this category: {designOptions.find((option) => option.value === recommendedDesign)?.label}
-          </Text>
-          {workspace && (
-            <fieldset className="grid max-h-56 gap-2 overflow-auto border-t border-hairline pt-2">
-              <legend className="px-1 text-sm">Visible sections</legend>
-              {available.filter((widget) => widget.type !== "map").map((widget) => {
-                const key = widgetKeyOf(widget);
-                return (
-                  <Switch key={key} size="sm" label={widget.title}
-                    checked={!current.hidden.includes(key)}
-                    onCheckedChange={(shown) => commit({
-                      ...current,
-                      hidden: shown ? current.hidden.filter((x) => x !== key) : [...current.hidden, key],
-                      pinned: shown ? current.pinned : current.pinned.filter((x) => x !== key),
-                    })} />
-                );
-              })}
-            </fieldset>
-          )}
-          {saving && <Text role="status" size="sm" tone="muted">Saving…</Text>}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-
-  const standardActions = (
-    <>
-      {designControl}
-      <Toggle variant="outline" size="sm" pressed={editing} onPressedChange={setEditing}>
-        Edit layout
-      </Toggle>
-      <Button variant="ghost" size="sm" loading={busy === "undo"} onClick={() => void undo()}>
-        Undo
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => commit(emptyLayout(board.version))}>
-        Reset to baseline
-      </Button>
-      <Button variant="ghost" size="sm" href={boardUrl(board.slug)}>
-        Open the shared board
-      </Button>
-      <Text as="span" size="sm" tone="muted" role="status" className="ml-auto">
-        {saving ? "Saving…" : layout ? "Your layout" : "Shared layout"}
-      </Text>
-    </>
-  );
-
   const actions = (
     <>
-      {designControl}
-      <BoardHeaderButton icon="settings" aria-label="Edit layout" aria-pressed={editing} onClick={() => setEditing((open) => !open)} />
-      <Popover>
-        <PopoverTrigger render={<BoardHeaderButton icon="more" aria-label="Board actions" />} />
-        <PopoverContent align="end" aria-label="Board actions" className="grid gap-1">
-          <Button variant="ghost" size="sm" loading={busy === "undo"} onClick={() => void undo()}>Undo</Button>
-          <Button variant="ghost" size="sm" onClick={() => commit(emptyLayout(board.version))}>Reset to baseline</Button>
-          <Button variant="ghost" size="sm" href={boardUrl(board.slug)}>Open the shared board</Button>
-          <Text as="span" size="sm" tone="muted" role="status">{saving ? "Saving…" : layout ? "Your layout" : "Shared layout"}</Text>
+      <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <PopoverTrigger render={<BoardHeaderButton icon="settings" aria-label="Board settings" title="Board settings" />} />
+        <PopoverContent align="end" className="fd-board-settings">
+          <div className="grid min-w-0 gap-3">
+            <PopoverTitle>Board settings</PopoverTitle>
+            {hasMap && (
+              <Listbox
+                aria-label="Dashboard layout"
+                activation="manual"
+                framed={false}
+                value={current.design ?? "standard"}
+                items={designOptions.map((option) => ({
+                  ...option,
+                  meta: option.value === recommendedDesign ? "Recommended" : undefined,
+                }))}
+                onKeyDown={(event) => { if (event.key === " ") event.preventDefault(); }}
+                onValueChange={(value) => {
+                  const chosen = designOptions.find((option) => option.value === value);
+                  if (!chosen) return;
+                  commit({
+                    ...current,
+                    design: chosen.value,
+                    hidden: chosen.value !== "standard"
+                      ? current.hidden.filter((key) => !available.some((widget) => widget.type === "map" && widgetKeyOf(widget) === key))
+                      : current.hidden,
+                  });
+                  setSettingsOpen(false);
+                }}
+              />
+            )}
+            {available.length > 0 && (
+              <fieldset className="grid min-w-0 gap-2 border-t border-hairline pt-2">
+                <legend className="px-1 text-sm">Visible sections</legend>
+                <div className="grid max-h-56 min-w-0 gap-2 overflow-x-hidden overflow-y-auto pe-1">
+                  {available.filter((widget) => !workspace || widget.type !== "map").map((widget) => {
+                    const key = widgetKeyOf(widget);
+                    return (
+                      <Switch key={key} size="sm" label={widget.title}
+                        checked={!current.hidden.includes(key)}
+                        onCheckedChange={(shown) => commit({
+                          ...current,
+                          hidden: shown ? current.hidden.filter((x) => x !== key) : [...current.hidden, key],
+                          pinned: shown ? current.pinned : current.pinned.filter((x) => x !== key),
+                        })} />
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+            <Button variant="ghost" size="sm" className="justify-start" onClick={() => {
+              setEditing(!editing);
+              setSettingsOpen(false);
+            }}>
+              {editing ? "Done editing" : "Edit layout"}
+            </Button>
+          </div>
         </PopoverContent>
       </Popover>
+      <Menu>
+        <MenuTrigger asChild>
+          <BoardHeaderButton icon="more" aria-label="Board actions" />
+        </MenuTrigger>
+        <MenuContent placement="bottom-end" aria-label="Board actions">
+          <MenuItem disabled={!!busy} onSelect={() => void undo()}>Undo</MenuItem>
+          <MenuItem onSelect={() => router.push(boardUrl(board.slug))}>Open shared board</MenuItem>
+          <MenuSeparator />
+          <MenuItem onSelect={() => setResetOpen(true)} data-sw-confirm="">Reset layout</MenuItem>
+        </MenuContent>
+      </Menu>
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset your layout?</AlertDialogTitle>
+            <AlertDialogDescription>Restore the default layout, widget visibility, pins and filters for this board.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => commit(emptyLayout(board.version))}>
+              Reset layout
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {saving && <Text as="span" role="status" className="sr-only">Saving dashboard settings…</Text>}
     </>
   );
 
@@ -430,7 +442,7 @@ export function PersonalBoard({
         version={board.version}
         animate
         updatedAt={updatedAt}
-        actions={workspace ? actions : standardActions}
+        actions={actions}
         tools={tools}
         workspace={workspace}
         cardsOnMap={workspace && current.design === "map-overlay"}

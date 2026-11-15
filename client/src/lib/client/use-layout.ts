@@ -33,7 +33,12 @@ export function useLayout(boardId: string, initial: PersonalViewState | null) {
       pending.current = null;
       try {
         const r = await saveView(boardId, body, rev.current);
+        if (r.rev < rev.current) continue;
         rev.current = r.rev;
+        if (!pending.current && r.layout.design !== body.design) {
+          show(r.layout);
+          toast.danger("Could not apply this layout", { description: "Showing the saved layout." });
+        }
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) {
           const b = e.body as { layout?: PersonalLayout | null; rev?: number };

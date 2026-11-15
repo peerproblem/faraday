@@ -16,7 +16,8 @@ async function signOutFromSite() {
   await signOut({ redirectTo: `${SITE_URL}/` });
 }
 
-function SiteLinks({ user }: { user?: User }) {
+function SiteLinks({ user, dashboardSlug, compact = false }: { user?: User; dashboardSlug?: string; compact?: boolean }) {
+  const dashboardHref = dashboardSlug ? `${SITE_URL}/me/${encodeURIComponent(dashboardSlug)}` : null;
   return (
     <>
       <Button href={`${SITE_URL}/topics`} variant="ghost" size="sm">
@@ -24,9 +25,26 @@ function SiteLinks({ user }: { user?: User }) {
       </Button>
       {user ? (
         <>
-          <Button href={`${SITE_URL}/me`} variant="ghost" size="sm">
-            My dashboards
-          </Button>
+          {dashboardHref && !compact ? (
+            <Popover>
+              <PopoverTrigger variant="ghost" size="sm" trailing={<Icon name="chevron-down" width={14} height={14} />}>
+                My dashboards
+              </PopoverTrigger>
+              <PopoverContent align="end" padding="sm" aria-label="Dashboard links" className="grid gap-1">
+                <Button href={dashboardHref} variant="ghost" size="sm" className="justify-start">
+                  Open this dashboard
+                </Button>
+                <Button href={`${SITE_URL}/me`} variant="ghost" size="sm" className="justify-start">
+                  All dashboards
+                </Button>
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <>
+              {dashboardHref && <Button href={dashboardHref} variant="ghost" size="sm">Open this dashboard</Button>}
+              <Button href={`${SITE_URL}/me`} variant="ghost" size="sm">My dashboards</Button>
+            </>
+          )}
           <form action={signOutFromSite} className="flex items-center gap-2 sm:gap-3">
             <Avatar src={user.image ?? undefined} name={user.name ?? user.email ?? "Signed in"} size="sm" />
             <Button type="submit" variant="outline" size="sm">
@@ -61,18 +79,18 @@ export async function SiteHeader() {
   );
 }
 
-export async function WorkspaceNavigation() {
+export async function WorkspaceNavigation({ dashboardSlug }: { dashboardSlug?: string }) {
   const session = await readHeaderSession();
   return (
     <nav aria-label="Main" className="shrink-0">
       <div className="hidden items-center gap-2 sm:flex">
-        <SiteLinks user={session?.user} />
+        <SiteLinks user={session?.user} dashboardSlug={dashboardSlug} />
       </div>
       <div className="sm:hidden">
         <Popover>
           <PopoverTrigger variant="ghost" size="sm" iconOnly aria-label="Faraday navigation" leading={<Icon name="more" />} />
           <PopoverContent align="end" padding="sm" aria-label="Faraday navigation" className="grid justify-items-start gap-1">
-            <SiteLinks user={session?.user} />
+            <SiteLinks user={session?.user} dashboardSlug={dashboardSlug} compact />
           </PopoverContent>
         </Popover>
       </div>

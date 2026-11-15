@@ -29,13 +29,15 @@ export default async function TopicsPage({ searchParams }: PageProps<"/topics">)
         lede={past ? "Crises nobody has followed for a while. Their boards stay readable." : "Every crisis Faraday is following, best ranked first."}
       />
       <div className="flex flex-col gap-4">
-        <nav aria-label="Topic lists">
-          <ul className="flex gap-1">
-            {list("Active", !past, `/topics${keep}`)}
-            {list("Past", past, `/topics?state=archived${type ? `&type=${type}` : ""}`)}
-          </ul>
-        </nav>
-        <TypeFilter base="/topics" active={type} extra={past ? "state=archived" : ""} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <nav aria-label="Topic lists">
+            <ul className="flex gap-1">
+              {list("Active", !past, `/topics${keep}`)}
+              {list("Past", past, `/topics?state=archived${type ? `&type=${type}` : ""}`)}
+            </ul>
+          </nav>
+          <TypeFilter base="/topics" active={type} extra={past ? "state=archived" : ""} compact />
+        </div>
         <BoardGrid
           boards={topics}
           empty={past ? "No past topics" : type ? `No ${type} topics right now` : "No topics yet"}

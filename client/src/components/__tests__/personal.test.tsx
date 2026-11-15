@@ -67,8 +67,8 @@ describe("personal dashboard", () => {
     const layout = { ...emptyLayout(b.version), hidden: ["map"] };
     fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
     const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
-    await user.click(screen.getByRole("button", { name: "Board design" }));
-    await user.click(screen.getByRole("radio", { name: "Map focus" }));
+    await user.click(screen.getByRole("button", { name: "Board settings" }));
+    await user.click(screen.getByRole("option", { name: /Map focus/ }));
     expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
     await waitFor(() => expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1));
     const save = JSON.parse(String(posts(`/api/me/views/${b.id}`)[0][1]!.body));
@@ -109,12 +109,18 @@ describe("personal dashboard", () => {
     fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
     const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
 
-    await user.click(screen.getByRole("button", { name: "Board design" }));
-    expect(screen.getByText("Recommended for this category: Cards on map")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Board settings" }));
+    expect(screen.getByText("Recommended").closest('[role="option"]')?.textContent).toContain("Cards on map");
     expect(screen.getByRole("complementary", { name: "Board details" })).toBeTruthy();
     expect(posts(path)).toHaveLength(0);
 
-    await user.click(screen.getByRole("radio", { name: "Cards on map" }));
+    const choices = screen.getByRole("listbox", { name: "Dashboard layout" });
+    fireEvent.keyDown(choices, { key: "End" });
+    expect(choices.getAttribute("aria-activedescendant")).toBe(screen.getByRole("option", { name: /Cards on map/ }).id);
+    fireEvent.keyDown(choices, { key: " " });
+    expect(screen.getByRole("option", { name: /Map focus/ }).getAttribute("aria-selected")).toBe("true");
+    expect(posts(path)).toHaveLength(0);
+    fireEvent.keyDown(choices, { key: "Enter" });
     await waitFor(() => expect(posts(path)).toHaveLength(1));
     const save = JSON.parse(String(posts(path)[0][1]!.body));
     expect(save.layout.design).toBe("map-overlay");
@@ -134,6 +140,7 @@ describe("personal dashboard", () => {
     const b = board();
     const timeline = b.spec!.widgets.find((w) => w.type === "timeline")!;
     const { container } = render(<PersonalBoard initial={b} initialView={{ layout: emptyLayout(b.version), rev: 3 }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Board settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit layout" }));
     fireEvent.click(screen.getByRole("button", { name: `Hide ${timeline.title}` }));
     expect(order(container)).not.toContain(timeline.id);
@@ -158,6 +165,7 @@ describe("personal dashboard", () => {
     fetchMock.mockImplementation(async () => json({ error: "Changed elsewhere", layout: other, rev: 9 }, 409));
     const narrative = b.spec!.widgets.find((w) => w.type === "narrative")!;
     const { container } = render(<PersonalBoard initial={b} initialView={{ layout: null, rev: 0 }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Board settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit layout" }));
     fireEvent.click(screen.getAllByRole("button", { name: /^Move .* down$/ })[0]);
     await act(async () => {

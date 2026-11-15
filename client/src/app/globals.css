@@ -344,6 +344,10 @@ body:has(.fd-workspace-shell) .fd-site-header {
   min-height: 0;
   overflow: hidden;
 }
+.fd-board-settings {
+  --sw-popover-width: 23rem;
+}
+
 .fd-workspace-header {
   height: 44px;
   padding-inline: var(--sw-space-2);
