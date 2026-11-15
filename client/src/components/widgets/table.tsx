@@ -128,7 +128,7 @@ export function sortRows(data: TableData, sort: TableSort | null) {
 }
 
 /** Rows whose cells contain the text, ignoring case. */
-export function TableWidget({ widget, data, sources, tier, building, mapFocus: compact, cyberPresentation }: WidgetProps<"table">) {
+export function TableWidget({ widget, data, sources, tier, building, mapFocus: compact, cyberPresentation, outagePresentation }: WidgetProps<"table">) {
   const [sort, setSort] = useState<TableSort | null>(null);
   const [page, setPage] = useState(1);
   const rows = useMemo(() => (data ? sortRows(data, sort) : []), [data, sort]);
@@ -143,7 +143,8 @@ export function TableWidget({ widget, data, sources, tier, building, mapFocus: c
   const citationColumn = compact ? data.columns.find((column) =>
     column.kind === "link" && /^(source|citation)$/i.test(column.label.trim()),
   ) : undefined;
-  const dataColumns = data.columns.filter((column) => column !== citationColumn);
+  const dataColumns = data.columns.filter((column) => column !== citationColumn).map(column => outagePresentation
+    ? { ...column, label: column.label.replace(/Next Scheduled Window/i, "Reported windows") } : column);
   function citationFallback(row: TableData["rows"][number]) {
     if (!citationColumn) return "";
     const value = row.cells[citationColumn.key] ?? "";
@@ -166,6 +167,7 @@ export function TableWidget({ widget, data, sources, tier, building, mapFocus: c
 
   return (
     <div className={compact ? "flex flex-col gap-2" : "flex flex-col gap-4"}>
+      {outagePresentation && data.columns.some(c => /window|schedule/i.test(c.label)) && <Text size="sm" tone="muted">Report timestamps are not schedule validity dates. Clock times retain the source’s wording; check the operator for current schedules and timezone.</Text>}
       {compact && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Text as="span" size="sm" tone="muted" aria-live="polite">
@@ -174,9 +176,9 @@ export function TableWidget({ widget, data, sources, tier, building, mapFocus: c
           {pageCount > 1 && <Pagination aria-label={`${widget.title} pages`} size="sm" variant="compact" pageCount={pageCount} page={current} onPageChange={setPage} />}
         </div>
       )}
-      {cyberPresentation && compact && (
+      {(cyberPresentation || outagePresentation) && compact && (
         <div className="fd-cyber-records">
-          <Select aria-label={`${widget.title} sort`} size="sm"
+          {!outagePresentation && <Select aria-label={`${widget.title} sort`} size="sm"
             value={sort ? `${dataColumns.findIndex(column => column.key === sort.columnId)}:${sort.direction}` : "original"}
             onValueChange={(value) => {
               const [index, direction] = (value ?? "original").split(":");
@@ -192,7 +194,7 @@ export function TableWidget({ widget, data, sources, tier, building, mapFocus: c
                 <SelectItem key={`${column.key}:desc`} value={`${index}:descending`}>{column.label} · descending</SelectItem>,
               ])}
             </SelectContent>
-          </Select>
+          </Select>}
           <ol aria-label={`${widget.title} records`} className="fd-cyber-record-list">
             {shown.map(row => <li key={row.id}>
               <dl>{dataColumns.map(column => <div key={column.key}>
@@ -208,7 +210,7 @@ export function TableWidget({ widget, data, sources, tier, building, mapFocus: c
           </ol>
         </div>
       )}
-      <div className={cyberPresentation && compact ? "fd-cyber-table-view" : "contents"}>
+      <div className={(cyberPresentation || outagePresentation) && compact ? "fd-cyber-table-view" : "contents"}>
       <Table
         // The card already shows the title. Keep the caption as the accessible table and scroll region name.
         caption={`${widget.title}: ${rows.length === 1 ? "1 row" : `${rows.length} rows`}`}
