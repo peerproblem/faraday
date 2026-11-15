@@ -17,12 +17,13 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const board = await getBoardBySlug(slug).catch(() => null);
-  const header = board?.data?.header;
-  if (!header) return { title: board?.title ? `${board.title} | live board` : "Faraday board" };
-  const title = `${header.title} | live board`;
+  const header = (board?.displaySnapshot?.data ?? board?.data)?.header;
+  const boardType = board?.displaySnapshot ? "saved board" : "live board";
+  if (!board || !header) return { title: board?.title ? `${board.title} | ${boardType}` : "Faraday board" };
+  const title = `${header.title} | ${boardType}`;
   const description = header.headline?.text ?? header.subtitle ?? undefined;
   // The link card X, Discord and chat apps show. The image URL changes with each version, so their caches refresh.
-  const image = { url: `${SITE_URL}${ogImagePath(slug, board.version)}`, width: OG_SIZE.width, height: OG_SIZE.height, alt: header.title };
+  const image = { url: `${SITE_URL}${ogImagePath(slug, board.displaySnapshot?.version ?? board.version)}`, width: OG_SIZE.width, height: OG_SIZE.height, alt: header.title };
   return {
     title,
     description,

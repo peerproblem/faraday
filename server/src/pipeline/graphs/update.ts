@@ -1,3 +1,4 @@
+import { frozenBoard } from "../../frozen-boards";
 import { trustedFacts } from "../trust";
 import type { GraphFn } from "../../graph/runner";
 import {
@@ -18,7 +19,7 @@ import { listMonitors, listSources, markChanged, markMonitorsSynced, saveBoardVe
 import { recordContextChanges, recordContextSearch } from "../../repo/context-evidence";
 import { listFacts } from "../../repo/facts";
 import { incidentReporting, type FactDiff } from "../../spec";
-import { withIncidentReporting } from "../incident-reporting";
+import { incidentReportQuery, withIncidentReporting } from "../incident-reporting";
 import { diffData, type HeaderOverrides } from "../assemble";
 import { assess, materiality, type Assessment, type Materiality } from "../nodes/assess";
 import { dedupeDocs, gather, localSearchQueries, rotateQueries } from "../nodes/gather";
@@ -46,13 +47,16 @@ type Reason = "schedule" | "manual" | "webhook" | "followup" | "discover";
 export const emptyDiff = (d: FactDiff) => d.added.length === 0 && d.changed.length === 0;
 
 export const updateGraph: GraphFn = async (ctx) => {
+  if (frozenBoard(ctx.boardId)) return;
   const payload = (ctx.job.payload ?? {}) as { reason?: Reason; newsQueries?: string[]; webQueries?: string[] };
   const reason = (payload.reason ?? "schedule") as Reason;
   const board = await loadBoard(ctx);
   if (!board.plan || !board.spec || board.specVersion !== 2 || board.status !== "live") return;
   // A paused board only reads the web for monitor webhooks, discovery matches and the build's follow-up.
   if (board.tier === "paused" && (reason === "schedule" || reason === "manual")) return;
-  const reporting = incidentReporting((await getBoardLayout(board.id)).assignment?.settings ?? null);
+  const settings = (await getBoardLayout(board.id)).assignment?.settings ?? null;
+  const category = board.topicCategoryOverride ?? (board.spec.template === "finance" ? "economy" : board.plan.crisisType);
+  const reporting = incidentReporting(settings, category);
   const { plan, spec: reportSpec } = withIncidentReporting(board.plan, board.spec, reporting);
   const reportSpecChanged = reportSpec !== board.spec;
   const now = Date.now();
@@ -64,8 +68,7 @@ export const updateGraph: GraphFn = async (ctx) => {
   const queries = followup ? (payload.newsQueries ?? []).slice(0, 3) : rotateQueries(plan.newsQueries, now, period);
   const webQueries = followup ? (payload.webQueries ?? []).slice(0, 3) : [];
   if ((reporting.status || reporting.tally) && reason === "schedule") {
-    const domains = reporting.domains.map((domain) => `site:${domain}`).join(" OR ");
-    webQueries.push(`${plan.title} official civil protection incident status and operational report${domains ? ` (${domains})` : ""}`);
+    webQueries.push(incidentReportQuery(plan, reporting.domains));
   }
   const freshness = plan.lookbackDays <= 1 ? "last_24_hours" : plan.lookbackDays <= 7 ? "last_week" : "last_month";
   // One Oxylabs local search per scheduled poll, rotating through the local-language and first web query.

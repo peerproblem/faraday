@@ -23,7 +23,7 @@ function tableBreakdown(table: TableData) {
 }
 
 export function StatusBreakdown({ entry, data, chart = "donut", fallback = null }: {
-  entry: BoardEntry; data: BoardData | null; chart?: "donut" | "bars"; fallback?: ReactNode;
+  entry: BoardEntry; data: BoardData | null; chart?: "donut" | "bars" | "auto"; fallback?: ReactNode;
 }) {
   if (entry.widget.type !== "table") return fallback;
   const table = data?.widgets[entry.widget.id] as TableData | undefined;
@@ -32,7 +32,8 @@ export function StatusBreakdown({ entry, data, chart = "donut", fallback = null 
   if (!breakdown?.total || (chart === "donut" && (breakdown.slices.length < 2 || breakdown.slices.length > 6))) return fallback;
 
   const title = `${entry.widget.title} by status`;
-  if (chart === "bars") return (
+  const donut = chart !== "bars" && breakdown.slices.length >= 2 && breakdown.slices.length <= 6;
+  if (!donut) return (
     <ChartCard title={title} variant="ghost" padding="none" bordered={false} className="min-w-0">
       <BarList items={breakdown.slices.map((slice) => ({ id: slice.label, ...slice }))} aria-label={title} />
     </ChartCard>

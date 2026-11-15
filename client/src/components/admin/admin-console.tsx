@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Link } from "@/components/ui/link";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Table, type TableColumn, type TableRow } from "@/components/ui/table";
@@ -37,13 +38,16 @@ import {
   listCandidates,
   registerTopic,
   setAdminSettings,
+  setTopicCategory,
   setTopicState,
 } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import type { AdminSettings, BoardCard, TopicCandidateView } from "@/lib/spec";
+import { isNaturalDisaster, naturalDisasterCategories, topicCategories, type AdminSettings, type BoardCard, type TopicCandidateView, type TopicCategory } from "@/lib/spec";
 
 const MIN_PROMPT = 8;
 const MAX_PROMPT = 1000;
+const categoryLabel = (category: string) => category.charAt(0).toUpperCase() + category.slice(1).replaceAll("-", " ");
+const otherCategories = topicCategories.filter((category) => !isNaturalDisaster(category));
 
 /** Username and password sign-in for the admin console. Independent of the Google sign-in. */
 export function AdminLogin() {
@@ -314,6 +318,18 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
     }
   }
 
+  async function changeCategory(id: string, category: TopicCategory | null) {
+    setBusy(id);
+    try {
+      await setTopicCategory(id, category);
+      await onChanged();
+    } catch (e) {
+      toast.danger("Could not change the category", { description: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function remove(t: BoardCard) {
     try {
       await deleteTopic(t.id);
@@ -328,6 +344,7 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
     const s = boardBadge(t);
     const archived = t.topicState === "archived";
     const name = t.title ?? t.prompt;
+    const category = t.topicCategory ?? t.crisisType;
     return {
       id: t.id,
       cells: {
@@ -340,12 +357,24 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
             <Badge variant={archived ? "outline" : "neutral"} mono>
               {archived ? "archived" : (t.topicState ?? "active")}
             </Badge>
-            {t.crisisType ? (
-              <Badge variant="neutral" mono>
-                {t.crisisType}
-              </Badge>
-            ) : null}
           </span>
+        ),
+        category: (
+          <Select aria-label={`Category for ${name}`} size="sm" value={t.topicCategoryOverride ?? "automatic"}
+            disabled={busy !== null} onValueChange={(value) => {
+              if (value === "automatic") return void changeCategory(t.id, null);
+              const selected = topicCategories.find((option) => option === value);
+              if (selected) void changeCategory(t.id, selected);
+            }}>
+            <SelectTrigger />
+            <SelectContent>
+              <SelectItem value="automatic">Automatic{!t.topicCategoryOverride && category ? ` (${categoryLabel(category)})` : ""}</SelectItem>
+              <SelectGroup label="Natural disasters">
+                {naturalDisasterCategories.map((option) => <SelectItem key={option} value={option}>{categoryLabel(option)}</SelectItem>)}
+              </SelectGroup>
+              {otherCategories.map((option) => <SelectItem key={option} value={option}>{categoryLabel(option)}</SelectItem>)}
+            </SelectContent>
+          </Select>
         ),
         updated: <Ago t={t.updatedAt} />,
         links: (
@@ -393,6 +422,7 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
   const columns: TableColumn[] = [
     { id: "topic", label: "Topic", rowHeader: true, compare: (a, b) => (of(a).title ?? of(a).prompt).localeCompare(of(b).title ?? of(b).prompt) },
     { id: "status", label: "Status" },
+    { id: "category", label: "Category" },
     { id: "updated", label: "Updated", compare: (a, b) => of(a).updatedAt - of(b).updatedAt },
     { id: "links", label: "Open" },
     { id: "actions", label: "Actions", align: "end" },

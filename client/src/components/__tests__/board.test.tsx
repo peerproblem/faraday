@@ -21,6 +21,35 @@ const board = (name: string, patch: Partial<BoardView> = {}) => ({ ...getFixture
 const section = (title: string) => screen.getByRole("region", { name: title });
 
 describe("board v2", () => {
+  test("keeps the saved overview chart and open Evidence on the map when live data is empty", () => {
+    const saved = board("strike");
+    const b = board("strike", {
+      spec: { version: 2, widgets: [] },
+      data: null,
+      displaySnapshot: { version: 2, capturedAt: 1000, spec: saved.spec!, data: saved.data! },
+      presentation: {
+        workspace: true, cardsOnMap: true, evidenceOpen: true,
+        overviewStatusChart: "table:city-protests",
+      },
+    });
+    const openStream = vi.fn();
+    vi.stubGlobal("EventSource", class extends EventTarget {
+      constructor() { super(); openStream(); }
+      close() {}
+    });
+    try {
+      render(<LiveBoard initial={b} workspace />);
+      expect(openStream).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const cards = within(screen.getByRole("group", { name: "Map cards" }));
+    expect(cards.getByRole("button", { name: "Evidence" }).getAttribute("aria-expanded")).toBe("true");
+    expect(within(cards.getByRole("region", { name: "Situation" }))
+      .getByRole("img", { name: /^Turnout & Protests by City by status\./ })).toBeTruthy();
+    expect(screen.queryByRole("complementary", { name: "Board details" })).toBeNull();
+  });
+
   test("the left sidebar can show any card content while keeping the default right cards", async () => {
     const user = userEvent.setup();
     const b = board("strike", {

@@ -16,6 +16,7 @@ Today is ${now.toISOString().slice(0, 10)}.
 Language: the board is always in English, whatever language the request is written in. Set language to "en" and write title, subtitle, labels and widget titles in English. Queries may mix the local language and English when that finds more.
 
 What to track:
+- crisisType: use the specific hazard when available, such as volcano for an eruption. Use other-natural-disaster for hazards without a dedicated type, such as a tsunami, landslide, avalanche or drought.
 - metrics: the 4 to 8 figures that matter most for this crisis type (deaths, injured, evacuated, area burned, customers without power, systems affected...). Keys are kebab-case and stable.
 - tables: 0 to 3 crisis-specific lists (road closures, shelters, evacuation zones, affected services, CVEs, outage regions). The first column identifies the row.
 - statusGroups: for outages and cyberattacks, groups of services or systems that are up or down. Usually empty for natural disasters.

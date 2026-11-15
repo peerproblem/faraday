@@ -31,6 +31,7 @@ import { ContextEvidence } from "./context-evidence";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
+import { automaticChartEntry } from "./automatic-chart";
 import { IncidentReports } from "./incident-reports";
 import { RegionSwitch, RegionInset } from "./map-regions";
 import { MapWidget } from "@/components/widgets/map";
@@ -49,6 +50,7 @@ export type BoardProps = {
   stage?: string;
   connected: boolean;
   lastPolledAt: number | null;
+  snapshotAt?: number;
   onRefresh?: () => Promise<unknown>;
   /** When the stream last changed each widget's data, by widget id. */
   updatedAt?: Record<string, number>;
@@ -58,6 +60,8 @@ export type BoardProps = {
   cardsOnMap?: boolean;
   defaultTimelineOpen?: boolean;
   defaultEvidenceOpen?: boolean;
+  overviewStatusChart?: string;
+  incidentOverview?: { status: boolean; tally: boolean };
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
@@ -145,6 +149,9 @@ export function Board(props: BoardProps) {
       <Heading as="h1" size="sm" className="fd-workspace-title min-w-0 flex-1 truncate" title={title ?? undefined}>
         {title ?? "Live board"}
       </Heading>
+      {props.snapshotAt !== undefined && <Badge variant="outline">
+        Snapshot · <time dateTime={new Date(props.snapshotAt).toISOString()}>{when(new Date(props.snapshotAt).toISOString())}</time>
+      </Badge>}
       {!legacy && (onRefresh && status === "live" && tier !== "paused" || props.actions) ? (
         <div role="group" aria-label="Dashboard controls" className="flex shrink-0 items-center gap-1.5">
           {onRefresh && status === "live" && tier !== "paused" ? (
@@ -207,7 +214,7 @@ export function Board(props: BoardProps) {
         status={status}
         tier={tier}
         building={building}
-        mapFocus={compact}
+        mapFocus={compact && (props.snapshotAt === undefined || entry.widget.type !== "link-list")}
         fillMap={fillMap}
         wrapSourceTitles={props.wildfireOverview}
         collapseSourceGroups={props.wildfireOverview || cyber}
@@ -233,7 +240,7 @@ export function Board(props: BoardProps) {
   }
 
   const lastCheckedAt = lastPolledAt == null ? null : new Date(lastPolledAt).toISOString();
-  const lastChecked = lastCheckedAt && (
+  const lastChecked = props.snapshotAt === undefined && lastCheckedAt && (
     <span>Last checked <time dateTime={lastCheckedAt}>{when(lastCheckedAt)}</time></span>
   );
   const conciseSummary = props.workspace && !!map;
@@ -261,6 +268,7 @@ export function Board(props: BoardProps) {
   );
 
   function cardEntry(content: BoardCardContent) {
+    if (content.kind === "automatic-chart") return automaticChartEntry(widgets, data);
     if (content.kind !== "widget" && content.kind !== "status-chart") return;
     const type = content.kind === "widget" ? content.type : "table";
     return widgets.find((entry) => {
@@ -279,7 +287,13 @@ export function Board(props: BoardProps) {
           widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />,
       ];
       const entry = cardEntry(content);
+      if (!entry && content.kind === "automatic-chart") {
+        return [<Text size="sm" tone="muted">Waiting for dated observations or reported statuses.</Text>];
+      }
       if (!entry || (props.workspace && entry === map)) return [];
+      if (content.kind === "automatic-chart" && entry.widget.type === "table") {
+        return [<StatusBreakdown entry={entry} data={data} chart="auto" />];
+      }
       return [content.kind === "status-chart"
         ? <StatusBreakdown entry={entry} data={data} chart={content.chart} fallback={renderWorkspaceWidget(entry)} />
         : renderWorkspaceWidget(entry)];
@@ -306,6 +320,7 @@ export function Board(props: BoardProps) {
     } : undefined;
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
+    const overviewChart = props.overviewStatusChart && sections.find((entry) => entry.key === props.overviewStatusChart);
     const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid" && !cardIncludes(entry)) : [];
     const figureItems = figureSections.flatMap((entry) => {
       const figures = data?.widgets[entry.widget.id] as StatGridData | undefined;
@@ -379,6 +394,7 @@ export function Board(props: BoardProps) {
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
             main={outageOverview ?? cyberOverview}
             defaultEvidenceOpen={props.defaultEvidenceOpen}
+            showSavedSources={props.snapshotAt !== undefined}
             configuredCards={configuredCards?.map((card) => ({
               id: `card:${card.id}`, label: card.title, content: card.content, open: card.open,
             }))}
@@ -429,6 +445,11 @@ export function Board(props: BoardProps) {
                 </section>
               )}
               {summary}
+              {overviewChart && <StatusBreakdown entry={overviewChart} data={data} fallback={renderWorkspaceWidget(overviewChart)} />}
+              {props.incidentOverview?.status && <IncidentReports kind="incident-status" hideEmpty
+                widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />}
+              {props.incidentOverview?.tally && <IncidentReports kind="official-tally" chart="auto" hideEmpty
+                widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />}
               {overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
               {props.wildfireOverview && releases.length > 0 && (
                 <details className="border-t border-hairline pt-3">

@@ -1,5 +1,6 @@
 // OWNER: F-DB. Pure data access: no publishing, no network. Callers publish through bus.ts.
 import { createHash } from "node:crypto";
+import { frozenBoard, frozenBoardIds } from "../frozen-boards";
 import { customAlphabet } from "nanoid";
 import { all, json, one, run, tx, type Param } from "../db/pool";
 import type {
@@ -16,10 +17,12 @@ import type {
   Source,
   SourceType,
   SourceVia,
+  TopicCategory,
+  TopicFilter,
   TopicState,
   Visibility,
 } from "../spec";
-import { sourceVias } from "../spec";
+import { naturalDisasterCategories, sourceVias } from "../spec";
 
 export type FoundDoc = {
   url: string;
@@ -64,6 +67,7 @@ export type BoardRow = {
   monitorsSyncedAt: number | null;
   origin: BoardOrigin;
   topicState: TopicState | null;
+  topicCategoryOverride?: TopicCategory | null;
   entities: string[];
   locationName: string | null;
   rankScore: number | null;
@@ -96,6 +100,7 @@ type DbBoard = {
   monitors_synced_at: number | null;
   origin: string;
   topic_state: string | null;
+  topic_category: TopicCategory | null;
   entities: string | null;
   location_name: string | null;
   rank_score: number | null;
@@ -109,7 +114,7 @@ const newId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 12);
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 const BOARD_COLS = `id, slug, owner_id, prompt, title, status, tier, visibility, plan, spec_version, spec, data, version, language,
   last_polled_at, next_poll_at, last_viewed_at, last_changed_at, running_job_id, monitors_synced_at,
-  origin, topic_state, entities, location_name, rank_score, merged_into, discovered_at, created_at, updated_at`;
+  origin, topic_state, topic_category, entities, location_name, rank_score, merged_into, discovered_at, created_at, updated_at`;
 
 const asOrigin = (v: unknown): BoardOrigin => (v === "system" ? "system" : "user");
 const asTopicState = (v: unknown): TopicState | null => (v === "active" || v === "archived" || v === "merged" ? v : null);
@@ -160,6 +165,7 @@ function toRow(r: DbBoard): BoardRow {
     monitorsSyncedAt: num(r.monitors_synced_at),
     origin: asOrigin(r.origin),
     topicState: asTopicState(r.topic_state),
+    topicCategoryOverride: r.topic_category ?? null,
     entities: asEntities(r.entities),
     locationName: r.location_name,
     rankScore: num(r.rank_score),
@@ -245,6 +251,7 @@ export async function getBoardView(id: string): Promise<BoardView | null> {
     language: b.language,
     origin: b.origin,
     topicState: b.topicState,
+    topicCategory: b.topicCategoryOverride ?? (b.spec?.template === "finance" ? "economy" : b.plan?.crisisType ?? b.data?.header.crisisType ?? null),
   };
 }
 
@@ -257,6 +264,8 @@ type DbCard = {
   tier: BoardTier;
   updated_at: number;
   crisis_type: string | null;
+  topic_category?: TopicCategory | null;
+  effective_topic_category?: string | null;
   severity: number | null;
   headline: string | null;
   accent: string | null;
@@ -272,6 +281,8 @@ export const cardCols = (a = "") =>
     .map((c) => `${a}${c}`)
     .join(", ");
 
+export const effectiveTopicCategory = "COALESCE(topic_category, CASE WHEN JSON_VALUE(spec, '$.template') = 'finance' THEN 'economy' END, crisis_type)";
+
 export function toCard(r: DbCard): BoardCard {
   return {
     id: r.id,
@@ -282,6 +293,8 @@ export function toCard(r: DbCard): BoardCard {
     tier: r.tier,
     updatedAt: Number(r.updated_at),
     crisisType: r.crisis_type,
+    topicCategory: r.effective_topic_category,
+    topicCategoryOverride: r.topic_category,
     severity: num(r.severity),
     headline: r.headline,
     accent: r.accent,
@@ -310,17 +323,18 @@ export async function listBoards(opts: { limit: number; ownerId?: string; public
  * Shared topics for the home page and /topics: public system boards in a state (default active), best ranked first.
  * Unscored topics sort after scored ones, newest first. Boards that have not finished their first build are left out.
  */
-export async function listTopics(opts: { state?: TopicState; crisisType?: string | null; limit: number }): Promise<BoardCard[]> {
+export async function listTopics(opts: { state?: TopicState; crisisType?: TopicFilter | null; limit: number }): Promise<BoardCard[]> {
   const where = ["deleted_at IS NULL", "origin = 'system'", "visibility = 'public'", "topic_state = ?", "spec_version = 2", "status <> 'error'"];
   const params: Param[] = [opts.state ?? "active"];
   if ((opts.state ?? "active") === "active") where.push("spec IS NOT NULL");
   if (opts.crisisType) {
-    where.push("crisis_type = ?");
-    params.push(opts.crisisType);
+    const categories = opts.crisisType === "natural-disasters" ? naturalDisasterCategories : [opts.crisisType];
+    where.push(`${effectiveTopicCategory} IN (${categories.map(() => "?").join(", ")})`);
+    params.push(...categories);
   }
   params.push(Math.max(1, Math.min(100, Math.floor(opts.limit))));
   const rows = await all<DbCard>(
-    `SELECT ${cardCols()} FROM boards WHERE ${where.join(" AND ")}
+    `SELECT ${cardCols()}, ${effectiveTopicCategory} AS effective_topic_category FROM boards WHERE ${where.join(" AND ")}
      ORDER BY rank_score IS NULL, rank_score DESC, updated_at DESC LIMIT ?`,
     params,
   );
@@ -350,6 +364,16 @@ export async function savePlan(id: string, plan: Plan): Promise<void> {
 }
 
 const KEEP_VERSIONS = 50;
+
+export async function getBoardVersion(id: string, version: number) {
+  const row = await one<{ spec: string | object; data: string | object; created_at: number }>(
+    "SELECT spec, data, created_at FROM board_versions WHERE board_id = ? AND version = ?", [id, version],
+  );
+  if (!row) return null;
+  const spec = typeof row.spec === "string" ? json<BoardSpecV2>(row.spec) : row.spec as BoardSpecV2;
+  const data = typeof row.data === "string" ? json<BoardData>(row.data) : row.data as BoardData;
+  return spec && data ? { version, spec, data, capturedAt: Number(row.created_at) } : null;
+}
 
 /**
  * Writes spec, data, spec_version = 2, the list columns (crisis_type, severity, headline, accent, title, language),
@@ -389,7 +413,8 @@ export async function saveBoardVersion(
        ON DUPLICATE KEY UPDATE spec = VALUES(spec), data = VALUES(data), change_note = VALUES(change_note)`,
       [id, version, JSON.stringify(v.spec), JSON.stringify(v.data), v.changeNote, now],
     );
-    await db.run(`DELETE FROM board_versions WHERE board_id = ? AND version <= ?`, [id, version - KEEP_VERSIONS]);
+    await db.run(`DELETE FROM board_versions WHERE board_id = ? AND version <= ? AND version <> ?`,
+      [id, version - KEEP_VERSIONS, frozenBoard(id)?.version ?? 0]);
     return version;
   });
 }
@@ -432,8 +457,9 @@ export async function listDueBoards(now: number, limit: number): Promise<{ id: s
     `SELECT id, tier FROM boards
      WHERE deleted_at IS NULL AND status = 'live' AND spec_version = 2 AND tier <> 'paused'
        AND (next_poll_at IS NULL OR next_poll_at <= ?)
+       AND id NOT IN (${frozenBoardIds.map(() => "?").join(", ")})
      ORDER BY COALESCE(next_poll_at, 0), id LIMIT ?`,
-    [now, Math.max(1, Math.floor(limit))],
+    [now, ...frozenBoardIds, Math.max(1, Math.floor(limit))],
   );
   return rows.map((r) => ({ id: r.id, tier: r.tier }));
 }
@@ -952,8 +978,8 @@ export async function pruneOldData(now: number): Promise<{ events: number; versi
   const oldVersions = await all<{ board_id: string; version: number }>(
     `SELECT board_id, version FROM (
        SELECT board_id, version, ROW_NUMBER() OVER (PARTITION BY board_id ORDER BY version DESC) AS rn FROM board_versions
-     ) x WHERE rn > ?`,
-    [KEEP_VERSIONS],
+     ) x WHERE rn > ? AND NOT (${frozenBoardIds.map(() => "(board_id = ? AND version = ?)").join(" OR ")})`,
+    [KEEP_VERSIONS, ...frozenBoardIds.flatMap((id) => [id, frozenBoard(id)!.version])],
   );
   let versions = 0;
   for (const v of oldVersions) {

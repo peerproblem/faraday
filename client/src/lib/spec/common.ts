@@ -5,6 +5,8 @@ export const crisisTypes = [
   "earthquake",
   "storm",
   "heatwave",
+  "volcano",
+  "other-natural-disaster",
   "cyberattack",
   "outage",
   "conflict",
@@ -14,6 +16,26 @@ export const crisisTypes = [
   "other",
 ] as const;
 export type CrisisType = (typeof crisisTypes)[number];
+
+export const topicCategories = [...crisisTypes, "economy"] as const;
+export type TopicCategory = (typeof topicCategories)[number];
+
+export const naturalDisasterCategories = ["flood", "wildfire", "earthquake", "storm", "heatwave", "volcano", "other-natural-disaster"] as const;
+export function isNaturalDisaster(category: unknown) {
+  return naturalDisasterCategories.some((type) => type === category);
+}
+
+export const topicFilters = [
+  "natural-disasters",
+  "economy",
+  ...crisisTypes.filter((category) => !isNaturalDisaster(category) && category !== "other"),
+  "other",
+] as const;
+export type TopicFilter = TopicCategory | "natural-disasters";
+
+export function parseTopicFilter(value: unknown): TopicFilter | null {
+  return value === "natural-disasters" ? value : topicCategories.find((category) => category === value) ?? null;
+}
 
 export const situationStatuses = ["developing", "ongoing", "contained", "recovering", "resolved"] as const;
 export type SituationStatus = (typeof situationStatuses)[number];
@@ -25,6 +47,7 @@ export function accentFor(type: CrisisType): Accent {
   switch (type) {
     case "wildfire":
     case "heatwave":
+    case "volcano":
       return "orange";
     case "flood":
     case "storm":

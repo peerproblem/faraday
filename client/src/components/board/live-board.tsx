@@ -34,25 +34,29 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfireOv
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
 }) {
-  const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
-  const mapWorkspace = workspace && spec?.widgets.some((widget) => widget.type === "map");
+  const frozen = !!initial.displaySnapshot;
+  const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live: live && !frozen });
+  const capturedAt = board.displaySnapshot?.capturedAt;
+  const displaySpec = board.displaySnapshot?.spec ?? spec;
+  const mapWorkspace = workspace && displaySpec?.widgets.some((widget) => widget.type === "map");
   return (
     <>
       <Board
         boardId={live ? board.id : undefined}
-        spec={spec}
-        data={data}
+        spec={displaySpec}
+        data={board.displaySnapshot?.data ?? data}
         specVersion={board.specVersion}
         title={board.title}
         prompt={board.prompt}
-        sources={board.sources}
-        events={board.events}
+        sources={capturedAt === undefined ? board.sources : board.sources.filter((source) => source.fetchedAt <= capturedAt)}
+        events={capturedAt === undefined ? board.events : board.events.filter((event) => event.ts <= capturedAt)}
         status={board.status}
         tier={board.tier}
         stage={partial?.stage}
         connected={connected}
-        lastPolledAt={board.lastPolledAt}
-        onRefresh={live && !mapWorkspace ? refresh : undefined}
+        lastPolledAt={capturedAt ?? board.lastPolledAt}
+        snapshotAt={capturedAt}
+        onRefresh={live && !frozen && !mapWorkspace ? refresh : undefined}
         updatedAt={updatedAt}
         actions={actions}
         workspace={workspace}
@@ -61,6 +65,8 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfireOv
         mapRegions={board.presentation?.mapRegions}
         defaultTimelineOpen={board.presentation?.timelineOpen}
         defaultEvidenceOpen={board.presentation?.evidenceOpen}
+        overviewStatusChart={board.presentation?.overviewStatusChart}
+        incidentOverview={board.presentation?.incidentOverview}
         sidebarSettings={board.presentation?.sidebar}
         configuredCards={board.presentation?.cards}
         wildfireOverview={wildfireOverview}

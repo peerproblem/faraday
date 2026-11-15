@@ -19,7 +19,7 @@ const widgetTitles: Record<Widget["type"], string> = {
 
 function contentValue(content: BoardCardContent) {
   if (content.kind === "summary") return "summary";
-  if (content.kind === "incident-status") return "incident-status";
+  if (content.kind === "incident-status" || content.kind === "automatic-chart") return content.kind;
   if (content.kind === "official-tally") return `official-tally:${content.chart}`;
   if (content.kind === "status-chart") return `${content.chart}:${content.key ?? ""}`;
   return `widget:${content.type}:${content.key ?? ""}`;
@@ -89,8 +89,10 @@ export function CardCompositionFields({ settings, onChange, widgets }: {
     .filter(({ type }) => !map || type !== "map");
   const options: ContentOption[] = [
     { label: "Board summary", content: { kind: "summary" } },
+    { label: "Automatic chart", content: { kind: "automatic-chart" } },
     { label: "Incidents requiring a response", content: { kind: "incident-status" } },
     { label: "Latest official tally", content: { kind: "official-tally", chart: "none" } },
+    { label: "Latest official tally with automatic chart", content: { kind: "official-tally", chart: "auto" } },
     { label: "Latest official tally with donut", content: { kind: "official-tally", chart: "donut" } },
     { label: "Latest official tally with bars", content: { kind: "official-tally", chart: "bars" } },
   ];
@@ -151,8 +153,10 @@ export function CardCompositionFields({ settings, onChange, widgets }: {
       <fieldset className="grid min-w-0 gap-3 border-t border-hairline pt-2">
         <legend className="pr-2 text-sm font-medium">{map ? "Right cards" : "Cards"}</legend>
         {cards === undefined ? (
-          <Button type="button" size="sm" variant="outline" className="justify-self-start"
-            onClick={() => setCards([newCard()])}>Compose cards</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => setCards([newCard()])}>Compose cards</Button>
+            {map && <Button type="button" size="sm" variant="ghost" onClick={() => setCards([])}>Hide detail cards</Button>}
+          </div>
         ) : (
           <>
             {cards.map((card, index) => (
@@ -181,6 +185,7 @@ export function CardCompositionFields({ settings, onChange, widgets }: {
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="sm" variant="outline" disabled={cards.length >= 20}
                 onClick={() => setCards([...cards, newCard()])}>Add card</Button>
+              {map && cards.length > 0 && <Button type="button" size="sm" variant="ghost" onClick={() => setCards([])}>Hide detail cards</Button>}
               <Button type="button" size="sm" variant="ghost" onClick={() => setCards()}>Use default cards</Button>
             </div>
           </>

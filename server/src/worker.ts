@@ -1,3 +1,4 @@
+import { frozenBoard } from "./frozen-boards";
 // OWNER: F-RUNTIME. Worker entry point: queue consumers, scheduler and tiering, stale job reclaim, cleanup, heartbeat.
 // Graph registry: build -> buildGraph, edit -> editGraph, poll -> updateGraph, discover -> discoverGraph
 // (from ./pipeline/graphs), cleanup -> local.
@@ -6,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { flushRemote, publish, setBusMode } from "./bus";
 import { closePool } from "./db/pool";
 import { runGraph, type GraphFn } from "./graph/runner";
-import { removeBoardMonitors, setBoardMonitorSchedule } from "./monitors";
+import { pauseBoardMonitors, removeBoardMonitors, setBoardMonitorSchedule } from "./monitors";
 import { buildGraph, discoverGraph, editGraph, updateGraph } from "./pipeline/graphs";
 import { POLL_INTERVAL_MS } from "./pipeline/nodes/util";
 import {
@@ -143,6 +144,7 @@ export async function executeJob(job: Job, signal: AbortSignal) {
 /** One scheduling pass: tiers, due polls. Exported for tests. */
 export async function scheduleOnce(now = Date.now()) {
   for (const b of await listLiveBoardsForTiering()) {
+    if (frozenBoard(b.id)) continue;
     const tier = computeTier(b, now);
     if (tier === b.tier) continue;
     if (tier === "paused") {
@@ -199,13 +201,18 @@ export async function topicUpkeepOnce(now = Date.now()) {
   const position = new Map(ranked.map((id, i) => [id, i]));
   const byBoard = new Map<string, Set<string>>();
   for (const m of await listMonitors()) {
-    if (!position.has(m.boardId) || m.remoteStatus === "dead") continue;
+    const saved = frozenBoard(m.boardId);
+    if (m.remoteStatus === "dead" || (saved ? m.remoteStatus === "paused" : !position.has(m.boardId))) continue;
     if (!byBoard.has(m.boardId)) byBoard.set(m.boardId, new Set());
     byBoard.get(m.boardId)!.add(m.kind);
   }
   let released = 0;
   for (const [boardId, kinds] of byBoard) {
-    const allow = allowanceFor(boardId, position.get(boardId)!);
+    if (frozenBoard(boardId)) {
+      await pauseBoardMonitors(boardId);
+      continue;
+    }
+    const allow = allowanceFor(boardId, position.get(boardId) ?? -1);
     if (!allow.search) released += await removeBoardMonitors(boardId);
     else if (!allow.page && kinds.has("page")) released += await removeBoardMonitors(boardId, { kind: "page" });
   }

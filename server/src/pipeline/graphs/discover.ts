@@ -1,3 +1,4 @@
+import { frozenBoard } from "../../frozen-boards";
 // Discover graph (spec 5.1): find crises the world is talking about and turn new ones into shared topics.
 // Runs on the SYSTEM board, which has no boards row: never call ctx.event or ctx.emit here. Every candidate and its
 // decision goes to topic_candidates instead, and a summary line goes to the worker log.
@@ -184,6 +185,10 @@ export const discoverGraph: GraphFn = async (ctx) => {
     }
     if (best && best.p >= THRESHOLDS.sameEvent) {
       const t = best.topic;
+      if (frozenBoard(t.id)) {
+        rec("matched", "matched a saved board", t.id);
+        continue;
+      }
       const routed = await ctx.step(
         "route",
         { fp: c.fp, topic: t.id, urls: c.docs.map((d) => d.url) },

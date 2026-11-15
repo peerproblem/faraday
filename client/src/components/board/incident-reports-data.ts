@@ -1,4 +1,4 @@
-import { incidentStatusTable, incidentTallyTable, officialBreakdown, officialCount, reportingTime, type BoardData, type Source, type TableData, type Widget } from "@/lib/spec";
+import { incidentStatusTable, incidentTallyTable, isActiveResponse, officialBreakdown, officialCount, reportingTime, type BoardData, type Source, type TableData, type Widget } from "@/lib/spec";
 import { STALE_MS } from "@/lib/time";
 
 type Row = TableData["rows"][number];
@@ -12,7 +12,7 @@ type OfficialTally = {
   breakdown?: { label: string; value: number }[];
 };
 
-export type ResponseIncident = { id: string; name: string; area: string; status: string; observedAt: string; until?: string; source: Source };
+export type ResponseIncident = { id: string; name: string; area: string; status: string; active: boolean; observedAt: string; until?: string; source: Source };
 
 function getOfficialSource(row: Row, sources: Map<string, Source>) {
   const source = row.evidence ? sources.get(row.evidence.source) : undefined;
@@ -35,8 +35,6 @@ export function matchesReportingArea(area: string, areas: string[]) {
     return !!key && name.includes(` ${key} `);
   });
 }
-
-const activeStatus = /^(?:action required|active|open|in progress|response underway|evacuation in progress|closed to traffic|road closed|service suspended)$/i;
 
 export function getIncidentReports({
   widgets, data, sources, areas, now,
@@ -82,13 +80,14 @@ export function getIncidentReports({
       const observedAt = cells["status-as-of"];
       const observed = reportingTime(observedAt);
       if (!name || !cells.status || !observedAt || observed === null || now === null || observed > now) continue;
-      const id = cells["incident-id"] || `${areaKey(area)}:${name.trim().toLowerCase()}`;
+      const id = `${areaKey(area)}:${cells["incident-id"] || areaKey(name)}`;
       const previous = recentIncidents.get(id);
       // A verified closure or resolution supersedes an earlier response even if it gives no expiry.
       if (previous && (observed < Date.parse(previous.observedAt) ||
-        (observed === Date.parse(previous.observedAt) && !activeStatus.test(previous.status)))) continue;
+        (observed === Date.parse(previous.observedAt) && !previous.active))) continue;
       recentIncidents.set(id, {
         id, name, area, status: cells.status.trim(), observedAt,
+        active: isActiveResponse(cells.status, cells["response-state"]),
         until: cells["valid-until"], source,
       });
     }
@@ -101,7 +100,7 @@ export function getIncidentReports({
       const inForce = expires !== null && expires > now;
       // The board's stale-data window also applies to explicitly timestamped status snapshots.
       const recentSnapshot = !record.until && now - Date.parse(record.observedAt) <= STALE_MS;
-      if ((inForce || recentSnapshot) && activeStatus.test(record.status)) incidents.push(record);
+      if ((inForce || recentSnapshot) && record.active) incidents.push(record);
     }
   }
   return {

@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { subscribe, subscribeAll, publish, subscriberCount } from "../bus";
+import { frozenBoard } from "../frozen-boards";
 import { publicSources } from "../pipeline/public-source";
 import { one, all } from "../db/pool";
 import { contextEvidencePage } from "../repo/context-evidence";
@@ -17,6 +18,7 @@ import {
   deleteBoard,
   getBoard,
   getBoardView,
+  getBoardVersion,
   listBoards,
   listEvents,
   listTopics,
@@ -38,8 +40,8 @@ import { recentPosts } from "../repo/distribution";
 import { listCandidates } from "../repo/candidates";
 import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
 import { discoverEnabled, distributeLive, setDiscoverEnabled, setDistributeLive } from "../repo/settings";
-import { listAdminTopics, setTopicState } from "../repo/topics";
-import { boardLayoutSchema, crisisTypes, resolveBoardPresentation, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
+import { listAdminTopics, setTopicCategory, setTopicState } from "../repo/topics";
+import { boardLayoutSchema, parseTopicFilter, resolveBoardPresentation, topicCategories, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
 import { ADMIN_COOKIE, ADMIN_SESSION_MS, adminCookie, checkAdminLogin, issueAdminToken, readCookie, verifyAdminToken } from "./admin-auth";
 import { errMessage, log } from "./log";
 import { createLimiter } from "./rate-limit";
@@ -58,7 +60,6 @@ export type AppOptions = {
 export const sseState = { connections: 0, touchedAt: new Map<string, number>() };
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
-
 function publicSpec(spec: BoardSpecV2): BoardSpecV2 {
   return { version: spec.version, widgets: spec.widgets };
 }
@@ -148,10 +149,17 @@ export function createApp(opts: AppOptions = {}) {
     if (cached) return cached;
     const stored = await getBoardView(id);
     if (!stored) return null;
-    const { assignment } = await getBoardLayout(id);
-    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance");
+    const frozen = frozenBoard(id);
+    const assignment = frozen ? null : (await getBoardLayout(id)).assignment;
+    const presentation = frozen?.presentation
+      ?? resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance", stored.topicCategory);
+    const snapshot = frozen ? await getBoardVersion(id, frozen.version) : null;
+    if (frozen && !snapshot) throw new Error(`Saved board version unavailable: ${id}`);
     // English only: non-English source titles and snippets never leave the server.
-    const v: BoardView = { ...stored, presentation, sources: publicSources(stored.sources) };
+    const v: BoardView = {
+      ...stored, presentation, sources: publicSources(stored.sources),
+      ...(snapshot ? { displaySnapshot: { ...snapshot, spec: publicSpec(snapshot.spec) } } : {}),
+    };
     cache.set(id, v);
     return v;
   }
@@ -165,7 +173,17 @@ export function createApp(opts: AppOptions = {}) {
     c.header("Vary", "Cookie");
     if (etagMatches(c.req.header("if-none-match"), etag)) return c.body(null, 304);
     if (await isAdmin(c)) return c.json(v);
-    const out: BoardView = { ...v, spec: v.spec ? publicSpec(v.spec) : null, ownerId: null, plan: null, messages: [] };
+    const snapshot = v.displaySnapshot;
+    const out: BoardView = {
+      ...v, ownerId: null, plan: null, messages: [],
+      spec: snapshot?.spec ?? (v.spec ? publicSpec(v.spec) : null),
+      ...(snapshot ? {
+        version: snapshot.version, data: snapshot.data, updatedAt: snapshot.capturedAt,
+        lastPolledAt: snapshot.capturedAt,
+        sources: v.sources.filter((source) => source.fetchedAt <= snapshot.capturedAt),
+        events: v.events.filter((event) => event.ts <= snapshot.capturedAt),
+      } : {}),
+    };
     return c.json(out);
   }
 
@@ -263,8 +281,9 @@ export function createApp(opts: AppOptions = {}) {
   app.get("/api/topics", async (c) => {
     const state = c.req.query("state") ?? "active";
     if (!topicStates.has(state)) return c.json({ error: "state must be active or archived" }, 400);
-    const type = c.req.query("type") || null;
-    if (type && !(crisisTypes as readonly string[]).includes(type)) return c.json({ error: "Unknown crisis type" }, 400);
+    const requestedType = c.req.query("type");
+    const type = parseTopicFilter(requestedType);
+    if (requestedType && !type) return c.json({ error: "Unknown topic category" }, 400);
     return c.json({ topics: await listTopics({ state: state as "active" | "archived", crisisType: type, limit: limitOf(c, 50) }) });
   });
 
@@ -283,8 +302,13 @@ export function createApp(opts: AppOptions = {}) {
     }
     const id = c.req.param("id");
     if (!(await getBoard(id))) return c.json({ error: "Not found" }, 404);
+    const frozen = frozenBoard(id);
+    const snapshot = frozen ? await getBoardVersion(id, frozen.version) : null;
+    if (frozen && !snapshot) return c.json({ error: "Saved evidence unavailable" }, 503);
     c.header("Cache-Control", "no-store");
-    return c.json(await contextEvidencePage(id, group, before));
+    return c.json(snapshot
+      ? await contextEvidencePage(id, group, before, snapshot.capturedAt)
+      : await contextEvidencePage(id, group, before));
   });
 
   app.get("/api/boards/:id/runs/latest", async (c) => {
@@ -297,6 +321,7 @@ export function createApp(opts: AppOptions = {}) {
 
   app.get("/api/boards/:id/stream", async (c) => {
     const id = c.req.param("id");
+    if (frozenBoard(id)) return c.body(null, 204);
     const row = await getBoard(id);
     if (!row) return c.text("Not found", 404);
     const lastEventId = Number(c.req.header("last-event-id") ?? c.req.query("lastEventId") ?? "");
@@ -491,7 +516,7 @@ export function createApp(opts: AppOptions = {}) {
         hasStatus: (board.data?.widgets[widget.id] as TableData | undefined)?.columns?.some((column) => column.kind === "status"),
       }),
     }));
-    return c.json({ ...await getBoardLayout(board.id), widgets, canUseMap: widgets.some((w) => w.type === "map") });
+    return c.json({ ...await getBoardLayout(board.id), frozen: !!frozenBoard(board.id), widgets, canUseMap: widgets.some((w) => w.type === "map") });
   });
 
   const assignmentBody = revisionBody.extend({ templateId: z.string().min(1).max(32).nullable(), settings: boardLayoutSchema.optional() });
@@ -502,6 +527,7 @@ export function createApp(opts: AppOptions = {}) {
     if (!parsed.success) return c.json({ error: "Select a valid layout" }, 400);
     const board = await getBoard(c.req.param("id"));
     if (!board) return c.json({ error: "Board not found" }, 404);
+    if (frozenBoard(board.id)) return c.json({ error: "This board uses a saved layout" }, 423);
     const { templateId } = parsed.data;
     const template = templateId ? await getBoardLayoutTemplate(templateId) : null;
     if (templateId && !template) return c.json({ error: "Template not found" }, 404);
@@ -523,10 +549,23 @@ export function createApp(opts: AppOptions = {}) {
     if (!parsed.success) return c.json({ error: "A layout revision is required" }, 400);
     const id = c.req.param("id");
     if (!(await getBoard(id))) return c.json({ error: "Board not found" }, 404);
+    if (frozenBoard(id)) return c.json({ error: "This board uses a saved layout" }, 423);
     const result = await setBoardLayout(id, null, parsed.data.rev);
     if (!result.ok) return c.json({ error: "Another admin saved this board layout while you were editing.", current: result.current }, 409);
     cache.invalidate(id);
     return c.json(result.value);
+  });
+
+  const topicCategoryBody = z.object({ category: z.enum(topicCategories).nullable() });
+  app.post("/api/admin/topics/:id/category", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = topicCategoryBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Choose a topic category or Automatic" }, 400);
+    const id = c.req.param("id");
+    if (!(await setTopicCategory(id, parsed.data.category))) return c.json({ error: "Topic not found" }, 404);
+    cache.invalidate(id);
+    return c.json({ ok: true });
   });
 
   const topicStateBody = z.object({ state: z.enum(["active", "archived"]) });
@@ -539,10 +578,9 @@ export function createApp(opts: AppOptions = {}) {
     const id = c.req.param("id");
     const now = Date.now();
     if (!(await setTopicState(id, parsed.data.state, now))) return c.json({ error: "Not found" }, 404);
-    if (parsed.data.state === "active") {
-      await enqueue("poll", id, { reason: "manual" });
-    } else {
-      await removeBoardMonitors(id);
+    if (!frozenBoard(id)) {
+      if (parsed.data.state === "active") await enqueue("poll", id, { reason: "manual" });
+      else await removeBoardMonitors(id);
     }
     const row = await getBoard(id);
     if (row) publish(id, { type: "status", status: row.status, tier: row.tier });
@@ -590,6 +628,7 @@ export function createApp(opts: AppOptions = {}) {
     const parsed = editBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: "Write an instruction" }, 400);
     const id = owned.row.id;
+    if (frozenBoard(id)) return c.json({ error: "This board shows a saved snapshot" }, 423);
     if (owned.row.specVersion < 2 || !owned.row.plan) return c.json({ error: "The board is still building" }, 409);
     if (await hasPendingJob(id, ["build", "edit"])) return c.json({ error: "The board is busy, try again in a moment" }, 409);
     const r = editsPerHour.hit("admin");
@@ -602,6 +641,7 @@ export function createApp(opts: AppOptions = {}) {
 
   app.post("/api/boards/:id/refresh", async (c) => {
     const id = c.req.param("id");
+    if (frozenBoard(id)) return c.json({ error: "This board shows a saved snapshot" }, 409);
     const row = await getBoard(id);
     if (!row) return c.json({ error: "Not found" }, 404);
     if (row.status !== "live") return c.json({ error: "The board is still building" }, 409);
@@ -629,6 +669,7 @@ export function createApp(opts: AppOptions = {}) {
     const owned = await ownedBoard(c);
     if (owned instanceof Response) return owned;
     const id = owned.row.id;
+    if (frozenBoard(id)) return c.json({ error: "This board shows a saved snapshot" }, 423);
     await setSchedule(id, { tier: "paused", nextPollAt: null });
     const removed = await removeBoardMonitors(id);
     publish(id, { type: "status", status: owned.row.status, tier: "paused" });
@@ -641,6 +682,7 @@ export function createApp(opts: AppOptions = {}) {
     const owned = await ownedBoard(c);
     if (owned instanceof Response) return owned;
     const id = owned.row.id;
+    if (frozenBoard(id)) return c.json({ error: "This board shows a saved snapshot" }, 423);
     const now = Date.now();
     // A paused shared topic may have been archived by topic upkeep meanwhile: resuming makes it active again.
     if (owned.row.origin === "system") {
@@ -707,7 +749,7 @@ export function createApp(opts: AppOptions = {}) {
     const eventId = payload.id ?? headerId ?? null;
     const event = payload.event ?? c.req.header("x-context-event") ?? "change.detected";
     // Only change.detected is subscribed; anything else is acknowledged so it is not retried.
-    if (event !== "change.detected") return c.json({ ok: true, ignored: true });
+    if (event !== "change.detected" || frozenBoard(monitor.boardId)) return c.json({ ok: true, ignored: true });
     if (eventId && !(await recordWebhookEvent({ eventId, monitorId: monitor.id, event }))) {
       log("info", "webhook duplicate", { boardId: monitor.boardId, monitorId, eventId });
       return c.json({ ok: true, duplicate: true });

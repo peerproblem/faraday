@@ -10,6 +10,7 @@ const boards = vi.hoisted(() => ({
   deleteBoard: vi.fn(),
   getBoard: vi.fn(),
   getBoardView: vi.fn(),
+  getBoardVersion: vi.fn(),
   listBoards: vi.fn(),
   listEvents: vi.fn(),
   listTopics: vi.fn(async () => []),
@@ -115,6 +116,41 @@ beforeEach(() => {
 });
 
 describe("board views", () => {
+  it.each([
+    ["oznxapju2rna", "11-nov-2026-finnish-airspace-nsu0j", 2],
+    ["ps92ji01jll9", "storm-charles-is-battering-portugal-t53ag", 1],
+  ])("serves only the saved public version and historical evidence for %s", async (id, slug, version) => {
+    const app = createApp();
+    const saved = { version, capturedAt: 100, spec: { version: 2, widgets: [], template: "finance" }, data: { widgets: {} } };
+    boards.getBoardView.mockResolvedValue(view({ id, slug, version: 5, lastPolledAt: 300, events: [ev(1), ev(200)] }));
+    boards.boardIdForSlug.mockResolvedValueOnce(id);
+    boards.getBoardVersion.mockResolvedValue(saved);
+    layouts.getBoardLayout.mockResolvedValue({ rev: 1, assignment: { templateId: null, settings: {
+      layout: "grid", timelineOpen: false, evidenceOpen: false,
+    } } });
+    const response = await app.request(`/api/boards/by-slug/${slug}`);
+    const board = (await response.json()) as BoardView;
+    expect(board).toMatchObject({ version, lastPolledAt: 100, data: saved.data, events: [ev(1)] });
+    expect(board.events).toHaveLength(1);
+    expect(board.displaySnapshot).toEqual({ ...saved, spec: { version: 2, widgets: [] } });
+    expect(board.presentation).toMatchObject({ workspace: true, timelineOpen: true, evidenceOpen: true });
+    if (version === 2) expect(board.presentation).toMatchObject({
+      cardsOnMap: true, overviewStatusChart: "table:temporary-restrictions",
+    });
+    expect(layouts.getBoardLayout).not.toHaveBeenCalled();
+    expect(boards.getBoardVersion).toHaveBeenCalledWith(id, version);
+    expect((await app.request(`/api/boards/${id}/stream`)).status).toBe(204);
+    expect((await app.request(`/api/boards/${id}/refresh`, { method: "POST" })).status).toBe(409);
+    for (const group of ["search", "monitor"]) {
+      boards.getBoard.mockResolvedValueOnce(row({ id }));
+      evidence.contextEvidencePage.mockResolvedValueOnce({ items: [], nextBefore: null });
+      const page = await app.request(`/api/boards/${id}/evidence?group=${group}&before=40`);
+      expect(page.status).toBe(200);
+      expect(evidence.contextEvidencePage).toHaveBeenLastCalledWith(id, group, 40, 100);
+    }
+    app.dispose();
+  });
+
   it("pages evidence for the requested board and validates the search group and cursor", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValueOnce(undefined);
@@ -279,7 +315,10 @@ describe("GET /api/topics", () => {
     expect((await app.request("/api/topics?state=archived")).status).toBe(200);
     expect(boards.listTopics).toHaveBeenLastCalledWith({ state: "archived", crisisType: null, limit: 50 });
     expect((await app.request("/api/topics?state=merged")).status).toBe(400);
-    expect((await app.request("/api/topics?type=volcano")).status).toBe(400);
+    expect((await app.request("/api/topics?type=natural-disasters")).status).toBe(200);
+    expect(boards.listTopics).toHaveBeenLastCalledWith({ state: "active", crisisType: "natural-disasters", limit: 50 });
+    expect((await app.request("/api/topics?type=economy")).status).toBe(200);
+    expect((await app.request("/api/topics?type=unknown-category")).status).toBe(400);
     app.dispose();
   });
 });

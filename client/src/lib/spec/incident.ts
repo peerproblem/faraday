@@ -4,6 +4,13 @@ import { z } from "zod";
 export const incidentStatusTable = "operational-incidents";
 export const incidentTallyTable = "incident-totals";
 
+/** Older confirmed reports only have the publisher's status text. */
+export function isActiveResponse(status: string, state?: string) {
+  const normalized = state?.trim().toLowerCase();
+  if (normalized === "active" || normalized === "inactive") return normalized === "active";
+  return /^(?:action required|active|open|in progress|response underway|evacuation in progress|closed to traffic|road closed|service suspended)$/i.test(status.trim());
+}
+
 export function officialCount(value: string | undefined) {
   if (!value || !/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(value.trim())) return null;
   const count = Number(value.replaceAll(",", ""));

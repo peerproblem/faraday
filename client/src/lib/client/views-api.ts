@@ -1,6 +1,6 @@
 // Browser calls for the admin console. The engine reads the admin session cookie (credentials: "include").
 import { api } from "@/lib/config";
-import type { AdminSettings, BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutState, BoardLayoutTemplate, TopicCandidateView, TopicState, Widget } from "@/lib/spec";
+import type { AdminSettings, BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutState, BoardLayoutTemplate, TopicCandidateView, TopicCategory, TopicState, Widget } from "@/lib/spec";
 
 export class ApiError extends Error {
   constructor(
@@ -62,13 +62,16 @@ export const saveLayoutTemplate = (id: string | null, name: string, settings: Bo
 
 const boardLayoutPath = (id: string) => `/api/admin/boards/${encodeURIComponent(id)}/layout`;
 export const getAdminBoardLayout = (id: string) =>
-  call<BoardLayoutState & { canUseMap: boolean; widgets: Array<Pick<Widget, "type" | "title"> & { key: string; hasStatus?: boolean }> }>(boardLayoutPath(id));
+  call<BoardLayoutState & { frozen?: boolean; canUseMap: boolean; widgets: Array<Pick<Widget, "type" | "title"> & { key: string; hasStatus?: boolean }> }>(boardLayoutPath(id));
 export const saveAdminBoardLayout = (id: string, body: BoardLayoutAssignment & { rev: number }) =>
   call<BoardLayoutState>(boardLayoutPath(id), { method: "POST", body });
 export const clearAdminBoardLayout = (id: string, rev: number) =>
   call<BoardLayoutState>(boardLayoutPath(id), { method: "DELETE", body: { rev } });
 
 export const registerTopic = (prompt: string) => call<{ id: string; slug: string }>("/api/admin/topics", { method: "POST", body: { prompt } });
+
+export const setTopicCategory = (id: string, category: TopicCategory | null) =>
+  call<{ ok: true }>(`/api/admin/topics/${encodeURIComponent(id)}/category`, { method: "POST", body: { category } });
 
 export const setTopicState = (id: string, state: Exclude<TopicState, "merged">) =>
   call<{ ok: true }>(`/api/admin/topics/${encodeURIComponent(id)}/state`, { method: "POST", body: { state } });
