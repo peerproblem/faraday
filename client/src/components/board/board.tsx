@@ -23,7 +23,7 @@ import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
-import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
+import type { BoardCardContent, BoardData, BoardEvent, BoardLayoutCard, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
 import { BoardHeaderButton } from "./header-button";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
@@ -64,6 +64,7 @@ export type BoardProps = {
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
   workspaceEditor?: ReactNode;
+  configuredCards?: BoardLayoutCard[];
 };
 
 const stageText: Record<string, string> = {
@@ -252,12 +253,42 @@ export function Board(props: BoardProps) {
     </div>
   );
 
+  function cardEntry(content: Exclude<BoardCardContent, { kind: "summary" }>) {
+    const type = content.kind === "widget" ? content.type : "table";
+    return widgets.find((entry) => {
+      if (entry.widget.type !== type || (content.key && content.key !== entry.key)) return false;
+      if (content.kind === "widget") return true;
+      const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+      return table?.columns?.some((column) => column.kind === "status");
+    });
+  }
+
+  const configuredCards = props.configuredCards?.map((card) => {
+    const sections = card.contents.flatMap((content) => {
+      if (content.kind === "summary") return [summary];
+      const entry = cardEntry(content);
+      if (!entry || (props.workspace && entry === map)) return [];
+      return [content.kind === "status-chart"
+        ? <StatusBreakdown entry={entry} data={data} chart={content.chart} fallback={renderWorkspaceWidget(entry)} />
+        : renderWorkspaceWidget(entry)];
+    });
+    return {
+      ...card,
+      content: <div className="fd-configured-card-content">
+        {sections.map((section, index) => <div key={index} className="min-w-0">{section}</div>)}
+        {!sections.length && <Text size="sm" tone="muted">No content available yet.</Text>}
+      </div>,
+    };
+  });
+  const cardIncludes = (entry: LaidOutWidget) => props.configuredCards?.some(({ contents }) =>
+    contents.some((content) => content.kind !== "summary" && cardEntry(content) === entry));
+
   if (props.workspace) {
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
     const chart = props.layout?.overviewChart;
     const chartEntry = chart?.type === "donut" ? sections.find((entry) => entry.key === chart.widget) : undefined;
-    const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid") : [];
+    const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid" && !cardIncludes(entry)) : [];
     const figureItems = figureSections.flatMap((entry) => {
       const figures = (entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined;
       const metrics = entry.filter?.kind === "stat-grid" ? entry.filter.metrics : undefined;
@@ -285,12 +316,15 @@ export function Board(props: BoardProps) {
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
             defaultTimelineOpen={props.defaultTimelineOpen}
             defaultEvidenceOpen={props.defaultEvidenceOpen}
+            configuredCards={configuredCards?.map((card) => ({
+              id: `card:${card.id}`, label: card.title, content: card.content, open: card.open,
+            }))}
             map={map ? <>
               <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
               {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
             </> : undefined}
             mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
-            timeline={timeline ? renderWorkspaceWidget(timeline, true) : undefined}
+            timeline={timeline && !cardIncludes(timeline) ? renderWorkspaceWidget(timeline, true) : undefined}
             overview={<>
               {evacuation && (
                 <section className="grid gap-1.5" aria-label="Evacuation and access">
@@ -442,7 +476,15 @@ export function Board(props: BoardProps) {
 
         {compact ? null : <SourceWire items={wire} />}
 
-        {widgets.length ? (
+        {configuredCards ? (
+          <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
+            {configuredCards.map((card) => (
+              <WidgetFrame key={card.id} id={`card-${card.id}`} title={card.title} span={card.placement === "full" ? "full" : "half"} resetKey={data}>
+                {card.content}
+              </WidgetFrame>
+            ))}
+          </DashboardGrid>
+        ) : widgets.length ? (
           <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
             {widgets.map((lw) => {
               const w = lw.widget;

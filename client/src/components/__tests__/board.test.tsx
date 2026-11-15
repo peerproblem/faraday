@@ -21,6 +21,48 @@ const board = (name: string, patch: Partial<BoardView> = {}) => ({ ...getFixture
 const section = (title: string) => screen.getByRole("region", { name: title });
 
 describe("board v2", () => {
+  test("one map card can combine live widgets and use a different chart without changing an unassigned security board", () => {
+    const mapBoard = board("strike", {
+      presentation: {
+        workspace: true, cardsOnMap: true, timelineOpen: true,
+        cards: [{
+          id: "incidents", title: "Incident details", placement: "right", open: true,
+          contents: [{ kind: "widget", type: "table", key: "table:city-protests" },
+            { kind: "status-chart", chart: "bars", key: "table:transport-disruptions" }],
+        }],
+      },
+    });
+    const { unmount } = render(<LiveBoard initial={mapBoard} workspace live={false} />);
+    expect(screen.getByTestId("map-view")).toBeTruthy();
+    expect(screen.getByRole("complementary", { name: "Incident timeline" })).toBeTruthy();
+    const details = section("Incident details");
+    expect(within(details).getByRole("table")).toBeTruthy();
+    expect(within(details).getByLabelText("Transport & Public Service Disruptions by status")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Evidence" })).toBeNull();
+    unmount();
+
+    render(<LiveBoard initial={board("cyber")} live={false} />);
+    expect(section("Related vulnerabilities")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Incident details" })).toBeNull();
+  });
+
+  test("a configured grid renders the saved cards in order and respects their width", () => {
+    const b = board("cyber", {
+      presentation: {
+        workspace: false,
+        cards: [
+          { id: "summary", title: "Incident summary", placement: "half", open: true, contents: [{ kind: "summary" }] },
+          { id: "vulnerabilities", title: "Vulnerabilities", placement: "full", open: true, contents: [{ kind: "widget", type: "table", key: "table:cves" }] },
+        ],
+      },
+    });
+    render(<LiveBoard initial={b} live={false} />);
+    const tiles = [section("Incident summary"), section("Vulnerabilities")];
+    expect(tiles[0].compareDocumentPosition(tiles[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tiles[0].closest<HTMLElement>("[data-tile-id]")?.style.gridColumn).toBe("span 6");
+    expect(tiles[1].closest<HTMLElement>("[data-tile-id]")?.style.gridColumn).toBe("span 12");
+  });
+
   test("renders the header from data.header", () => {
     render(<LiveBoard initial={board("flood")} live={false} />);
     expect(screen.getByRole("heading", { level: 1, name: "Valencia Floods" })).toBeTruthy();

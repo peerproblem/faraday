@@ -29,7 +29,7 @@ import {
   type BoardRow,
 } from "../repo/boards";
 import { enqueue, hasPendingJob, queueStats } from "../repo/jobs";
-import { clearBoardLayout, createBoardLayoutTemplate, getBoardLayout, getBoardLayoutTemplate, listBoardLayoutTemplates, setBoardLayout, updateBoardLayoutTemplate } from "../repo/board-layouts";
+import { createBoardLayoutTemplate, getBoardLayout, getBoardLayoutTemplate, listBoardLayoutTemplates, setBoardLayout, updateBoardLayoutTemplate } from "../repo/board-layouts";
 import { discordConfig, handleInteraction, installUrl, verifyDiscord, type Interaction } from "../distribute/discord";
 import { distributeEnabled } from "../distribute/run";
 import { xCreds } from "../distribute/x-post";
@@ -49,7 +49,7 @@ import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
 import { discoverEnabled, setDiscoverEnabled } from "../repo/settings";
 import { listAdminTopics, setTopicState } from "../repo/topics";
 import { sessionUserId } from "../session";
-import { boardLayoutSchema, crisisTypes, emptyLayout, resolveBoardPresentation, type BoardEvent, type BoardSpecV2, type BoardView, type MeView, type StreamMsg, type ViewEditResult, type ViewSaveResult } from "../spec";
+import { boardLayoutSchema, crisisTypes, emptyLayout, resolveBoardPresentation, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type MeView, type StreamMsg, type TableData, type ViewEditResult, type ViewSaveResult } from "../spec";
 import { getUser, isAdminEmail, upsertUser } from "../users";
 import { defaultLayoutModel, editLayout, type LayoutModel } from "../views/edit-layout";
 import { layoutInputSchema, sanitizeLayout } from "../views/sanitize";
@@ -196,8 +196,8 @@ export function createApp(opts: AppOptions = {}) {
     if (cached) return cached;
     const stored = await getBoardView(id);
     if (!stored) return null;
-    const layout = await getBoardLayout(id);
-    const presentation = resolveBoardPresentation(layout?.settings ?? null, stored.spec?.template === "finance");
+    const { assignment } = await getBoardLayout(id);
+    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance");
     // English only: non-English source titles and snippets never leave the server.
     const v: BoardView = { ...stored, presentation, sources: publicSources(stored.sources) };
     cache.set(id, v);
@@ -607,6 +607,7 @@ export function createApp(opts: AppOptions = {}) {
   });
 
   const templateBody = z.object({ name: z.string().trim().min(1).max(100), settings: boardLayoutSchema });
+  const revisionBody = z.object({ rev: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER - 1) });
   app.post("/api/admin/layout-templates", async (c) => {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
@@ -618,10 +619,13 @@ export function createApp(opts: AppOptions = {}) {
   app.post("/api/admin/layout-templates/:id", async (c) => {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
-    const parsed = templateBody.safeParse(await c.req.json().catch(() => null));
+    const parsed = templateBody.extend(revisionBody.shape).safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: "Enter a name and select a layout" }, 400);
-    const template = await updateBoardLayoutTemplate(c.req.param("id"), parsed.data.name, parsed.data.settings);
-    return template ? c.json(template) : c.json({ error: "Template not found" }, 404);
+    const result = await updateBoardLayoutTemplate(c.req.param("id"), parsed.data.name, parsed.data.settings, parsed.data.rev);
+    if (result.ok) return c.json(result.value);
+    return result.current
+      ? c.json({ error: "Another admin saved this template while you were editing.", current: result.current }, 409)
+      : c.json({ error: "Template not found" }, 404);
   });
 
   app.get("/api/admin/boards/:id/layout", async (c) => {
@@ -629,10 +633,16 @@ export function createApp(opts: AppOptions = {}) {
     if (admin instanceof Response) return admin;
     const board = await getBoard(c.req.param("id"));
     if (!board) return c.json({ error: "Board not found" }, 404);
-    return c.json({ assignment: await getBoardLayout(board.id), canUseMap: !!board.spec?.widgets.some((w) => w.type === "map") });
+    const widgets = (board.spec?.widgets ?? []).map((widget) => ({
+      key: widgetKeyOf(widget), type: widget.type, title: widget.title,
+      ...(widget.type === "table" && {
+        hasStatus: (board.data?.widgets[widget.id] as TableData | undefined)?.columns?.some((column) => column.kind === "status"),
+      }),
+    }));
+    return c.json({ ...await getBoardLayout(board.id), widgets, canUseMap: widgets.some((w) => w.type === "map") });
   });
 
-  const assignmentBody = z.object({ templateId: z.string().min(1).max(32).nullable(), settings: boardLayoutSchema.optional() });
+  const assignmentBody = revisionBody.extend({ templateId: z.string().min(1).max(32).nullable(), settings: boardLayoutSchema.optional() });
   app.post("/api/admin/boards/:id/layout", async (c) => {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
@@ -648,20 +658,23 @@ export function createApp(opts: AppOptions = {}) {
     if (settings.layout === "map" && !board.spec?.widgets.some((w) => w.type === "map")) {
       return c.json({ error: "This board has no map widget" }, 400);
     }
-    const assignment = { templateId, settings };
-    await setBoardLayout(board.id, assignment);
+    const result = await setBoardLayout(board.id, { templateId, settings }, parsed.data.rev);
+    if (!result.ok) return c.json({ error: "Another admin saved this board layout while you were editing.", current: result.current }, 409);
     cache.invalidate(board.id);
-    return c.json({ assignment });
+    return c.json(result.value);
   });
 
   app.delete("/api/admin/boards/:id/layout", async (c) => {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
+    const parsed = revisionBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "A layout revision is required" }, 400);
     const id = c.req.param("id");
     if (!(await getBoard(id))) return c.json({ error: "Board not found" }, 404);
-    await clearBoardLayout(id);
+    const result = await setBoardLayout(id, null, parsed.data.rev);
+    if (!result.ok) return c.json({ error: "Another admin saved this board layout while you were editing.", current: result.current }, 409);
     cache.invalidate(id);
-    return c.json({ assignment: null });
+    return c.json(result.value);
   });
 
   const topicStateBody = z.object({ state: z.enum(["active", "archived"]) });

@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 
-import { BoardCardStack } from "./card-stack";
+import { BoardCardStack, type WorkspaceCard } from "./card-stack";
 import { timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
 
 type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
@@ -25,9 +25,10 @@ type WorkspaceProps = {
   sourceCount: number;
   changes?: ReactNode;
   editor?: ReactNode;
+  configuredCards?: WorkspaceCard[];
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultTimelineOpen, defaultEvidenceOpen, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultTimelineOpen, defaultEvidenceOpen, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor, configuredCards }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -61,6 +62,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   const editing = !!editor;
   const [selection, setSelection] = useState({ tab: editing ? "layout" : "overview", editing });
   const [open, setOpen] = useState({ situation: true, evidence: defaultEvidenceOpen ?? false });
+  const [customOpen, setCustomOpen] = useState<Record<string, boolean>>({});
   const [evidenceTab, setEvidenceTab] = useState<string | null>(null);
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   if (selection.editing !== editing) {
@@ -76,7 +78,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   const situationTab = ((selection.tab === "layout" && editor) || (selection.tab === "data" && activeSection))
     ? selection.tab
     : "overview";
-  const figuresOpen = (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
+  const figuresOpen = !configuredCards && (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
   const visibleEvidenceTab = evidenceTab === "changes" && changes ? "changes" : sources ? "sources" : "changes";
   const situation = (
     <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab, editing })} size="sm" className="fd-workspace-tabs">
@@ -112,13 +114,23 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
     </Tabs>
   );
 
-  const cards = (
+  const stackCards = configuredCards?.map((card) => ({ ...card, open: customOpen[card.id] ?? card.open }));
+  if (stackCards && editor) stackCards.unshift({
+    id: "card:layout-editor", label: "Edit layout", open: customOpen["card:layout-editor"] ?? true,
+    content: <div className="fd-configured-card-content">{editor}</div>,
+  });
+  const cards = stackCards?.length === 0 ? null : (
     <BoardCardStack
+      key={stackCards?.filter((card) => card.id !== "card:layout-editor").map((card) => card.id).join(",")}
       id={`${id}-detail-cards`}
-      situation={situation}
-      evidence={sources || changes ? evidence : undefined}
-      open={open}
-      onOpenChange={(name, value) => setOpen((current) => ({ ...current, [name]: value }))}
+      cards={stackCards ?? [
+        { id: "situation", label: "Situation", content: situation, open: open.situation },
+        ...(sources || changes ? [{ id: "evidence" as const, label: "Evidence", content: evidence, open: open.evidence }] : []),
+      ]}
+      onOpenChange={(name, value) => {
+        if (name === "situation" || name === "evidence") setOpen((current) => ({ ...current, [name]: value }));
+        else setCustomOpen((current) => ({ ...current, [name]: value }));
+      }}
       resize={resize}
       detailsWidth={detailsWidth}
       flowing={flowingDetails && !overlay}
@@ -160,10 +172,10 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
       )}
 
       {map && <div className="fd-workspace-map" aria-label="Situation map" role="region"
-        data-cards-on-map={overlay ? "" : undefined} style={overlay ? detailsStyle : undefined}>
+        data-cards-on-map={overlay && cards ? "" : undefined} style={overlay ? detailsStyle : undefined}>
         {map}
         {!figuresOpen && mapFigures}
-        {overlay && (
+        {overlay && cards && (
           <div id={`${id}-details`} className="fd-workspace-map-cards" role="group" aria-label="Map cards">
             {cards}
           </div>

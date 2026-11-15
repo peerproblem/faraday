@@ -263,7 +263,7 @@ export function PersonalBoard({
         <PopoverContent align="end" className="fd-board-settings">
           <div className="grid min-w-0 gap-3">
             <PopoverTitle>Board settings</PopoverTitle>
-            {workspace && chartTables.length > 0 && (
+            {workspace && board.presentation?.cards === undefined && chartTables.length > 0 && (
               <fieldset className="min-w-0 border-t border-hairline pt-2">
                 <legend className="px-1 text-sm">Overview chart</legend>
                 <Select aria-label="Overview chart" size="sm" value={chartWidget ? widgetKeyOf(chartWidget) : "none"}
@@ -441,6 +441,7 @@ export function PersonalBoard({
         cardsOnMap={workspace && (board.presentation?.cardsOnMap ?? true)}
         defaultTimelineOpen={board.presentation?.timelineOpen}
         defaultEvidenceOpen={board.presentation?.evidenceOpen}
+        configuredCards={board.presentation?.cards}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
         workspaceEditor={workspace && editing ? <>{!localPreview && editForm}{hiddenSections}</> : undefined}

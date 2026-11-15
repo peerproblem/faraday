@@ -524,6 +524,20 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-workspace-card-body[hidden] {
   display: none;
 }
+.fd-configured-card-content {
+  display: grid;
+  align-content: start;
+  gap: var(--sw-space-4);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fd-workspace-card-body .fd-configured-card-content {
+  flex: 1;
+  min-height: 0;
+  padding: var(--sw-space-3);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
 .fd-workspace-card-header {
   display: flex;
   align-items: center;

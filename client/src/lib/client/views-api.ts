@@ -1,6 +1,6 @@
 // Browser calls for personal dashboards. The engine reads the session cookie (credentials: "include").
 import { api } from "@/lib/config";
-import type { BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutTemplate, PersonalLayout, TopicCandidateView, TopicRequestView, TopicState, ViewEditResult, ViewSaveResult } from "@/lib/spec";
+import type { BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutState, BoardLayoutTemplate, PersonalLayout, TopicCandidateView, TopicRequestView, TopicState, ViewEditResult, ViewSaveResult, Widget } from "@/lib/spec";
 
 export class ApiError extends Error {
   constructor(
@@ -71,16 +71,17 @@ export const listAdminTopics = () => call<{ topics: BoardCard[] }>("/api/admin/t
 export const getLayoutLibrary = () =>
   call<{ templates: BoardLayoutTemplate[]; boards: Pick<BoardCard, "id" | "title" | "slug">[] }>("/api/admin/layout-templates");
 
-export const saveLayoutTemplate = (id: string | null, name: string, settings: BoardLayout) =>
+export const saveLayoutTemplate = (id: string | null, name: string, settings: BoardLayout, rev: number) =>
   call<BoardLayoutTemplate>(id ? `/api/admin/layout-templates/${encodeURIComponent(id)}` : "/api/admin/layout-templates",
-    { method: "POST", body: { name, settings } });
+    { method: "POST", body: { name, settings, rev } });
 
 const boardLayoutPath = (id: string) => `/api/admin/boards/${encodeURIComponent(id)}/layout`;
 export const getAdminBoardLayout = (id: string) =>
-  call<{ assignment: BoardLayoutAssignment | null; canUseMap: boolean }>(boardLayoutPath(id));
-export const saveAdminBoardLayout = (id: string, body: BoardLayoutAssignment) =>
-  call<{ assignment: BoardLayoutAssignment }>(boardLayoutPath(id), { method: "POST", body });
-export const clearAdminBoardLayout = (id: string) => call<{ assignment: null }>(boardLayoutPath(id), { method: "DELETE" });
+  call<BoardLayoutState & { canUseMap: boolean; widgets: Array<Pick<Widget, "type" | "title"> & { key: string; hasStatus?: boolean }> }>(boardLayoutPath(id));
+export const saveAdminBoardLayout = (id: string, body: BoardLayoutAssignment & { rev: number }) =>
+  call<BoardLayoutState>(boardLayoutPath(id), { method: "POST", body });
+export const clearAdminBoardLayout = (id: string, rev: number) =>
+  call<BoardLayoutState>(boardLayoutPath(id), { method: "DELETE", body: { rev } });
 
 export const registerTopic = (prompt: string) => call<{ id: string; slug: string }>("/api/admin/topics", { method: "POST", body: { prompt } });
 

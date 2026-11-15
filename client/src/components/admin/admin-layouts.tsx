@@ -10,17 +10,19 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/typography";
 import { toast } from "@/components/ui/toast";
-import { clearAdminBoardLayout, getAdminBoardLayout, getLayoutLibrary, saveAdminBoardLayout, saveLayoutTemplate } from "@/lib/client/views-api";
+import { ApiError, clearAdminBoardLayout, getAdminBoardLayout, getLayoutLibrary, saveAdminBoardLayout, saveLayoutTemplate } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
 import type { BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutTemplate } from "@/lib/spec";
+import { CardCompositionFields } from "./card-composition-fields";
 
 const defaults = (layout: BoardLayout["layout"]): BoardLayout => ({ layout, timelineOpen: true, evidenceOpen: false });
 type BoardChoice = Pick<BoardCard, "id" | "title" | "slug">;
 
-function LayoutFields({ settings, onChange, canUseMap = true }: {
+function LayoutFields({ settings, onChange, canUseMap = true, widgets }: {
   settings: BoardLayout;
   onChange: (settings: BoardLayout) => void;
   canUseMap?: boolean;
+  widgets?: Awaited<ReturnType<typeof getAdminBoardLayout>>["widgets"];
 }) {
   return (
     <>
@@ -38,9 +40,10 @@ function LayoutFields({ settings, onChange, canUseMap = true }: {
       {settings.layout === "map" && <>
         <Switch size="sm" label="Open timeline by default" checked={settings.timelineOpen}
           onCheckedChange={(timelineOpen) => onChange({ ...settings, timelineOpen })} />
-        <Switch size="sm" label="Open Evidence by default" checked={settings.evidenceOpen}
-          onCheckedChange={(evidenceOpen) => onChange({ ...settings, evidenceOpen })} />
+        {settings.cards === undefined && <Switch size="sm" label="Open Evidence by default" checked={settings.evidenceOpen}
+          onCheckedChange={(evidenceOpen) => onChange({ ...settings, evidenceOpen })} />}
       </>}
+      <CardCompositionFields settings={settings} onChange={onChange} widgets={widgets} />
     </>
   );
 }
@@ -50,16 +53,28 @@ function TemplateEditor({ templates, onSaved }: { templates: BoardLayoutTemplate
   const [name, setName] = useState("");
   const [settings, setSettings] = useState(() => defaults("map"));
   const [saving, setSaving] = useState(false);
+  const [rev, setRev] = useState(0);
+  const [conflict, setConflict] = useState<BoardLayoutTemplate>();
+
+  function load(template?: BoardLayoutTemplate) {
+    setTemplateId(template?.id ?? null);
+    setName(template?.name ?? "");
+    setSettings(template?.settings ?? defaults("map"));
+    setRev(template?.rev ?? 0);
+    setConflict(undefined);
+  }
 
   async function save() {
+    if (saving || conflict) return;
     setSaving(true);
     try {
-      const template = await saveLayoutTemplate(templateId, name.trim(), settings);
+      const template = await saveLayoutTemplate(templateId, name.trim(), settings, rev);
       onSaved(template);
-      setTemplateId(template.id);
+      load(template);
       toast.success("Template saved");
     } catch (error) {
-      toast.danger("Could not save template", { description: (error as Error).message });
+      if (error instanceof ApiError && error.status === 409) setConflict(error.body.current as BoardLayoutTemplate);
+      else toast.danger("Could not save template", { description: (error as Error).message });
     } finally {
       setSaving(false);
     }
@@ -70,12 +85,7 @@ function TemplateEditor({ templates, onSaved }: { templates: BoardLayoutTemplate
       <form className="flex min-w-0 flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <Text size="sm" tone="muted">Template edits apply the next time a template is used. Each board keeps its saved layout.</Text>
         <Select aria-label="Template to edit" size="sm" value={templateId ?? "new"} disabled={saving}
-          onValueChange={(id) => {
-            const template = templates.find((entry) => entry.id === id);
-            setTemplateId(template?.id ?? null);
-            setName(template?.name ?? "");
-            setSettings(template?.settings ?? defaults("map"));
-          }}>
+          onValueChange={(id) => load(templates.find((entry) => entry.id === id))}>
           <SelectTrigger className="w-full" />
           <SelectContent>
             <SelectItem value="new">Create a template</SelectItem>
@@ -86,7 +96,12 @@ function TemplateEditor({ templates, onSaved }: { templates: BoardLayoutTemplate
           <Input value={name} onValueChange={setName} maxLength={100} required />
         </Field>
         <LayoutFields settings={settings} onChange={setSettings} />
-        <Button type="submit" variant="primary" size="sm" className="self-start" loading={saving} disabled={!name.trim()}>
+        {conflict && <div className="grid gap-2">
+          <Text role="alert" size="sm">Another admin saved this template. Your draft is still here.</Text>
+          <Button type="button" size="sm" variant="outline" className="justify-self-start"
+            onClick={() => { onSaved(conflict); load(conflict); }}>Replace draft with saved template</Button>
+        </div>}
+        <Button type="submit" variant="primary" size="sm" className="self-start" loading={saving} disabled={!name.trim() || !!conflict}>
           Save template
         </Button>
       </form>
@@ -95,38 +110,42 @@ function TemplateEditor({ templates, onSaved }: { templates: BoardLayoutTemplate
 }
 
 function BoardLayoutEditor({ board, templates }: { board: BoardChoice; templates: BoardLayoutTemplate[] }) {
-  const [loaded, setLoaded] = useState<{ canUseMap: boolean; assignment: BoardLayoutAssignment | null } | null>(null);
+  const [loaded, setLoaded] = useState<Awaited<ReturnType<typeof getAdminBoardLayout>> | null>(null);
   const [settings, setSettings] = useState(() => defaults("grid"));
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [conflict, setConflict] = useState<{ rev: number; assignment: BoardLayoutAssignment | null }>();
+
+  function load(result: NonNullable<typeof loaded>) {
+    setLoaded(result);
+    setSettings(result.assignment?.settings ?? defaults(result.canUseMap ? "map" : "grid"));
+    setTemplateId(result.assignment?.templateId ?? null);
+    setConflict(undefined);
+  }
 
   useEffect(() => {
     let active = true;
     void getAdminBoardLayout(board.id).then((result) => {
       if (!active) return;
-      setLoaded(result);
-      setSettings(result.assignment?.settings ?? defaults(result.canUseMap ? "map" : "grid"));
-      setTemplateId(result.assignment?.templateId ?? null);
+      load(result);
     }, (reason: Error) => { if (active) setError(reason.message); });
     return () => { active = false; };
   }, [board.id]);
 
   async function save(reset = false) {
+    if (!loaded || busy || conflict) return;
     setBusy(true);
     setError(undefined);
     try {
-      const { assignment } = reset
-        ? await clearAdminBoardLayout(board.id)
-        : await saveAdminBoardLayout(board.id, { templateId, settings });
-      if (loaded) {
-        setLoaded({ ...loaded, assignment });
-        setTemplateId(assignment?.templateId ?? null);
-        setSettings(assignment?.settings ?? defaults(loaded.canUseMap ? "map" : "grid"));
-      }
+      const result = reset
+        ? await clearAdminBoardLayout(board.id, loaded.rev)
+        : await saveAdminBoardLayout(board.id, { templateId, settings, rev: loaded.rev });
+      load({ ...loaded, ...result });
       toast.success(reset ? "Default layout restored" : "Board layout saved");
     } catch (reason) {
-      setError((reason as Error).message);
+      if (reason instanceof ApiError && reason.status === 409) setConflict(reason.body.current as typeof conflict);
+      else setError((reason as Error).message);
     } finally {
       setBusy(false);
     }
@@ -152,13 +171,18 @@ function BoardLayoutEditor({ board, templates }: { board: BoardChoice; templates
           </SelectContent>
         </Select>
       </Field>
-      <LayoutFields settings={settings} onChange={setSettings} canUseMap={loaded.canUseMap} />
+      <LayoutFields settings={settings} onChange={setSettings} canUseMap={loaded.canUseMap} widgets={loaded.widgets} />
       {error && <Text role="alert" size="sm">{error}</Text>}
+      {conflict && <div className="grid gap-2">
+        <Text role="alert" size="sm">Another admin saved this board layout. Your draft is still here.</Text>
+        <Button type="button" size="sm" variant="outline" className="justify-self-start"
+          onClick={() => load({ ...loaded, ...conflict })}>Replace draft with saved layout</Button>
+      </div>}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" variant="primary" loading={busy} disabled={!loaded.canUseMap && settings.layout === "map"}>
+        <Button type="submit" size="sm" variant="primary" loading={busy} disabled={!!conflict || (!loaded.canUseMap && settings.layout === "map")}>
           Save for this board
         </Button>
-        {loaded.assignment && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void save(true)}>
+        {loaded.assignment && <Button type="button" size="sm" variant="ghost" disabled={busy || !!conflict} onClick={() => void save(true)}>
           Restore default
         </Button>}
         <Button href={boardUrl(board.slug)} size="sm" variant="ghost">Open board</Button>

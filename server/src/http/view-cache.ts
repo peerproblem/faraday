@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { BoardView } from "../spec";
 
 /** Short-lived cache of board views. Entries are dropped when the board publishes anything. */
@@ -28,7 +29,7 @@ export function createViewCache(ttlMs = 5_000) {
 
 export function etagFor(view: Pick<BoardView, "version" | "status" | "tier" | "presentation">) {
   const p = view.presentation;
-  const layout = p ? `-${Number(p.workspace)}${Number(!!p.cardsOnMap)}${Number(!!p.timelineOpen)}${Number(!!p.evidenceOpen)}` : "";
+  const layout = p ? `-${createHash("sha256").update(JSON.stringify(p)).digest("hex").slice(0, 16)}` : "";
   return `"v${view.version}-${view.status}-${view.tier}${layout}"`;
 }
 

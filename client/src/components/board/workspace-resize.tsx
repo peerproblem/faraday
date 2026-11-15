@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 import { flushSync } from "react-dom";
 
-type SizeKey = "timeline" | "details" | "situation" | "evidence";
+type SizeKey = "timeline" | "details" | "situation" | "evidence" | `card:${string}`;
 type Sizes = Partial<Record<SizeKey, number>>;
 type AdjacentCard = { key: "situation" | "evidence"; height: number; available: number };
 type SizeBounds = { min: number; max: number; adjacent?: AdjacentCard };
@@ -34,9 +34,9 @@ function decode(raw: string | null): Sizes {
   if (!raw) return sizes;
   try {
     const parsed = JSON.parse(raw);
-    for (const key of sizeKeys) {
-      const value = parsed?.[key];
-      if (typeof value === "number" && Number.isFinite(value) && value > 0) sizes[key] = value;
+    for (const [key, value] of Object.entries(parsed ?? {})) {
+      if (!sizeKeys.includes(key as SizeKey) && !/^card:[a-zA-Z0-9-]{1,36}$/.test(key)) continue;
+      if (typeof value === "number" && Number.isFinite(value) && value > 0) sizes[key as SizeKey] = value;
     }
   } catch {
     // Invalid browser preferences fall back to the default flex sizes.
@@ -122,6 +122,10 @@ export function cardBounds(target: HTMLElement): SizeBounds {
   const height = target.getBoundingClientRect().height;
   const stack = target.parentElement;
   if (!stack) return { min: 1, max: height };
+  if (target.dataset.reorderId?.startsWith("card:")) {
+    const min = parseFloat(getComputedStyle(target).minHeight) || 1;
+    return { min, max: Math.max(min, height, stack.clientHeight) };
+  }
 
   const other = Array.from(stack.children).find((child): child is HTMLElement =>
     child instanceof HTMLElement && child !== target && child.hasAttribute("data-reorder-id"),

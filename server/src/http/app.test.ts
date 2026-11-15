@@ -47,7 +47,6 @@ const layouts = vi.hoisted(() => ({
   createBoardLayoutTemplate: vi.fn(),
   updateBoardLayoutTemplate: vi.fn(),
   setBoardLayout: vi.fn(),
-  clearBoardLayout: vi.fn(),
 }));
 
 vi.mock("../repo/boards", () => boards);
@@ -87,7 +86,8 @@ const ev = (id: number): BoardEvent => ({ id, ts: id, kind: "info", message: `e$
 
 beforeEach(() => {
   vi.clearAllMocks();
-  layouts.getBoardLayout.mockResolvedValue(null);
+  layouts.getBoardLayout.mockResolvedValue({ rev: 0, assignment: null });
+  layouts.setBoardLayout.mockImplementation(async (_id, assignment, rev) => ({ ok: true, value: { assignment, rev: rev + 1 } }));
   process.env.ADMIN_EMAILS = "Admin@Example.com, other@example.com";
   users.getUser.mockImplementation(async (id: string) =>
     id === "admin" ? { id, email: "admin@example.com", name: "A", image: null } : { id, email: `${id}@example.com`, name: null, image: null },
@@ -120,13 +120,19 @@ describe("board views", () => {
     const settings = { layout: "map", timelineOpen: false, evidenceOpen: true };
     boards.getBoardView.mockResolvedValue(view());
     const first = await app.request("/api/boards/b1");
-    layouts.getBoardLayout.mockResolvedValue({ templateId: "internal-id", settings });
+    layouts.getBoardLayout.mockResolvedValue({ rev: 1, assignment: { templateId: "internal-id", settings } });
     publish("b1", { type: "status", status: "live", tier: "hot" });
     const next = await app.request("/api/boards/b1", { headers: { "If-None-Match": first.headers.get("etag")! } });
     expect(next.status).toBe(200);
     const body = await next.text();
     expect(body).not.toContain("internal-id");
     expect(JSON.parse(body).presentation).toEqual({ workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: true });
+    const cards = [{ id: "access", title: "Access", placement: "right", open: true, contents: [{ kind: "summary" }] }];
+    layouts.getBoardLayout.mockResolvedValue({ rev: 2, assignment: { templateId: "internal-id", settings: { ...settings, cards } } });
+    publish("b1", { type: "status", status: "live", tier: "hot" });
+    const composed = await app.request("/api/boards/b1", { headers: { "If-None-Match": next.headers.get("etag")! } });
+    expect(composed.status).toBe(200);
+    expect((await composed.json() as BoardView).presentation?.cards).toEqual(cards);
     app.dispose();
   });
 
@@ -134,7 +140,7 @@ describe("board views", () => {
     const app = createApp();
     const settings = { layout: "grid", timelineOpen: true, evidenceOpen: false };
     const path = "/api/admin/boards/b1/layout";
-    const request = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: "t1" }) };
+    const request = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: "t1", rev: 0 }) };
     expect((await app.request(path, request)).status).toBe(401);
     session.sessionUserId.mockResolvedValue("u1");
     expect((await app.request(path, request)).status).toBe(403);
@@ -143,7 +149,12 @@ describe("board views", () => {
     boards.getBoard.mockResolvedValue(row());
     layouts.getBoardLayoutTemplate.mockResolvedValue({ id: "t1", name: "Grid", settings });
     expect((await app.request(path, request)).status).toBe(200);
-    expect(layouts.setBoardLayout).toHaveBeenCalledExactlyOnceWith("b1", { templateId: "t1", settings });
+    expect(layouts.setBoardLayout).toHaveBeenCalledExactlyOnceWith("b1", { templateId: "t1", settings }, 0);
+    const current = { assignment: { templateId: "t1", settings }, rev: 1 };
+    layouts.setBoardLayout.mockResolvedValueOnce({ ok: false, current });
+    const conflict = await app.request(path, { ...request, method: "DELETE", body: JSON.stringify({ rev: 0 }) });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ current });
     app.dispose();
   });
 
