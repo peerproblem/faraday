@@ -78,7 +78,7 @@ export const editGraph: GraphFn = async (ctx) => {
   const patch = await ctx.step("patch", { instruction }, (i, use, signal) => makePlanPatch(board.plan!, i.instruction, use, signal), { timeoutMs: 60_000, retries: 1 });
   const { plan, newKeys } = applyPlanPatch(board.plan, patch);
   await savePlan(ctx.boardId, plan);
-  const spec = specFromPlan(plan);
+  const spec = specFromPlan(plan, board.spec);
   ctx.emit({ type: "partial", stage: "plan", spec });
 
   const hasFacts: Record<string, number> = {};

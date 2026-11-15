@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/timeline";
 import { toMs, when } from "@/lib/time";
 import { SourceChips } from "./source-chips";
+import { TimelineStory } from "./timeline-story";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
 
@@ -35,7 +36,10 @@ export function TimelineWidget({ widget, data, sources, building, filter: person
       <div>
         <SegmentedControl<Filter> aria-label={`Filter ${widget.title}`} size="sm" value={filter} onValueChange={setFilter} options={filters} />
       </div>
-      {items.length ? (
+      {items.length && widget.display === "story" ? (
+        // Remounted per filter, so the story starts again at its first step.
+        <TimelineStory key={filter} items={items} sources={sources} label={widget.title} />
+      ) : items.length ? (
         <Timeline aria-label={widget.title} size="sm">
           {items.map((t) => (
             // sw3 labels a high-importance event in words, next to its title, whatever its marker shows.

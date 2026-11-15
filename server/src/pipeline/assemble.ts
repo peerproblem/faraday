@@ -2,6 +2,7 @@
 import {
   accentFor,
   singleWidgetTypes,
+  widgetKeyOf,
   widgetTypes,
   type AlertListData,
   type BoardData,
@@ -75,8 +76,9 @@ const uniq = <T>(xs: T[]) => [...new Set(xs)];
 const sigOf = (w: Draft) => (SINGLE.has(w.type) ? w.type : `${w.type}:${w.bind}`);
 
 /** Validates the plan's widgets, gives them ids (w1, w2...), adds required ones (narrative, stat-grid, timeline,
- * map when located, alert-list, link-list, feed, changelog, sources) and drops bindings to unknown keys. */
-export function specFromPlan(plan: Plan): BoardSpecV2 {
+ * map when located, alert-list, link-list, feed, changelog, sources) and drops bindings to unknown keys.
+ * A plan does not carry layout settings, so each widget keeps the `display` it had in `prev` (matched by key). */
+export function specFromPlan(plan: Plan, prev?: BoardSpecV2 | null): BoardSpecV2 {
   const metricKeys = plan.metrics.map((m) => m.key);
   const metricSet = new Set(metricKeys);
   const tableSet = new Set(plan.tables.map((t) => t.key));
@@ -138,7 +140,11 @@ export function specFromPlan(plan: Plan): BoardSpecV2 {
 
   const body = drafts.filter((w) => !TAIL.includes(w.type));
   const tail = TAIL.map((t) => drafts.find((w) => w.type === t)!).filter(Boolean);
-  const widgets = [...body, ...tail].map((w, i) => ({ id: `w${i + 1}`, key: sigOf(w), ...w }));
+  const displays = new Map((prev?.widgets ?? []).flatMap((w) => (w.display ? [[widgetKeyOf(w), w.display] as const] : [])));
+  const widgets = [...body, ...tail].map((w, i) => {
+    const display = displays.get(sigOf(w));
+    return { id: `w${i + 1}`, key: sigOf(w), ...w, ...(display ? { display } : {}) };
+  });
   return { version: 2, widgets };
 }
 
