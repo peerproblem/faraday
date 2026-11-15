@@ -12,8 +12,12 @@ export const LIMITS = {
   maxPlacesToGeocode: 15,
 };
 
-/** How long a board waits before its next poll, per tier. */
-export const POLL_INTERVAL_MS = { hot: 2 * 60_000, warm: 5 * 60_000, cold: 30 * 60_000 } as const;
+/** How long a board waits before its next scheduled poll, per tier (POLL_HOT_MS and friends override). */
+export const POLL_INTERVAL_MS = {
+  hot: Number(process.env.POLL_HOT_MS ?? 10 * 60_000),
+  warm: Number(process.env.POLL_WARM_MS ?? 30 * 60_000),
+  cold: Number(process.env.POLL_COLD_MS ?? 2 * 60 * 60_000),
+};
 
 /** Spread into generateText/streamText. */
 export const call = (l: Llm) => ({ model: l.model, providerOptions: l.providerOptions });

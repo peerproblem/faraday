@@ -63,7 +63,7 @@ Boards are also agent-ready: each one registers its controls as WebMCP tools.
 | `news.search` | Recent articles for each query, filtered by date |
 | `web.search` | Official advisories, shelters and status pages, with highlights |
 | `web.scrape` | Full Markdown of the pages worth reading closely |
-| `monitors` | Semantic change detection every 10 minutes on a search and on official pages |
+| `monitors` | Semantic change detection on a search and on official pages, every 30 minutes on hot boards |
 | Webhook `change.detected` | Triggers an update the moment a monitor fires |
 
 ## Oxylabs for the local view

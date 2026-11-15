@@ -8,6 +8,7 @@ import { closePool } from "./db/pool";
 import { runGraph, type GraphFn } from "./graph/runner";
 import { removeBoardMonitors, setBoardMonitorSchedule } from "./monitors";
 import { buildGraph, discoverGraph, editGraph, updateGraph } from "./pipeline/graphs";
+import { POLL_INTERVAL_MS } from "./pipeline/nodes/util";
 import {
   addEvent,
   getBoard,
@@ -43,11 +44,7 @@ const DAY = 24 * HOUR;
 
 export const SYSTEM_BOARD = "__system__";
 
-export const TIER_INTERVAL_MS: Record<Exclude<BoardTier, "paused">, number> = {
-  hot: Number(process.env.POLL_HOT_MS ?? 2 * MIN),
-  warm: Number(process.env.POLL_WARM_MS ?? 5 * MIN),
-  cold: Number(process.env.POLL_COLD_MS ?? 30 * MIN),
-};
+export const TIER_INTERVAL_MS: Record<Exclude<BoardTier, "paused">, number> = POLL_INTERVAL_MS;
 
 const RANK: Record<BoardTier, number> = { paused: 0, cold: 1, warm: 2, hot: 3 };
 
@@ -62,7 +59,7 @@ export function computeTier(
   const createdAgo = now - b.createdAt;
   if (b.situation === "resolved" && changedAgo > 48 * HOUR && createdAgo > 48 * HOUR) return "paused";
   if (viewedAgo > 7 * DAY && createdAgo > 7 * DAY) return "paused";
-  if (viewedAgo <= 2 * MIN || changedAgo <= 30 * MIN || createdAgo <= 2 * HOUR) return "hot";
+  if (viewedAgo <= 2 * MIN || changedAgo <= 10 * MIN || createdAgo <= 30 * MIN) return "hot";
   if (viewedAgo <= DAY || changedAgo <= DAY) return "warm";
   return "cold";
 }
