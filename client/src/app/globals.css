@@ -552,6 +552,39 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-workspace-detail-card[data-open] .fd-workspace-tab-body {
   padding-block-end: var(--sw-space-8);
 }
+/* Keep compact cards in the panel's scroll flow; longer reports and resized cards can scroll internally. */
+.fd-workspace-card-stack[data-content-sized] {
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.fd-workspace-card-stack[data-content-sized] > .fd-workspace-detail-card {
+  flex: none;
+  min-height: 0;
+  overflow: clip;
+}
+.fd-workspace-card-stack[data-content-sized] > .fd-workspace-detail-card[data-open] {
+  min-height: 9rem;
+}
+.fd-workspace-card-stack[data-content-sized] > .fd-workspace-detail-card[data-fixed-height] {
+  flex-basis: var(--fd-workspace-card-height);
+}
+.fd-workspace-card-stack[data-content-sized] > .fd-workspace-detail-card:not([data-fixed-height])
+  :is(.fd-configured-card-content, .fd-workspace-tab-body) {
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+.fd-workspace-card-stack[data-content-sized] .fd-workspace-card-body .fd-configured-card-content {
+  padding-block-end: var(--sw-space-8);
+}
+.fd-workspace-card-stack[data-content-sized] > .fd-workspace-detail-card:not([data-fixed-height])
+  .fd-configured-card-content[data-multi-section] {
+  /* Keep the next card within reach when a report contains several widgets. */
+  max-block-size: clamp(12rem, 27dvh, 18rem);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
 .fd-workspace-resize--width {
   display: none;
   place-items: center;
@@ -1017,24 +1050,45 @@ body:has(.fd-workspace-shell) .fd-site-header {
 
 .fd-board-map-overlay {
   position: absolute;
-  inset: var(--sw-space-3) auto auto var(--sw-space-3);
+  inset-block-start: var(--sw-space-3);
+  inset-inline-start: var(--sw-space-3);
   z-index: 2;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: var(--sw-space-2);
-  max-width: min(18rem, calc(100% - 4rem));
+  /* Widget containers have no intrinsic inline size; give the card a width and leave room for map controls. */
+  inline-size: min(18rem, calc(100% - 3 * var(--sw-space-3) - var(--sw-space-10)));
+  pointer-events: none;
+}
+.fd-board-map-overlay > * {
+  pointer-events: auto;
 }
 .fd-board-map-overlay > [data-sw="card"] {
-  max-height: min(38dvh, 20rem);
-  overflow: auto;
+  inline-size: 100%;
+}
+.fd-board-map-overlay .fd-configured-card-content {
+  max-block-size: min(30dvh, 17rem);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
 }
 .fd-board-map-inset {
   position: absolute;
-  inset: auto var(--sw-space-3) var(--sw-space-24) auto;
+  inset-inline-end: var(--sw-space-3);
+  inset-block-end: var(--sw-space-8);
   z-index: 1;
-  width: min(10rem, 38%);
+  inline-size: min(10rem, 38%);
   display: grid;
   gap: var(--sw-space-1);
+}
+@container (width < 64rem) {
+  .fd-board-map-overlay .fd-configured-card-content {
+    max-block-size: min(27dvh, 17rem);
+  }
+  .fd-board-map-inset {
+    /* Clear the floating Details entry point under the inset. */
+    inset-block-end: calc(var(--sw-space-20) + var(--sw-space-10) + var(--sw-space-2));
+  }
 }
 .fd-board-map-inset > :first-child {
   width: fit-content;

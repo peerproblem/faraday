@@ -117,12 +117,12 @@ export function sidebarBounds(target: HTMLElement): SizeBounds {
   return { min, max: Math.max(min, Math.min(26.25 * rem, width * 0.32, width - peers - 14 * rem)) };
 }
 
-/** Keep the dragged card's starting edge in place and fit the card below it into the remaining height. */
+/** Content-sized cards resize independently. Split cards also fit their neighbor into the available height. */
 export function cardBounds(target: HTMLElement): SizeBounds {
   const height = target.getBoundingClientRect().height;
   const stack = target.parentElement;
   if (!stack) return { min: 1, max: height };
-  if (target.dataset.reorderId?.startsWith("card:")) {
+  if (stack.hasAttribute("data-content-sized") || target.dataset.reorderId?.startsWith("card:")) {
     const min = parseFloat(getComputedStyle(target).minHeight) || 1;
     return { min, max: Math.max(min, height, stack.clientHeight) };
   }
