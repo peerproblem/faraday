@@ -35,6 +35,7 @@ export default function PointMap({
   fill = false,
   fixedCamera = false,
   interactive = true,
+  fitPadding,
   onLoad,
 }: {
   points: MapPoint[];
@@ -44,6 +45,8 @@ export default function PointMap({
   fill?: boolean;
   fixedCamera?: boolean;
   interactive?: boolean;
+  /** Room kept clear around the fitted places, for panels that sit over the map. */
+  fitPadding?: { top: number; right: number; bottom: number; left: number };
   onLoad?: (map: Map) => void;
 }) {
   const [style, setStyle] = useState<MapStyle>("streets");
@@ -76,6 +79,11 @@ export default function PointMap({
     if (pendingCamera.current) {
       map.jumpTo(pendingCamera.current);
       pendingCamera.current = null;
+    } else if (fitPadding && !fixedCamera && points.length > 1) {
+      const lons = points.map((p) => p.lon);
+      const lats = points.map((p) => p.lat);
+      map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+        { padding: fitPadding, maxZoom: 15, duration: 0 });
     }
     onLoad?.(map);
   }

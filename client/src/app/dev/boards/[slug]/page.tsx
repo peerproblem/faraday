@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { LiveBoard } from "@/components/board/live-board";
 import { WorkspaceNavigation } from "@/components/site-header";
+import { wildfireBoards } from "@/components/wildfire/boards";
 import { getBoardBySlug } from "@/lib/engine";
 
 export default async function BoardPreview({ params }: PageProps<"/dev/boards/[slug]">) {
@@ -15,7 +16,7 @@ export default async function BoardPreview({ params }: PageProps<"/dev/boards/[s
   }
   return (
     <div className="fd-workspace-shell">
-      <LiveBoard key={board.id} initial={board} live={false} workspace workspaceNavigation={<WorkspaceNavigation />} />
+      <LiveBoard key={board.id} initial={board} live={false} workspace wildfire={wildfireBoards[board.id]} workspaceNavigation={<WorkspaceNavigation />} />
     </div>
   );
 }

@@ -18,7 +18,10 @@ const PointMap = dynamic(() => import("@/components/ui/point-map"), {
   loading: () => <Skeleton height={340} radius="lg" />,
 });
 
-export function MapWidget({ data, sources, tier, building, fillMap, fixedCamera }: WidgetProps<"map"> & { fixedCamera?: boolean }) {
+export function MapWidget({ data, sources, tier, building, fillMap, fixedCamera, fitPadding }: WidgetProps<"map"> & {
+  fixedCamera?: boolean;
+  fitPadding?: { top: number; right: number; bottom: number; left: number };
+}) {
   const mapRef = useRef<PointMapInstance | null>(null);
   const [placesOpen, setPlacesOpen] = useState(false);
   const points = (data?.points ?? []).filter(
@@ -37,7 +40,7 @@ export function MapWidget({ data, sources, tier, building, fillMap, fixedCamera 
   if (fillMap) {
     return (
       <div className="fd-map-workspace">
-        <PointMap points={markers} center={center} fill fixedCamera={fixedCamera} onLoad={(map) => { mapRef.current = map; }} />
+        <PointMap points={markers} center={center} fill fixedCamera={fixedCamera} fitPadding={fitPadding} onLoad={(map) => { mapRef.current = map; }} />
         {points.length > 0 && (
           <div className="fd-map-places">
             <Popover open={placesOpen} onOpenChange={setPlacesOpen}>

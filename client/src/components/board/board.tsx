@@ -21,7 +21,7 @@ import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { OfficialReleases, OfficialReleasesContext, SourceChips } from "@/components/widgets/source-chips";
 import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { SITE_URL } from "@/lib/config";
-import { widgetKeyOf, type AlertListData, type StatusGridData, type TimelineData, type TrendData, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardMapRegion, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type MapData, type NarrativeData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
+import { widgetKeyOf, type AlertListData, type StatusGridData, type TimelineData, type TrendData, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardMapRegion, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type MapData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
 import type { BoardEntry } from "./entry";
 import { OutageOverview, OutageSituation, type OutageProps } from "./outage-overview";
@@ -35,6 +35,11 @@ import { automaticChartEntry } from "./automatic-chart";
 import { IncidentReports } from "./incident-reports";
 import { RegionSwitch, RegionInset } from "./map-regions";
 import { MapWidget } from "@/components/widgets/map";
+import "@/components/wildfire/wildfire.css";
+import type { WildfireBoard } from "@/components/wildfire/boards";
+import { FireLog } from "@/components/wildfire/fire-log";
+import { wildfireView } from "@/components/wildfire/wildfire-data";
+import { WildfireOverview } from "@/components/wildfire/wildfire-overview";
 
 export type BoardProps = {
   boardId?: string;
@@ -62,7 +67,8 @@ export type BoardProps = {
   defaultEvidenceOpen?: boolean;
   overviewStatusChart?: string;
   incidentOverview?: { status: boolean; tally: boolean };
-  wildfireOverview?: boolean;
+  /** Draws the board with the wildfire design. */
+  wildfire?: WildfireBoard;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
   sidebarSettings?: BoardCardSettings | null;
@@ -86,6 +92,8 @@ const situationLabel: Record<string, string> = {
   recovering: "Recovering",
   resolved: "Resolved",
 };
+
+const FIRE_MAP_PADDING = { top: 208, right: 72, bottom: 72, left: 48 };
 
 export function isBuilding(status: BoardStatus) {
   return status !== "live" && status !== "error";
@@ -134,6 +142,8 @@ export function Board(props: BoardProps) {
     const links = data?.widgets[entry.widget.id] as LinkListData | undefined;
     return !!links?.items?.some((item) => item && item.kind !== "official" && /^https?:\/\//.test(item.url));
   });
+  const wildfire = props.workspace ? props.wildfire : undefined;
+  const fire = useMemo(() => (wildfire ? wildfireView(spec, data, wildfire.timeZone) : null), [wildfire, spec, data]);
   const newestSource = useMemo(() => newest(sources.map((s) => s.publishedAt)), [sources]);
   const outlets = useMemo(() => outletsOf(sources), [sources]);
   const wire = useMemo(() => wireItems(sources), [sources]);
@@ -204,9 +214,7 @@ export function Board(props: BoardProps) {
     const Comp = widgetComponent(entry.widget.type)!;
     return (
       <Comp
-        widget={props.wildfireOverview && entry.widget.type === "timeline"
-          ? { ...entry.widget, display: "story" }
-          : entry.widget}
+        widget={entry.widget}
         data={data?.widgets[entry.widget.id] as never}
         sources={byId}
         allSources={sources}
@@ -216,9 +224,9 @@ export function Board(props: BoardProps) {
         building={building}
         mapFocus={compact && (props.snapshotAt === undefined || entry.widget.type !== "link-list")}
         fillMap={fillMap}
-        wrapSourceTitles={props.wildfireOverview}
-        collapseSourceGroups={props.wildfireOverview || cyber}
-        compactTrendAxis={props.wildfireOverview && compact}
+        wrapSourceTitles={!!props.wildfire}
+        collapseSourceGroups={!!props.wildfire || cyber}
+        compactTrendAxis={!!props.wildfire && compact}
         cyberPresentation={cyber}
         outagePresentation={outage}
       />
@@ -314,6 +322,9 @@ export function Board(props: BoardProps) {
     const sidebar = props.sidebarSettings;
     const leftPanel = sidebar ? {
       title: sidebar.title, defaultOpen: sidebar.open, content: renderCardContents(sidebar.contents),
+    } : fire && sidebar === undefined && timeline ? {
+      title: "Fire log", ariaLabel: "Incident timeline", defaultOpen: props.defaultTimelineOpen,
+      content: <FireLog view={fire} sources={byId} />,
     } : sidebar === undefined && timeline && !cardIncludes(timeline) ? {
       title: "Timeline", ariaLabel: "Incident timeline", defaultOpen: props.defaultTimelineOpen,
       content: renderWorkspaceWidget(timeline, true),
@@ -334,13 +345,16 @@ export function Board(props: BoardProps) {
       }),
       byId,
     );
-    const mapFigures = restrictionFigure ? [restrictionFigure] : selectMapFigures(figureItems, summaryText ?? undefined);
+    // Short labels keep the three cards on one line each, at every width.
+    const fireFigures = fire ? ([["containment", "Contained"], ["area", "Area burned"], ["evacuated", "Evacuated"]] as const)
+      .flatMap(([name, label]) => {
+        const item = fire.figures[name];
+        return item ? [{ ...item, label, unit: name === "evacuated" ? null : item.unit }] : [];
+      }) : [];
+    const mapFigures = fireFigures.length ? fireFigures
+      : restrictionFigure ? [restrictionFigure] : selectMapFigures(figureItems, summaryText ?? undefined);
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
     const mapData = (map && data?.widgets[map.widget.id]) as MapData | undefined;
-    const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
-    const narrativeData = (narrative && data?.widgets[narrative.widget.id]) as NarrativeData | undefined;
-    const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
-    const housing = props.wildfireOverview ? figureItems.filter((item) => /homes-(?:destroyed|damaged)$/.test(item.key)) : [];
     const cyberMap = (cyber || outage) && mapEntry ? (data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
     const dataSections = cyber || outage
       ? [...mainWidgets, ...(cyber && mapEntry && cyberMap?.points?.length ? [mapEntry] : [])]
@@ -389,9 +403,9 @@ export function Board(props: BoardProps) {
     ) : undefined;
     return (
       <OfficialReleasesContext.Provider value={releases}>
-        <div className={`@container fd-workspace-board${props.wildfireOverview ? " fd-wildfire-workspace" : ""}${outage ? " fd-outage-workspace" : ""}`}>
+        <div className={`@container fd-workspace-board${props.wildfire ? " fd-wildfire-workspace" : ""}${outage ? " fd-outage-workspace" : ""}`}>
           {boardHeader}
-          <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
+          <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={!!props.wildfire}
             main={outageOverview ?? cyberOverview}
             defaultEvidenceOpen={props.defaultEvidenceOpen}
             showSavedSources={props.snapshotAt !== undefined}
@@ -404,6 +418,11 @@ export function Board(props: BoardProps) {
                   <MapWidget key={activeRegion.label} widget={{ ...map.widget, type: "map" }}
                     data={{ points: mapData?.points ?? [], center: { ...activeRegion, name: activeRegion.label } }}
                     sources={byId} allSources={sources} events={events} status={status} tier={tier} building={building} fillMap fixedCamera />
+                ) : fire ? (
+                  // The figure cards sit over the top of the map, so the fitted places keep clear of them.
+                  <MapWidget widget={{ ...map.widget, type: "map" }} data={mapData}
+                    sources={byId} allSources={sources} events={events} status={status} tier={tier} building={building}
+                    fillMap fitPadding={FIRE_MAP_PADDING} />
                 ) : renderContent(map, true, true)}
               </WidgetBoundary>
               {(props.mapCard || regions.length > 1) && <div className="fd-board-map-overlay">
@@ -424,26 +443,10 @@ export function Board(props: BoardProps) {
                 <summary className="cursor-pointer text-sm font-medium">Background &amp; reports</summary>
                 <div className="mt-2">{renderWorkspaceWidget(cyberDetails, true)}</div>
               </details>
-            </> : summary) : <>
-              {evacuation && (
-                <section className="grid gap-1.5" aria-label="Evacuation and access">
-                  <h3 className="text-base font-semibold">Evacuation &amp; access</h3>
-                  <Text size="sm">{evacuation.text} <SourceChips ids={evacuation.sources} sources={byId} collapseAt={5} /></Text>
-                </section>
-              )}
-              {housing.length > 0 && (
-                <section className="grid gap-1.5 border-t border-hairline pt-3" aria-label="Housing damage">
-                  <h3 className="text-base font-semibold">Housing damage</h3>
-                  <div className="grid gap-1.5">
-                    {housing.map((item) => (
-                      <Text key={item.key} size="sm">
-                        <strong>{item.valueText}{item.unit && ` ${item.unit}`}</strong> {item.label.replace(/^homes\s+/i, "").toLowerCase()}{" "}
-                        <SourceChips ids={item.sources} sources={byId} evidence={item.evidence} />
-                      </Text>
-                    ))}
-                  </div>
-                </section>
-              )}
+            </> : summary) : fire ? <>
+              <WildfireOverview view={fire} header={header} sources={byId} releases={releases} lastChecked={lastChecked || undefined} />
+              {status === "error" && !widgets.length ? <EmptyState title="The board could not be built" description={events.find((e) => e.kind === "error")?.message} /> : null}
+            </> : <>
               {summary}
               {overviewChart && <StatusBreakdown entry={overviewChart} data={data} fallback={renderWorkspaceWidget(overviewChart)} />}
               {props.incidentOverview?.status && <IncidentReports kind="incident-status" hideEmpty
@@ -451,12 +454,6 @@ export function Board(props: BoardProps) {
               {props.incidentOverview?.tally && <IncidentReports kind="official-tally" chart="auto" hideEmpty
                 widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />}
               {overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
-              {props.wildfireOverview && releases.length > 0 && (
-                <details className="border-t border-hairline pt-3">
-                  <summary className="cursor-pointer text-sm font-medium">Official releases</summary>
-                  <div className="mt-2"><OfficialReleases releases={releases} /></div>
-                </details>
-              )}
               {status === "error" && !widgets.length ? <EmptyState title="The board could not be built" description={events.find((e) => e.kind === "error")?.message} /> : null}
             </>}
             sections={dataSections.map((entry) => ({
@@ -466,7 +463,7 @@ export function Board(props: BoardProps) {
               content: renderWorkspaceWidget(entry, true),
             }))}
             sources={sourcesWidget || releases.length ? <>
-              {!props.wildfireOverview && <SourceWire items={wire} />}
+              {!props.wildfire && <SourceWire items={wire} />}
               {sourcesWidget && renderWorkspaceWidget(sourcesWidget, true)}
               {!sourcesWidget && <OfficialReleases releases={releases} />}
             </> : undefined}

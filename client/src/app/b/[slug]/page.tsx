@@ -5,6 +5,7 @@ import { LiveBoard } from "@/components/board/live-board";
 import { boardSymbols, placedWidgets } from "@/components/finance/finance-data";
 import { LiveFinanceBoard } from "@/components/finance/live-finance-board";
 import { WorkspaceNavigation } from "@/components/site-header";
+import { wildfireBoards } from "@/components/wildfire/boards";
 import { Link } from "@/components/ui/link";
 import { Text } from "@/components/ui/typography";
 import { boardSlugFromHost, boardUrl, DOMAIN, SITE_URL } from "@/lib/config";
@@ -69,7 +70,7 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
       <LiveBoard
         initial={board}
         workspace
-        wildfireOverview={board.id === "1egbu07xcl61"}
+        wildfire={wildfireBoards[board.id]}
         workspaceNavigation={<WorkspaceNavigation />}
       />
     </div>
