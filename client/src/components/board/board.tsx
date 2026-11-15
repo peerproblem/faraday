@@ -20,6 +20,7 @@ import { Caption, Display, Heading, Text } from "@/components/ui/typography";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { OfficialReleases, OfficialReleasesContext, SourceChips } from "@/components/widgets/source-chips";
 import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
+import { TimelineWidget } from "@/components/widgets/timeline";
 import { SITE_URL } from "@/lib/config";
 import { widgetKeyOf, type AlertListData, type StatusGridData, type TimelineData, type TrendData, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardMapRegion, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type MapData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
@@ -28,6 +29,9 @@ import { OutageOverview, OutageSituation, type OutageProps } from "./outage-over
 import { CyberIncidentOverview } from "./cyber-incident-overview";
 import { BoardHeaderButton } from "./header-button";
 import { ContextEvidence } from "./context-evidence";
+import { HouthiCards } from "./houthi-cards";
+import { houthiContextSources, houthiTimeline } from "./houthi-context";
+import { HouthiReplay } from "./houthi-replay";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
@@ -72,6 +76,7 @@ export type BoardProps = {
   wildfire?: WildfireBoard;
   /** The general strike board: its own figures, overview and panel widths. */
   strikeOverview?: boolean;
+  houthiBriefing?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
   sidebarSettings?: BoardCardSettings | null;
@@ -116,7 +121,9 @@ export function visibleWidgets(spec: BoardSpecV2 | null, data: BoardData | null,
 
 export function Board(props: BoardProps) {
   const { spec, data, sources, events, status, tier, connected, lastPolledAt, onRefresh } = props;
-  const byId = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
+  const byId = useMemo(() => new Map(
+    (props.houthiBriefing ? [...sources, ...houthiContextSources] : sources).map((s) => [s.id, s]),
+  ), [props.houthiBriefing, sources]);
   const [refreshing, setRefreshing] = useState(false);
   const [regionLabel, setRegionLabel] = useState<string>();
   const regions = props.workspace ? props.mapRegions ?? [] : [];
@@ -134,6 +141,8 @@ export function Board(props: BoardProps) {
   const outage = props.workspace && header?.crisisType === "outage";
   const map = cyber || outage ? undefined : mapEntry;
   const timeline = map || props.workspace ? widgets.find(({ widget }) => widget.type === "timeline") : undefined;
+  const timelineData = timeline ? data?.widgets[timeline.widget.id] as TimelineData | undefined : undefined;
+  const briefingTimeline = useMemo(() => props.houthiBriefing ? houthiTimeline(timelineData) : undefined, [props.houthiBriefing, timelineData]);
   const changelog = widgets.find(({ widget }) => widget.type === "changelog");
   const sourcesWidget = widgets.find(({ widget }) => widget.type === "sources");
   const linkList = spec?.widgets.find((widget) => widget.type === "link-list");
@@ -228,7 +237,7 @@ export function Board(props: BoardProps) {
         mapFocus={compact && (props.snapshotAt === undefined || entry.widget.type !== "link-list")}
         fillMap={fillMap}
         wrapSourceTitles={!!props.wildfire}
-        collapseSourceGroups={!!props.wildfire || cyber}
+        collapseSourceGroups={!!props.wildfire || cyber || props.houthiBriefing}
         compactTrendAxis={!!props.wildfire && compact}
         cyberPresentation={cyber}
         outagePresentation={outage}
@@ -254,7 +263,7 @@ export function Board(props: BoardProps) {
   const lastChecked = props.snapshotAt === undefined && lastCheckedAt && (
     <span>Last checked <time dateTime={lastCheckedAt}>{when(lastCheckedAt)}</time></span>
   );
-  const conciseSummary = props.workspace && !!map;
+  const conciseSummary = props.workspace && (!!map || props.houthiBriefing);
   const headline = header?.headline;
   const summaryText = headline?.text || header?.subtitle;
   const summary = (
@@ -277,6 +286,60 @@ export function Board(props: BoardProps) {
       )}
     </div>
   );
+
+  if (props.workspace && props.houthiBriefing) {
+    const strikeEntry = widgets.find(({ key }) => key === "table:strikes-infrastructure-log");
+    const narrativeEntry = widgets.find(({ widget }) => widget.type === "narrative");
+    const figures = widgets.find(({ widget }) => widget.type === "stat-grid");
+    const otherLinks = mainWidgets.find(({ widget }) => widget.type === "link-list");
+    const strikes = strikeEntry ? data?.widgets[strikeEntry.widget.id] as TableData | undefined : undefined;
+    return (
+      <OfficialReleasesContext.Provider value={releases}>
+        <div className="fd-workspace-board">
+          {boardHeader}
+          <HouthiReplay key={props.workspaceKey}
+            workspaceKey={props.workspaceKey}
+            timeline={briefingTimeline}
+            strikes={strikes}
+            map={mapEntry ? data?.widgets[mapEntry.widget.id] as MapData | undefined : undefined}
+            sources={byId}
+            timelineCard={timeline && (
+              <Card title="Timeline" headingLevel={2} radius="lg" collapsible defaultOpen={props.defaultTimelineOpen ?? true}>
+                <div className="fd-houthi-timeline-body" role="region" aria-label="Incident timeline" tabIndex={0}>
+                  <WidgetBoundary resetKey={briefingTimeline}>
+                    <TimelineWidget widget={{ ...timeline.widget, type: "timeline", display: "list" }} data={briefingTimeline}
+                      sources={byId} allSources={sources} events={events} status={status} tier={tier} building={building} />
+                  </WidgetBoundary>
+                </div>
+              </Card>
+            )}
+            rightCards={(cardWidth) => <HouthiCards strikes={strikes} sources={byId} workspaceKey={props.workspaceKey} cardWidth={cardWidth}
+              summary={<>
+                {narrativeEntry ? renderWorkspaceWidget(narrativeEntry, true) : summary}
+                {figures && <details>
+                  <summary className="my-2 cursor-pointer text-sm">Reported casualties &amp; interceptions</summary>
+                  {renderWorkspaceWidget(figures, true)}
+                </details>}
+              </>}
+              evidence={<>
+                {props.boardId && <ContextEvidence boardId={props.boardId} checkedAt={lastPolledAt} />}
+                <details>
+                  <summary className="my-2 cursor-pointer text-sm">Sources &amp; official links</summary>
+                  <Text as="div" size="sm" className="mb-2">
+                    Additional timeline reporting{" "}
+                    <SourceChips ids={houthiContextSources.map(({ id }) => id)} sources={byId} />
+                  </Text>
+                  {releases.length > 0 && <OfficialReleases releases={releases} />}
+                  {otherLinks && renderWorkspaceWidget(otherLinks, true)}
+                  {sourcesWidget && renderWorkspaceWidget(sourcesWidget, true)}
+                </details>
+              </>}
+            />}
+          />
+        </div>
+      </OfficialReleasesContext.Provider>
+    );
+  }
 
   function cardEntry(content: BoardCardContent) {
     if (content.kind === "automatic-chart") return automaticChartEntry(widgets, data);

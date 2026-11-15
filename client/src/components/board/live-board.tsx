@@ -9,6 +9,8 @@ import type { WildfireBoard } from "@/components/wildfire/boards";
 import { AgentBridge } from "./agent-bridge";
 import { Board } from "./board";
 
+const HOUTHI_BOARD_ID = "rq1focvq3j9e";
+
 export function useLiveBoard(initial: BoardView, opts?: { live?: boolean }) {
   const live = useBoard(initial, opts);
   const refresh = async () => {
@@ -40,11 +42,12 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfire, 
   const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live: live && !frozen });
   const capturedAt = board.displaySnapshot?.capturedAt;
   const displaySpec = board.displaySnapshot?.spec ?? spec;
+  const houthiBriefing = !!workspace && board.id === HOUTHI_BOARD_ID;
   const mapWorkspace = workspace && displaySpec?.widgets.some((widget) => widget.type === "map");
   return (
     <>
       <Board
-        boardId={live ? board.id : undefined}
+        boardId={live || houthiBriefing ? board.id : undefined}
         spec={displaySpec}
         data={board.displaySnapshot?.data ?? data}
         specVersion={board.specVersion}
@@ -74,6 +77,7 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfire, 
         wildfire={wildfire}
         strikeOverview={strikeOverview}
         workspaceNavigation={workspaceNavigation}
+        houthiBriefing={houthiBriefing}
         workspaceKey={`shared:${board.id}`}
       />
       <BoardToasts />
