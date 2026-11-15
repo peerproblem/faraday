@@ -1,0 +1,219 @@
+/* The blockade board. Everything here is scoped to .fd-blockade, so other boards keep their layout. */
+
+/* Side panels: wide enough for a readable line, narrow enough to leave the map the largest part. */
+@container (width >= 64rem) {
+  .fd-blockade .fd-workspace-sidebar {
+    width: clamp(12rem, var(--fd-workspace-sidebar-width, clamp(19rem, 24%, 22.5rem)), min(26.25rem, 32%));
+  }
+  .fd-blockade .fd-board-workspace[data-has-map] > .fd-workspace-details {
+    --fd-workspace-details-min-width: 21rem;
+    width: clamp(var(--fd-workspace-details-min-width), var(--fd-workspace-details-width, clamp(22rem, 28%, 26.5rem)), min(54%, 46rem));
+  }
+  .fd-blockade .fd-board-workspace[data-has-map] > .fd-workspace-details:not([data-open]) {
+    width: 40px;
+  }
+  .fd-blockade .fd-workspace-details:not([data-open]) > .fd-workspace-details-body {
+    display: none;
+  }
+}
+@container (width < 64rem) {
+  .fd-blockade .fd-board-workspace[data-has-map]:not([data-mobile-panel="details"]) > .fd-workspace-details > .fd-workspace-details-body {
+    display: none;
+  }
+  .fd-blockade-status {
+    display: none;
+  }
+}
+
+/* The panels own their tabs, so the shell around them neither pads nor scrolls. */
+.fd-blockade .fd-workspace-sidebar-content {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.fd-blockade .fd-workspace-sidebar[data-open] > .fd-workspace-sidebar-content {
+  scrollbar-gutter: auto;
+}
+.fd-blockade .fd-workspace-details-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.fd-blockade-panel {
+  /* Widgets inside size themselves to the panel, not to the whole board. */
+  container-type: inline-size;
+  gap: var(--sw-space-5);
+  padding-block: var(--sw-space-4) var(--sw-space-8);
+  overflow-wrap: anywhere;
+}
+.fd-blockade-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-3);
+  min-width: 0;
+}
+.fd-blockade-lede {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.fd-blockade-briefing {
+  line-height: 1.55;
+}
+
+/* Reports as a plain list: hairlines between rows, no frames or coloured rules. */
+.fd-blockade-records {
+  display: grid;
+  min-width: 0;
+}
+.fd-blockade-records > li {
+  display: grid;
+  gap: var(--sw-space-1);
+  min-width: 0;
+  padding-block: var(--sw-space-3);
+}
+.fd-blockade-records > li + li {
+  border-block-start: 1px solid var(--sw-hairline);
+}
+.fd-blockade-records > li:first-child {
+  padding-block-start: 0;
+}
+.fd-blockade-records > li:last-child {
+  padding-block-end: 0;
+}
+.fd-blockade-records [data-sw="badge"] {
+  height: auto;
+  min-height: 1.25rem;
+  max-width: 55%;
+  padding-block: 1px;
+  white-space: normal;
+  text-align: start;
+  line-height: 1.3;
+}
+.fd-blockade-border {
+  gap: var(--sw-space-3);
+}
+
+/* The meter's own value is a step on the scale; the state in words stands in for it. */
+.fd-blockade-border-meter[data-reading]::after {
+  content: attr(data-reading);
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  font-size: 0.8125rem;
+  color: var(--sw-muted-foreground);
+}
+.fd-blockade-border-meter {
+  position: relative;
+}
+
+/* Map: the layer switch sits where the map figures used to, and the area list stays out of the full-height map. */
+.fd-blockade-map-layers {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--sw-space-3);
+  inset-inline-start: var(--sw-space-3);
+}
+.fd-blockade .fd-map-workspace > [data-sw="map-areas"] {
+  display: none;
+}
+.fd-blockade-map-layers {
+  display: grid;
+  justify-items: start;
+  gap: var(--sw-space-2);
+}
+.fd-blockade-legend ul {
+  display: grid;
+  gap: var(--sw-space-2);
+  padding: var(--sw-space-3);
+}
+.fd-blockade-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-2);
+}
+.fd-blockade-glyph {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: var(--sw-background);
+}
+.fd-blockade-glyph svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.fd-blockade-swatch {
+  width: 18px;
+  height: 12px;
+  flex: none;
+  border: 1px dashed var(--sw-danger);
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--sw-danger) 16%, transparent);
+}
+/* One colour per kind of place, on the marker and in the legend. */
+.fd-blockade :is(.sw-map-marker, .fd-blockade-glyph):is([data-kind="impact"], [data-kind="incident"]) {
+  color: var(--sw-danger);
+}
+.fd-blockade :is(.sw-map-marker, .fd-blockade-glyph)[data-kind="closure"] {
+  color: var(--sw-warning);
+}
+.fd-blockade :is(.sw-map-marker, .fd-blockade-glyph)[data-kind="resource"] {
+  color: var(--sw-success);
+}
+/* Ten tags over one strait hide the map, so a marker names itself on hover and opens its note on click. */
+.fd-blockade .sw-map-marker__label {
+  opacity: 0;
+  pointer-events: none;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--sw-font-sans);
+  font-size: 12px;
+}
+.fd-blockade .sw-map-marker:hover {
+  z-index: 3;
+}
+.fd-blockade .sw-map-marker:hover .sw-map-marker__label {
+  opacity: 1;
+}
+.fd-blockade .sw-map-marker__name {
+  display: inline;
+}
+
+.fd-blockade-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+/* A flex column would squeeze the framed grid to nothing. */
+.fd-blockade-panel > * {
+  flex: none;
+}
+@container (width < 64rem) {
+  .fd-blockade-legend {
+    display: none;
+  }
+}
+.fd-blockade .sw-bar-list {
+  padding: 0;
+}
+.fd-blockade .sw-bar-list__icon {
+  align-items: center;
+  justify-content: center;
+}
+/* Both panels sit on the same surface, so the map reads as the one tinted area between them. */
+.fd-blockade .fd-workspace-details {
+  background: var(--sw-background);
+}

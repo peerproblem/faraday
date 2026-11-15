@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { BLOCKADE_BOARD_ID } from "@/components/blockade/blockade-data";
+import { LiveBlockadeBoard } from "@/components/blockade/live-blockade-board";
 import { LiveBoard } from "@/components/board/live-board";
 import { boardSymbols, placedWidgets } from "@/components/finance/finance-data";
 import { LiveFinanceBoard } from "@/components/finance/live-finance-board";
@@ -62,6 +64,13 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
           A shared Faraday board, kept current from the live web. Every figure links to its source.{" "}
           <Link href={`${SITE_URL}/topics`}>More topics</Link>
         </Text>
+      </div>
+    );
+  }
+  if (board.id === BLOCKADE_BOARD_ID && board.specVersion >= 2 && !board.presentation) {
+    return (
+      <div className="fd-workspace-shell">
+        <LiveBlockadeBoard initial={board} navigation={<WorkspaceNavigation />} />
       </div>
     );
   }
