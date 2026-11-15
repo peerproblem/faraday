@@ -46,7 +46,7 @@ import {
   undoView,
 } from "../repo/views";
 import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
-import { discoverEnabled, setDiscoverEnabled } from "../repo/settings";
+import { discoverEnabled, distributeLive, setDiscoverEnabled, setDistributeLive } from "../repo/settings";
 import { listAdminTopics, setTopicState } from "../repo/topics";
 import { sessionUserId } from "../session";
 import { boardLayoutSchema, crisisTypes, emptyLayout, resolveBoardPresentation, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type MeView, type StreamMsg, type TableData, type ViewEditResult, type ViewSaveResult } from "../spec";
@@ -575,22 +575,40 @@ export function createApp(opts: AppOptions = {}) {
     return c.json({ admin: await isAdmin(c) });
   });
 
+  // distributeReady: the worker loop is on (DISTRIBUTE_ENABLED=1) and an X or Discord account is connected, so turning
+  // distributeLive on really posts.
+  const adminSettings = async () => ({
+    discoverEnabled: await discoverEnabled(),
+    distributeLive: await distributeLive(),
+    distributeReady: distributeEnabled() && (xCreds() !== null || discordConfig() !== null),
+  });
+
   app.get("/api/admin/settings", async (c) => {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
-    return c.json({ discoverEnabled: await discoverEnabled() });
+    return c.json(await adminSettings());
   });
 
-  const settingsBody = z.object({ discoverEnabled: z.boolean() });
+  const settingsBody = z
+    .object({ discoverEnabled: z.boolean().optional(), distributeLive: z.boolean().optional() })
+    .refine((b) => b.discoverEnabled !== undefined || b.distributeLive !== undefined);
 
   app.post("/api/admin/settings", async (c) => {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
     const parsed = settingsBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: "discoverEnabled must be true or false" }, 400);
-    await setDiscoverEnabled(parsed.data.discoverEnabled);
-    log("info", "discovery setting changed", { discoverEnabled: parsed.data.discoverEnabled, by: admin === "admin" ? "password" : "email" });
-    return c.json({ discoverEnabled: await discoverEnabled() });
+    if (!parsed.success) return c.json({ error: "Send discoverEnabled or distributeLive as true or false" }, 400);
+    const by = admin === "admin" ? "password" : "email";
+    const { discoverEnabled: discover, distributeLive: live } = parsed.data;
+    if (discover !== undefined) {
+      await setDiscoverEnabled(discover);
+      log("info", "discovery setting changed", { discoverEnabled: discover, by });
+    }
+    if (live !== undefined) {
+      await setDistributeLive(live);
+      log("info", "distribution setting changed", { distributeLive: live, by });
+    }
+    return c.json(await adminSettings());
   });
 
   app.get("/api/admin/topics", async (c) => {
@@ -717,7 +735,7 @@ export function createApp(opts: AppOptions = {}) {
     if (admin instanceof Response) return admin;
     return c.json({
       enabled: distributeEnabled(),
-      dryRun: process.env.DISTRIBUTE_DRY_RUN === "1",
+      dryRun: !(await distributeLive()),
       x: xCreds() !== null,
       discord: discordConfig() !== null,
       posts: await recentPosts(limitOf(c, 50)),

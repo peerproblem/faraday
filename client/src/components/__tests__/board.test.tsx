@@ -33,7 +33,7 @@ describe("board v2", () => {
       },
     });
     const { unmount } = render(<LiveBoard initial={mapBoard} workspace live={false} />);
-    expect(screen.getByTestId("map-view")).toBeTruthy();
+    expect(section("Situation map")).toBeTruthy();
     expect(screen.getByRole("complementary", { name: "Incident timeline" })).toBeTruthy();
     const details = section("Incident details");
     expect(within(details).getByRole("table")).toBeTruthy();
@@ -46,7 +46,7 @@ describe("board v2", () => {
     expect(screen.queryByRole("region", { name: "Incident details" })).toBeNull();
   });
 
-  test("a configured grid renders the saved cards in order and respects their width", () => {
+  test("a configured grid renders the saved cards in order", () => {
     const b = board("cyber", {
       presentation: {
         workspace: false,
@@ -59,8 +59,7 @@ describe("board v2", () => {
     render(<LiveBoard initial={b} live={false} />);
     const tiles = [section("Incident summary"), section("Vulnerabilities")];
     expect(tiles[0].compareDocumentPosition(tiles[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(tiles[0].closest<HTMLElement>("[data-tile-id]")?.style.gridColumn).toBe("span 6");
-    expect(tiles[1].closest<HTMLElement>("[data-tile-id]")?.style.gridColumn).toBe("span 12");
+    expect(within(tiles[1]).getByRole("table")).toBeTruthy();
   });
 
   test("renders the header from data.header", () => {

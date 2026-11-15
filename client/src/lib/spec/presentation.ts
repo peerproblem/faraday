@@ -33,16 +33,17 @@ export type BoardLayoutState = { assignment: BoardLayoutAssignment | null; rev: 
 /** Resolved renderer settings, safe to share with anyone viewing a board. */
 export type BoardPresentation = {
   workspace: boolean;
+  marketPrices?: true;
   cardsOnMap?: boolean;
   timelineOpen?: boolean;
   evidenceOpen?: boolean;
   cards?: BoardLayoutCard[];
 };
 
-export function resolveBoardPresentation(settings: BoardLayout | null, legacyGrid = false): BoardPresentation | undefined {
+export function resolveBoardPresentation(settings: BoardLayout | null, marketPrices = false): BoardPresentation | undefined {
   if (settings?.layout === "map") {
     return { workspace: true, cardsOnMap: true, timelineOpen: settings.timelineOpen, evidenceOpen: settings.evidenceOpen, cards: settings.cards };
   }
   if (settings) return { workspace: false, cards: settings.cards };
-  return legacyGrid ? { workspace: false } : undefined;
+  return marketPrices ? { workspace: false, marketPrices: true } : undefined;
 }
