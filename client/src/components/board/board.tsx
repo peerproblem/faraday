@@ -26,6 +26,8 @@ import { widgetKeyOf, type AlertListData, type StatusGridData, type TimelineData
 import { newest, when } from "@/lib/time";
 import type { BoardEntry } from "./entry";
 import { OutageOverview, OutageSituation, type OutageProps } from "./outage-overview";
+import { TransportOverview, TransportSituation } from "./transport-overview";
+import { transportNotices, transportSections } from "./transport-model";
 import { CyberIncidentOverview } from "./cyber-incident-overview";
 import { BoardHeaderButton } from "./header-button";
 import { ContextEvidence } from "./context-evidence";
@@ -141,7 +143,8 @@ export function Board(props: BoardProps) {
   const cyber = props.workspace && header?.crisisType === "cyberattack";
   const mapEntry = widgets.find(({ widget }) => widget.type === "map");
   const outage = props.workspace && header?.crisisType === "outage";
-  const map = cyber || outage ? undefined : mapEntry;
+  const transport = props.workspace && header?.crisisType === "transport";
+  const map = cyber || outage || transport ? undefined : mapEntry;
   const timeline = map || props.workspace ? widgets.find(({ widget }) => widget.type === "timeline") : undefined;
   const timelineData = timeline ? data?.widgets[timeline.widget.id] as TimelineData | undefined : undefined;
   const briefingTimeline = useMemo(() => props.houthiBriefing ? houthiTimeline(timelineData) : undefined, [props.houthiBriefing, timelineData]);
@@ -239,10 +242,11 @@ export function Board(props: BoardProps) {
         mapFocus={compact && (props.snapshotAt === undefined || entry.widget.type !== "link-list")}
         fillMap={fillMap}
         wrapSourceTitles={!!props.wildfire}
-        collapseSourceGroups={!!props.wildfire || cyber || props.houthiBriefing}
-        compactTrendAxis={!!props.wildfire && compact}
+        collapseSourceGroups={!!props.wildfire || cyber || props.houthiBriefing || transport}
+        compactTrendAxis={(!!props.wildfire || transport) && compact}
         cyberPresentation={cyber}
         outagePresentation={outage}
+        transportPresentation={transport}
       />
     );
   }
@@ -460,8 +464,8 @@ export function Board(props: BoardProps) {
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
     const mapData = (map && data?.widgets[map.widget.id]) as MapData | undefined;
     const cyberMap = (cyber || outage) && mapEntry ? (data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
-    const dataSections = cyber || outage
-      ? [...mainWidgets, ...(cyber && mapEntry && cyberMap?.points?.length ? [mapEntry] : [])]
+    const dataSections = cyber || outage || transport
+      ? [...mainWidgets, ...((transport || cyber && cyberMap?.points?.length) && mapEntry ? [mapEntry] : [])]
       : [...sections, ...figureSections];
     const cyberDetails = cyber ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
     const outageProps: OutageProps = {
@@ -472,6 +476,12 @@ export function Board(props: BoardProps) {
       resources: spec?.widgets.flatMap(w => w.type === "link-list" ? (data?.widgets[w.id] as LinkListData | undefined)?.items ?? [] : []) ?? [],
       advisories: sections.flatMap(e => e.widget.type === "alert-list" ? (data?.widgets[e.widget.id] as AlertListData | undefined)?.items ?? [] : []),
     };
+    const transportProps = transport && header ? {
+      header, sources: byId, checkedAt: lastCheckedAt,
+      sections: transportSections(outageProps.tables, outageProps.services),
+      notices: transportNotices(outageProps.advisories),
+      timeline: timeline ? data?.widgets[timeline.widget.id] as TimelineData | undefined : undefined,
+    } : undefined;
     const outageOverview = outage ? <OutageOverview {...outageProps} renderMap={(selectedMap, focused) => mapEntry ? (
       <WidgetBoundary resetKey={selectedMap}><MapWidget key={focused ? selectedMap.center?.name : "all"}
         widget={{ ...mapEntry.widget, type: "map" }} data={selectedMap} sources={byId} allSources={sources}
@@ -507,11 +517,11 @@ export function Board(props: BoardProps) {
     ) : undefined;
     return (
       <OfficialReleasesContext.Provider value={releases}>
-        <div className={`@container fd-workspace-board${props.wildfire ? " fd-wildfire-workspace" : ""}${props.strikeOverview ? " fd-strike-workspace" : ""}${outage ? " fd-outage-workspace" : ""}`}>
+        <div className={`@container fd-workspace-board${props.wildfire ? " fd-wildfire-workspace" : ""}${props.strikeOverview ? " fd-strike-workspace" : ""}${outage ? " fd-outage-workspace" : ""}${transport ? " fd-transport-workspace" : ""}`}>
           {boardHeader}
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={!!props.wildfire}
             {...workspaceEvidence}
-            main={outageOverview ?? cyberOverview}
+            main={transportProps ? <TransportOverview {...transportProps} /> : outageOverview ?? cyberOverview}
             configuredCards={workspaceCards}
             map={map ? <>
               <WidgetBoundary resetKey={mapData}>
@@ -537,7 +547,7 @@ export function Board(props: BoardProps) {
             mapFigures={props.strikeOverview ? <StrikeMapFigures widgets={spec?.widgets ?? []} data={data} />
               : !props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
-            overview={outage ? <OutageSituation {...outageProps} /> : cyber ? (cyberDetails ? <>
+            overview={transportProps ? <TransportSituation {...transportProps} /> : outage ? <OutageSituation {...outageProps} /> : cyber ? (cyberDetails ? <>
               <h3 className="text-sm font-semibold">Incident summary</h3>
               {lastChecked && <Text size="sm" tone="muted">{lastChecked}</Text>}
               {header?.headline && <Text size="sm">{header.headline.text}</Text>}

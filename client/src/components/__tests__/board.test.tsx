@@ -5,6 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { getFixture } from "../../../e2e/fixtures";
 import { LiveBoard } from "@/components/board/live-board";
+import { TransportSituation } from "@/components/board/transport-overview";
+import { transportSections } from "@/components/board/transport-model";
 import { sortRows } from "@/components/widgets/table";
 import type { BoardView, TableData } from "@/lib/spec";
 
@@ -21,6 +23,54 @@ const board = (name: string, patch: Partial<BoardView> = {}) => ({ ...getFixture
 const section = (title: string) => screen.getByRole("region", { name: title });
 
 describe("board v2", () => {
+  test("transport uses its own overview while preserving timeline, evidence and original data", async () => {
+    const user = userEvent.setup();
+    const original = board("flood");
+    const transport = { ...original, data: { ...original.data!, header: { ...original.data!.header, crisisType: "transport" as const } } };
+    const before = JSON.stringify(transport);
+    const { unmount } = render(<LiveBoard initial={transport} workspace live={false} />);
+    expect(screen.getByRole("heading", { name: "Travel recovery & service status" })).toBeTruthy();
+    expect(screen.getByRole("complementary", { name: "Incident timeline" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Evidence" })).toBeTruthy();
+    await user.click(screen.getByRole("tab", { name: "Data" }));
+    await user.click(screen.getByRole("combobox", { name: "Data section" }));
+    const mapTitle = original.spec!.widgets.find(w => w.type === "map")!.title;
+    expect(screen.getByRole("option", { name: mapTitle })).toBeTruthy();
+    const tableWidget = original.spec!.widgets.find(w => w.type === "table")!;
+    await user.click(screen.getByRole("option", { name: tableWidget.title }));
+    const records = screen.getByRole("list", { name: `${tableWidget.title} records` });
+    expect(within(records).getAllByRole("listitem").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("combobox", { name: `${tableWidget.title} sort` })).toBeNull();
+    expect(JSON.stringify(transport)).toBe(before);
+    unmount();
+    render(<LiveBoard initial={original} workspace live={false} />);
+    expect(screen.queryByRole("heading", { name: "Travel recovery & service status" })).toBeNull();
+    expect(section("Situation map")).toBeTruthy();
+  });
+
+  test("transport Situation searches generic operators without losing undated report history", async () => {
+    const user = userEvent.setup();
+    const table: TableData = {
+      columns: [{ key: "operator", label: "Operator", kind: "text" }, { key: "status", label: "Status", kind: "status" }, { key: "scope", label: "Affected services", kind: "text" }],
+      rows: [
+        { id: "1", cells: { operator: "Regional Rail", status: "Partial recovery", scope: "Line 2 remains suspended" }, sources: [], asOf: "2026-11-14T12:00:00Z" },
+        { id: "2", cells: { operator: "Regional Rail", status: "Normal service", scope: "Older report with no timestamp" }, sources: [], asOf: null },
+      ],
+    };
+    const before = JSON.stringify(table);
+    render(<TransportSituation header={board("flood").data!.header} sections={transportSections([{ title: "Rail reports", data: table }])} sources={new Map()} />);
+    await user.click(screen.getByRole("radio", { name: "Operators (1)" }));
+    await user.type(screen.getByRole("textbox", { name: "Find transport reports" }), "line 2");
+    await user.click(screen.getByText("Regional Rail", { selector: "summary span" }));
+    expect(screen.getByText("Line 2 remains suspended")).toBeTruthy();
+    expect(screen.getByText("Older report with no timestamp")).toBeTruthy();
+    expect(screen.getByText("Report time unknown")).toBeTruthy();
+    await user.clear(screen.getByRole("textbox", { name: "Find transport reports" }));
+    await user.type(screen.getByRole("textbox", { name: "Find transport reports" }), "not-a-route");
+    expect(screen.getByText(/No matching reports in this category/)).toBeTruthy();
+    expect(JSON.stringify(table)).toBe(before);
+  });
+
   test("keeps the saved overview chart and open Evidence on the map when live data is empty", () => {
     const saved = board("strike");
     const b = board("strike", {
