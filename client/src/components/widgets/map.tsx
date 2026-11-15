@@ -18,7 +18,7 @@ const PointMap = dynamic(() => import("@/components/ui/point-map"), {
   loading: () => <Skeleton height={340} radius="lg" />,
 });
 
-export function MapWidget({ data, sources, tier, building, fillMap }: WidgetProps<"map">) {
+export function MapWidget({ data, sources, tier, building, fillMap, fixedCamera }: WidgetProps<"map"> & { fixedCamera?: boolean }) {
   const mapRef = useRef<PointMapInstance | null>(null);
   const [placesOpen, setPlacesOpen] = useState(false);
   const points = (data?.points ?? []).filter(

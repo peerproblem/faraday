@@ -21,7 +21,7 @@ import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { OfficialReleases, OfficialReleasesContext, SourceChips } from "@/components/widgets/source-chips";
 import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { SITE_URL } from "@/lib/config";
-import { widgetKeyOf, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type NarrativeData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
+import { widgetKeyOf, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardMapRegion, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type MapData, type NarrativeData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
 import type { BoardEntry } from "./entry";
 import { BoardHeaderButton } from "./header-button";
@@ -107,6 +107,10 @@ export function Board(props: BoardProps) {
   const building = isBuilding(status);
   const header = data?.header ?? null;
   const visible = visibleWidgets(spec, data, building);
+  if (activeRegion && !visible.some((widget) => widget.type === "map")) {
+    const configuredMap = spec?.widgets.find((widget) => widget.type === "map");
+    if (configuredMap) visible.push(configuredMap);
+  }
   const widgets: BoardEntry[] = visible.map((widget) => ({ key: widgetKeyOf(widget), widget }));
   const map = widgets.find(({ widget }) => widget.type === "map");
   const timeline = map || props.workspace ? widgets.find(({ widget }) => widget.type === "timeline") : undefined;
@@ -282,7 +286,7 @@ export function Board(props: BoardProps) {
   }
   const configuredCards = props.configuredCards?.map((card) => ({ ...card, content: renderCardContents(card.contents) }));
   const cardIncludes = (entry: BoardEntry) =>
-    [...(props.configuredCards ?? []), ...(props.sidebarSettings ? [props.sidebarSettings] : [])]
+    [...(props.configuredCards ?? []), ...(props.sidebarSettings ? [props.sidebarSettings] : []), ...(props.mapCard ? [props.mapCard] : [])]
       .some(({ contents }) => contents.some((content) => content.kind !== "summary" && cardEntry(content) === entry));
 
   if (props.workspace) {
@@ -310,6 +314,7 @@ export function Board(props: BoardProps) {
     );
     const mapFigures = restrictionFigure ? [restrictionFigure] : selectMapFigures(figureItems, summaryText ?? undefined);
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
+    const mapData = (map && data?.widgets[map.widget.id]) as MapData | undefined;
     const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
     const narrativeData = (narrative && data?.widgets[narrative.widget.id]) as NarrativeData | undefined;
     const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
@@ -324,7 +329,20 @@ export function Board(props: BoardProps) {
               id: `card:${card.id}`, label: card.title, content: card.content, open: card.open,
             }))}
             map={map ? <>
-              <WidgetBoundary resetKey={data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
+              <WidgetBoundary resetKey={mapData}>
+                {activeRegion ? (
+                  <MapWidget key={activeRegion.label} widget={{ ...map.widget, type: "map" }}
+                    data={{ points: mapData?.points ?? [], center: { ...activeRegion, name: activeRegion.label } }}
+                    sources={byId} allSources={sources} events={events} status={status} tier={tier} building={building} fillMap fixedCamera />
+                ) : renderContent(map, true, true)}
+              </WidgetBoundary>
+              {(props.mapCard || regions.length > 1) && <div className="fd-board-map-overlay">
+                {props.mapCard && <Card title={props.mapCard.title} headingLevel={2} padding="sm" radius="lg">
+                  {renderCardContents(props.mapCard.contents)}
+                </Card>}
+                {activeRegion && regions.length > 1 && <RegionSwitch regions={regions} selected={activeRegion.label} onChange={setRegionLabel} />}
+              </div>}
+              {activeRegion?.inset && <RegionInset key={activeRegion.label} inset={activeRegion.inset} points={mapData?.points ?? []} />}
             </> : undefined}
             mapFigures={!props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
