@@ -82,7 +82,7 @@ Local pages are in the local language, but the board stays in English: non-Engli
 
 | Host | Runs on | What |
 | :- | :- | :- |
-| `faraday.watch` | Vercel | Landing, Google sign-in and the studio |
+| `faraday.watch` | Vercel | Landing, topics, the admin console and the studio |
 | `api.faraday.watch` | Vultr | Engine API, SSE streams, webhooks and the background worker |
 | `<slug>.faraday.watch` | Vultr | Every published board, with its own HTTPS certificate |
 

@@ -13,11 +13,8 @@ export default function Terms() {
           web sources and may be incomplete, outdated or wrong. Do not rely on them for safety decisions. Always follow
           official instructions from emergency services and local authorities.
         </P>
-        <P>
-          You are responsible for the instructions you type. Do not use Faraday to harass people, spread false information or
-          break the law. We may remove accounts that do.
-        </P>
-        <P>Every shared topic board is public. Anyone with its link can view it. Your own dashboards are private to you.</P>
+        <P>Do not use Faraday to harass people, spread false information or break the law.</P>
+        <P>Every shared topic board is public. Anyone with its link can view it.</P>
         <P>We may change or stop the service at any time.</P>
       </Prose>
     </>

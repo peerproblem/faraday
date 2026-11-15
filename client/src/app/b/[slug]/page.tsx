@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { LiveBoard } from "@/components/board/live-board";
 import { boardSymbols, placedWidgets } from "@/components/finance/finance-data";
 import { LiveFinanceBoard } from "@/components/finance/live-finance-board";
-import { AddToDashboard } from "@/components/personal/add-to-dashboard";
 import { WorkspaceNavigation } from "@/components/site-header";
 import { Link } from "@/components/ui/link";
 import { Text } from "@/components/ui/typography";
 import { boardSlugFromHost, boardUrl, DOMAIN, SITE_URL } from "@/lib/config";
-import { getBoardBySlug, getMyView } from "@/lib/engine";
+import { getBoardBySlug } from "@/lib/engine";
 import { getMarket } from "@/lib/market";
 import { OG_SIZE, ogImagePath } from "@/lib/og";
 
@@ -41,18 +39,12 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
   if (DOMAIN && boardSlugFromHost(h.get("host")) !== slug) redirect(boardUrl(slug));
   const board = await getBoardBySlug(slug);
   if (!board) notFound();
-  const session = board.origin === "system" ? await auth() : null;
-  const view = session?.user ? await getMyView(board.id, h.get("cookie")) : null;
-  const actions =
-    board.origin === "system" ? (
-      <AddToDashboard boardId={board.id} slug={board.slug} version={board.version} signedIn={!!session?.user} added={!!view?.layout} />
-    ) : undefined;
   if (board.presentation?.marketPrices || (!board.presentation && board.spec?.template === "finance")) {
     // Prices for the indices and whatever the board is about, read here so the chart has more than the reports.
     const market = await getMarket(boardSymbols(placedWidgets(board.spec, board.data), board.data?.header ?? null, board.title));
     return (
       <>
-        <LiveFinanceBoard initial={board} actions={actions} market={market} />
+        <LiveFinanceBoard initial={board} market={market} />
         <Text size="sm" tone="muted" className="mt-8 text-center">
           A shared Faraday board, kept current from the live web. Every figure links to its source.{" "}
           <Link href={`${SITE_URL}/topics`}>More topics</Link>
@@ -63,7 +55,7 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
   if (board.presentation?.workspace === false) {
     return (
       <div className="pt-6">
-        <LiveBoard initial={board} actions={actions} />
+        <LiveBoard initial={board} />
         <Text size="sm" tone="muted" className="mt-8 text-center">
           A shared Faraday board, kept current from the live web. Every figure links to its source.{" "}
           <Link href={`${SITE_URL}/topics`}>More topics</Link>
@@ -75,10 +67,9 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
     <div className="fd-workspace-shell">
       <LiveBoard
         initial={board}
-        actions={view?.layout ? undefined : actions}
         workspace
         wildfireOverview={board.id === "1egbu07xcl61"}
-        workspaceNavigation={<WorkspaceNavigation dashboardSlug={view?.layout ? board.slug : undefined} />}
+        workspaceNavigation={<WorkspaceNavigation />}
       />
     </div>
   );

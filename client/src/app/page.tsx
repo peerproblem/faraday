@@ -1,11 +1,9 @@
-import { headers } from "next/headers";
-import { auth } from "@/auth";
 import { BoardGrid } from "@/components/board-grid";
 import { PageIntro } from "@/components/page-intro";
-import { EmptyTopics, MyDashboards, TopicHero, TypeFilter } from "@/components/topic-cards";
+import { EmptyTopics, TopicHero, TypeFilter } from "@/components/topic-cards";
 import { Heading } from "@/components/ui/typography";
 import { SourceWire } from "@/components/sources/source-wire";
-import { listMyViews, listTopics, topicSources } from "@/lib/engine";
+import { listTopics, topicSources } from "@/lib/engine";
 import { mergeWires } from "@/lib/source-brand";
 import { crisisTypes } from "@/lib/spec";
 
@@ -14,9 +12,8 @@ export const dynamic = "force-dynamic";
 export default async function Home({ searchParams }: PageProps<"/">) {
   const sp = await searchParams;
   const type = typeof sp.type === "string" && (crisisTypes as readonly string[]).includes(sp.type) ? sp.type : null;
-  const cookie = (await headers()).get("cookie");
-  const [session, topics] = await Promise.all([auth(), listTopics({ state: "active", type, limit: 25 })]);
-  const [views, sources] = await Promise.all([session?.user ? listMyViews(cookie) : [], topicSources(topics)]);
+  const topics = await listTopics({ state: "active", type, limit: 25 });
+  const sources = await topicSources(topics);
   const wire = mergeWires(Object.values(sources));
   const [top, ...rest] = topics;
   return (
@@ -25,17 +22,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         hero
         eyebrow="/live"
         title="Crises unfolding now"
-        lede="Faraday finds them, reads the live web and keeps one shared board per topic true. Add a topic to your dashboards to shape it your way."
+        lede="Faraday finds them, reads the live web and keeps one shared board per topic true."
       />
-
-      {session?.user ? (
-        <section aria-labelledby="mine" className="mb-12 flex flex-col gap-4">
-          <Heading as="h2" size="sm" id="mine">
-            My dashboards
-          </Heading>
-          <MyDashboards views={views} compact />
-        </section>
-      ) : null}
 
       <section aria-labelledby="now" className="flex flex-col gap-4">
         <Heading as="h2" size="sm" id="now">

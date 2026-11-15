@@ -25,10 +25,9 @@ const filters: { value: Filter; label: string }[] = [
   { value: "high", label: "High importance" },
 ];
 
-export function TimelineWidget({ widget, data, sources, building, filter: personal }: WidgetProps<"timeline">) {
+export function TimelineWidget({ widget, data, sources, building }: WidgetProps<"timeline">) {
   const [filter, setFilter] = useState<Filter>("all");
-  const keep = personal?.minImportance === "high" ? ["high"] : personal?.minImportance === "medium" ? ["high", "medium"] : null;
-  const all = (data?.items ?? []).filter((t) => t && typeof t.id === "string" && t.title && (!keep || keep.includes(t.importance)));
+  const all = (data?.items ?? []).filter((t) => t && typeof t.id === "string" && t.title);
   if (!all.length) return <Empty building={building} title="No events yet" />;
   const items = filter === "high" ? all.filter((t) => t.importance === "high") : all;
   return (

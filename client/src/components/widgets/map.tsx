@@ -18,10 +18,9 @@ const PointMap = dynamic(() => import("@/components/ui/point-map"), {
   loading: () => <Skeleton height={340} radius="lg" />,
 });
 
-export function MapWidget({ data, sources, tier, building, filter, fillMap, fixedCamera }: WidgetProps<"map"> & { fixedCamera?: boolean }) {
+export function MapWidget({ data, sources, tier, building, fillMap, fixedCamera }: WidgetProps<"map"> & { fixedCamera?: boolean }) {
   const mapRef = useRef<PointMapInstance | null>(null);
   const [placesOpen, setPlacesOpen] = useState(false);
-  const kinds = filter?.pointKinds?.length ? new Set(filter.pointKinds) : null;
   const points = (data?.points ?? []).filter(
     (p) =>
       p &&
@@ -29,8 +28,7 @@ export function MapWidget({ data, sources, tier, building, filter, fillMap, fixe
       Number.isFinite(p.lat) &&
       Number.isFinite(p.lon) &&
       Math.abs(p.lat) <= 90 &&
-      Math.abs(p.lon) <= 180 &&
-      (!kinds || kinds.has(p.kind)),
+      Math.abs(p.lon) <= 180,
   );
   const c = data?.center ?? null;
   const center = c && Number.isFinite(c.lat) && Number.isFinite(c.lon) && Number.isFinite(c.zoom) ? c : null;

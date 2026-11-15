@@ -14,7 +14,6 @@ const PAGES = [
   { name: "home", path: "/" },
   { name: "topics", path: "/topics" },
   { name: "topics-past", path: "/topics?state=archived" },
-  { name: "login", path: "/login" },
   { name: "admin", path: "/admin" },
   { name: "privacy", path: "/privacy" },
   { name: "terms", path: "/terms" },
@@ -24,8 +23,6 @@ const PAGES = [
   { name: "cyber", path: "/dev/fixtures/cyber" },
   { name: "studio-flood", path: "/dev/fixtures/flood?view=studio" },
   { name: "studio-cyber", path: "/dev/fixtures/cyber?view=studio" },
-  { name: "mine-flood", path: "/dev/fixtures/flood?view=mine" },
-  { name: "mine-outage", path: "/dev/fixtures/outage?view=mine" },
 ];
 // The basemap comes from openfreemap.org; a slow tile is not a page bug.
 const IGNORE = [/openfreemap\.org/, /Download the React DevTools/, /\[HMR\]/, /\[Fast Refresh\]/];

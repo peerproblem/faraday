@@ -57,36 +57,10 @@
 }
 
 @layer components {
-  /* Personal dashboards: each widget has its own view-transition-name (see lib/client/motion.ts). The page itself
-     does not cross-fade, only the widgets move. */
-  ::view-transition-group(root) {
-    animation: none;
-  }
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none;
-    mix-blend-mode: normal;
-  }
-  ::view-transition-group(*) {
-    animation-duration: var(--fd-motion-move);
-    animation-timing-function: var(--fd-motion-ease);
-  }
-  /* A widget that appears fades in and grows a little; one that is hidden fades out. */
-  ::view-transition-new(*):only-child {
-    animation: fd-widget-enter var(--fd-motion-enter) var(--fd-motion-ease) both;
-  }
-  ::view-transition-old(*):only-child {
-    animation: fd-widget-exit var(--fd-motion-exit) ease-in both;
-  }
   @keyframes fd-widget-enter {
     from {
       opacity: 0;
       transform: scale(0.97);
-    }
-  }
-  @keyframes fd-widget-exit {
-    to {
-      opacity: 0;
     }
   }
 
@@ -296,11 +270,6 @@
       100% {
         background-color: transparent;
       }
-    }
-    ::view-transition-group(*),
-    ::view-transition-new(*),
-    ::view-transition-old(*) {
-      animation: none !important;
     }
     /* Colour only, no motion: the ring stays briefly and goes. */
     .fd-updated-ring {
@@ -664,16 +633,6 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-map-workspace > [data-sw="map-attribution"] {
   margin: 0;
   padding: var(--sw-space-1) var(--sw-space-3);
-}
-.fd-workspace-map-tools {
-  position: absolute;
-  inset-inline-end: var(--sw-space-3);
-  inset-block-end: var(--sw-space-8);
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sw-space-2);
-  max-width: 72%;
 }
 .fd-map-places {
   position: absolute;

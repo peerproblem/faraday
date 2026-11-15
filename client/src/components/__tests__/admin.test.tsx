@@ -55,7 +55,7 @@ describe("admin login", () => {
 
 describe("admin dashboard", () => {
   test("the discovery switch saves the setting and explains the off state", async () => {
-    fetchMock.mockImplementation(async (u) => (String(u).includes("/settings") ? json(settings({ discoverEnabled: true })) : json({ candidates: [], requests: [], topics: [] })));
+    fetchMock.mockImplementation(async (u) => (String(u).includes("/settings") ? json(settings({ discoverEnabled: true })) : json({ candidates: [], topics: [] })));
     render(<AdminDashboard initialSettings={settings()} initialTopics={[topic()]} />);
     expect(screen.getByText("Off: only the topics registered here are shown.")).toBeTruthy();
     fireEvent.click(screen.getByRole("switch", { name: /Discover new topics automatically/ }));
@@ -65,7 +65,7 @@ describe("admin dashboard", () => {
   });
 
   test("the sharing switch turns real posting to X and Discord on, and says so", async () => {
-    fetchMock.mockImplementation(async (u) => (String(u).includes("/settings") ? json(settings({ distributeLive: true })) : json({ candidates: [], requests: [], topics: [] })));
+    fetchMock.mockImplementation(async (u) => (String(u).includes("/settings") ? json(settings({ distributeLive: true })) : json({ candidates: [], topics: [] })));
     render(<AdminDashboard initialSettings={settings()} initialTopics={[topic()]} />);
     expect(screen.getByText("Off: nothing is posted. Faraday only records what it would post.")).toBeTruthy();
     fireEvent.click(screen.getByRole("switch", { name: /Post to X and Discord/ }));
@@ -77,7 +77,7 @@ describe("admin dashboard", () => {
   });
 
   test("the sharing switch goes back when saving fails, and warns when no account is connected", async () => {
-    fetchMock.mockImplementation(async (u) => (String(u).includes("/settings") ? json({ error: "Admins only" }, 403) : json({ candidates: [], requests: [], topics: [] })));
+    fetchMock.mockImplementation(async (u) => (String(u).includes("/settings") ? json({ error: "Admins only" }, 403) : json({ candidates: [], topics: [] })));
     render(<AdminDashboard initialSettings={settings({ distributeReady: false })} initialTopics={[topic()]} />);
     expect(screen.getByText(/no X or Discord account connected/)).toBeTruthy();
     fireEvent.click(screen.getByRole("switch", { name: /Post to X and Discord/ }));
@@ -90,7 +90,7 @@ describe("admin dashboard", () => {
       const url = String(u);
       if (url.endsWith("/api/admin/topics") && init?.method === "POST") return json({ id: "t2", slug: "kyiv-blackouts-zz9" });
       if (url.endsWith("/api/admin/topics")) return json({ topics: [topic({ id: "t2", slug: "kyiv-blackouts-zz9", title: null, prompt: "Kyiv blackouts after strikes", status: "queued" }), topic()] });
-      return json({ candidates: [], requests: [] });
+      return json({ candidates: [] });
     });
     render(<AdminDashboard initialSettings={settings()} initialTopics={[topic()]} />);
     fireEvent.change(screen.getByLabelText("Describe the crisis to follow, in English"), { target: { value: "Kyiv blackouts after strikes" } });
@@ -101,7 +101,7 @@ describe("admin dashboard", () => {
   });
 
   test("archive posts the new state", async () => {
-    fetchMock.mockImplementation(async (u) => (String(u).endsWith("/state") ? json({ ok: true }) : json({ topics: [topic({ topicState: "archived" })], candidates: [], requests: [] })));
+    fetchMock.mockImplementation(async (u) => (String(u).endsWith("/state") ? json({ ok: true }) : json({ topics: [topic({ topicState: "archived" })], candidates: [] })));
     render(<AdminDashboard initialSettings={settings({ discoverEnabled: true })} initialTopics={[topic()]} />);
     const list = screen.getByRole("tabpanel");
     fireEvent.click(within(list).getByRole("button", { name: "Archive" }));
@@ -111,7 +111,7 @@ describe("admin dashboard", () => {
   });
 
   test("controls in the topics tab are visible to the agent bridge, and Delete needs the app's confirmation", async () => {
-    fetchMock.mockImplementation(async (u) => (String(u).includes("/topics/t1") && !String(u).endsWith("/state") ? json({ ok: true }) : json({ topics: [topic()], candidates: [], requests: [] })));
+    fetchMock.mockImplementation(async (u) => (String(u).includes("/topics/t1") && !String(u).endsWith("/state") ? json({ ok: true }) : json({ topics: [topic()], candidates: [] })));
     render(<AdminDashboard initialSettings={settings({ discoverEnabled: true })} initialTopics={[topic()]} />);
     const snap = createAgent().snapshot();
     const archive = snap.find((c) => c.label === "Archive");

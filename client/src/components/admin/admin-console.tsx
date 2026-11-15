@@ -35,13 +35,12 @@ import {
   deleteTopic,
   listAdminTopics,
   listCandidates,
-  listRequests,
   registerTopic,
   setAdminSettings,
   setTopicState,
 } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import type { AdminSettings, BoardCard, TopicCandidateView, TopicRequestView } from "@/lib/spec";
+import type { AdminSettings, BoardCard, TopicCandidateView } from "@/lib/spec";
 
 const MIN_PROMPT = 8;
 const MAX_PROMPT = 1000;
@@ -102,7 +101,7 @@ export function AdminLogin() {
 
 type SwitchName = "discoverEnabled" | "distributeLive";
 
-/** The admin dashboard: discovery and sharing switches, topic registration, the topic list, discovery results and requests. */
+/** The admin dashboard: discovery and sharing switches, topic registration, the topic list and discovery results. */
 export function AdminDashboard({ initialSettings, initialTopics }: { initialSettings: AdminSettings; initialTopics: BoardCard[] }) {
   const router = useRouter();
   const [settings, setSettings] = useState(initialSettings);
@@ -215,7 +214,6 @@ export function AdminDashboard({ initialSettings, initialTopics }: { initialSett
             <Tab value="topics">Topics</Tab>
             <Tab value="layouts">Layouts</Tab>
             <Tab value="discovery">Discovery results</Tab>
-            <Tab value="requests">Requests</Tab>
           </TabsList>
           <TabsPanel value="topics">
             <TopicList topics={topics} onChanged={reload} onRemoved={(id) => setTopics((prev) => prev.filter((t) => t.id !== id))} />
@@ -225,9 +223,6 @@ export function AdminDashboard({ initialSettings, initialTopics }: { initialSett
           </TabsPanel>
           <TabsPanel value="discovery">
             <DiscoveryPanel />
-          </TabsPanel>
-          <TabsPanel value="requests">
-            <RequestsPanel topics={topics} />
           </TabsPanel>
         </Tabs>
       </Card>
@@ -503,41 +498,6 @@ function DiscoveryPanel() {
           },
         }));
         return <Table caption="Discovery results" columns={columns} rows={rows} />;
-      }}
-    </Loaded>
-  );
-}
-
-const loadRequests = () => listRequests();
-
-function RequestsPanel({ topics }: { topics: BoardCard[] }) {
-  const r = useLoad(loadRequests);
-  const titles = new Map(topics.map((t) => [t.id, t.title ?? t.prompt]));
-  return (
-    <Loaded label="Requests" value={r}>
-      {({ requests }: { requests: TopicRequestView[] }) => {
-        if (!requests.length) return <EmptyState title="No requests" description="Nobody has asked a topic to track anything new." />;
-        const byId = new Map(requests.map((q) => [String(q.id), q]));
-        const columns: TableColumn[] = [
-          { id: "when", label: "When", compare: (a, b) => byId.get(a.id)!.createdAt - byId.get(b.id)!.createdAt },
-          { id: "text", label: "Request", rowHeader: true },
-          { id: "topic", label: "Topic" },
-          { id: "status", label: "Status" },
-        ];
-        const rows: TableRow[] = requests.map((q) => ({
-          id: String(q.id),
-          cells: {
-            when: <Ago t={q.createdAt} />,
-            text: q.text,
-            topic: titles.get(q.boardId) ?? q.boardId,
-            status: (
-              <Badge variant="neutral" mono>
-                {q.status}
-              </Badge>
-            ),
-          },
-        }));
-        return <Table caption="Requests" columns={columns} rows={rows} />;
       }}
     </Loaded>
   );
