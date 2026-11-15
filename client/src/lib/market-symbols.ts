@@ -9,6 +9,20 @@ export const INDICES = [
 ] as const;
 export const VIX = "^VIX";
 
+/**
+ * Markets a finance board may be about besides Wall Street, picked up when its title, headline or figures name
+ * them: the currencies and the index behind the other finance topics (Egypt, Paraguay, France).
+ */
+export const ASSETS = [
+  { symbol: "EGP=X", name: "USD/EGP", match: /\begypt(ian)?\b|\begp\b/i },
+  { symbol: "PYG=X", name: "USD/PYG", match: /\bparaguay(an)?\b|\bguaran[ií]\b|\bpyg\b/i },
+  { symbol: "^FCHI", name: "CAC 40", match: /\bfrench\b|\bfrance\b|\bcac\b/i },
+  { symbol: "EURUSD=X", name: "EUR/USD", match: /\bfrench\b|\bfrance\b|\beuro\b|\beurozone\b/i },
+] as const;
+
+/** The assets a piece of text names, in list order. */
+export const assetsIn = (text: string) => ASSETS.filter((a) => a.match.test(text)).map((a) => a.symbol);
+
 export const SYMBOL = /^\^?[A-Z0-9.=-]{1,12}$/;
 
 /** Big listed names a table may give without a ticker. */

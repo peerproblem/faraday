@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LiveBoard } from "@/components/board/live-board";
-import { placedWidgets, ranking } from "@/components/finance/finance-data";
+import { boardSymbols, placedWidgets } from "@/components/finance/finance-data";
 import { LiveFinanceBoard } from "@/components/finance/live-finance-board";
 import { AddToDashboard } from "@/components/personal/add-to-dashboard";
 import { WorkspaceNavigation } from "@/components/site-header";
@@ -12,7 +12,6 @@ import { Text } from "@/components/ui/typography";
 import { boardSlugFromHost, boardUrl, DOMAIN, SITE_URL } from "@/lib/config";
 import { getBoardBySlug, getMyView } from "@/lib/engine";
 import { getMarket } from "@/lib/market";
-import { tickerOf } from "@/lib/market-symbols";
 import { OG_SIZE, ogImagePath } from "@/lib/og";
 
 export const dynamic = "force-dynamic";
@@ -50,9 +49,8 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
     ) : undefined;
   // Finance boards have no map to centre a workspace on; they get their own market-desk page.
   if (board.spec?.template === "finance") {
-    // Prices for the indices and the companies the board ranks, read here so the chart has more than the reports.
-    const companies = ranking(placedWidgets(board.spec, board.data))?.entries ?? [];
-    const market = await getMarket(companies.map((e) => tickerOf(e.name, e.ticker)).filter((t): t is string => t !== null));
+    // Prices for the indices and whatever the board is about, read here so the chart has more than the reports.
+    const market = await getMarket(boardSymbols(placedWidgets(board.spec, board.data), board.data?.header ?? null, board.title));
     return (
       <>
         <LiveFinanceBoard initial={board} actions={actions} market={market} />

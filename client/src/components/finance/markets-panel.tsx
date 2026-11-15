@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ToggleGroup } from "@/components/ui/toggle";
 import type { MarketData } from "@/lib/market";
-import { INDICES, indexOfLabel, VIX } from "@/lib/market-symbols";
+import { ASSETS, INDICES, indexOfLabel, VIX } from "@/lib/market-symbols";
 import type { Source, StatItem } from "@/lib/spec";
 import { nyDay, unitGroups, type Lane, type Series } from "./finance-data";
 import { MarketChart, seriesColor } from "./market-chart";
@@ -21,17 +21,21 @@ const dayFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric"
 
 /**
  * What the markets panel shows, kept by the page so a figure in the tape can switch its line on. With market
- * prices: index and stock lines, the VIX pane, the event pins and the window. Without: the reported figures,
- * grouped by unit.
+ * prices: index, asset and stock lines, the VIX pane, the event pins and the window. Without: the reported
+ * figures, grouped by unit.
  */
 export function useMarketView({ market, series, lanes }: { market: MarketData | null; series: Series[]; lanes: Lane[] }) {
-  const lines = useMemo<(PriceLine & { index: boolean })[]>(() => {
+  // Markets the board names (a currency, a national index) come first, so they carry the event pins; then the indices, then stocks.
+  const lines = useMemo<(PriceLine & { kind: "asset" | "index" | "stock" })[]>(() => {
     const list = (market?.lines ?? []).filter((l) => l.symbol !== VIX);
     const indices = list.filter((l) => INDICES.some((x) => x.symbol === l.symbol));
-    const stocks = list.filter((l) => !indices.includes(l));
+    const others = list.filter((l) => !indices.includes(l));
+    const asset = (l: { symbol: string }) => ASSETS.some((x) => x.symbol === l.symbol);
+    const styled = others.map((l, i) => ({ key: l.symbol, label: asset(l) ? l.name : l.symbol, points: l.points, kind: asset(l) ? ("asset" as const) : ("stock" as const), ...lineStyle(i, false) }));
     return [
-      ...indices.map((l, i) => ({ key: l.symbol, label: l.name, points: l.points, index: true, ...lineStyle(i, true) })),
-      ...stocks.map((l, i) => ({ key: l.symbol, label: l.symbol, points: l.points, index: false, ...lineStyle(i, false) })),
+      ...styled.filter((l) => l.kind === "asset"),
+      ...indices.map((l, i) => ({ key: l.symbol, label: l.name, points: l.points, kind: "index" as const, ...lineStyle(i, true) })),
+      ...styled.filter((l) => l.kind === "stock"),
     ];
   }, [market]);
   const vixLine = useMemo<PriceLine | null>(() => {
@@ -50,7 +54,7 @@ export function useMarketView({ market, series, lanes }: { market: MarketData | 
   const group = groups.find((g) => g.unit === unit) ?? groups[0];
 
   const priced = lines.length > 0;
-  const onLines = picked ?? lines.filter((l) => l.index).map((l) => l.key);
+  const onLines = picked ?? lines.filter((l) => l.kind !== "stock").map((l) => l.key);
   const reportColor = (key: string) => seriesColor(Math.max(0, series.findIndex((s) => s.key === key)));
   const reportShown = group ? group.series.filter((s) => (on ?? group.series.map((x) => x.key)).includes(s.key)) : [];
 
@@ -107,6 +111,7 @@ const glyph = (lane: Lane, label: string) => (
 /** The markets panel: prices and the board's events on one time axis, or the reported figures when there are no prices. */
 export function MarketsPanel({ view, sources }: { view: MarketView; sources: Map<string, Source> }) {
   const { lines, vixLine, lanes, market } = view;
+  // The axis keeps every hour any line traded; the rest (nights, weekends) folds into the closed gaps.
   const bars = useMemo(() => [...new Set(lines.flatMap((l) => l.points.map((p) => p[0])))].sort((a, b) => a - b), [lines]);
   if (!view.priced || !market || !bars.length) return <Reported view={view} sources={sources} />;
 
@@ -119,8 +124,8 @@ export function MarketsPanel({ view, sources }: { view: MarketView; sources: Map
   const to = Math.max(last, Number.isFinite(latestEvent) ? latestEvent : last);
   const shownLines = lines.filter((l) => view.onLines.includes(l.key));
   const shownLanes = lanes.filter((l) => !view.lanesOff.includes(l.key));
-  const indices = lines.filter((l) => l.index);
-  const stocks = lines.filter((l) => !l.index);
+  const indices = lines.filter((l) => l.kind === "index");
+  const stocks = lines.filter((l) => l.kind !== "index");
 
   return (
     <>
@@ -136,9 +141,9 @@ export function MarketsPanel({ view, sources }: { view: MarketView; sources: Map
           onValueChange={(v) => view.setPicked([...v, ...view.onLines.filter((k) => stocks.some((l) => l.key === k))])}
           items={indices.map((l) => ({ value: l.key, label: swatch(l.color, l.label) }))} />
         {stocks.length ? (
-          <ToggleGroup multiple size="sm" variant="outline" aria-label="Stocks" value={view.onLines.filter((k) => stocks.some((l) => l.key === k))}
+          <ToggleGroup multiple size="sm" variant="outline" aria-label={stocks.some((l) => l.kind === "asset") ? "Markets and stocks" : "Stocks"} value={view.onLines.filter((k) => stocks.some((l) => l.key === k))}
             onValueChange={(v) => view.setPicked([...view.onLines.filter((k) => indices.some((l) => l.key === k)), ...v])}
-            items={stocks.map((l) => ({ value: l.key, label: swatch(l.color, l.key, l.dash) }))} />
+            items={stocks.map((l) => ({ value: l.key, label: swatch(l.color, l.label, l.dash) }))} />
         ) : null}
         <ToggleGroup multiple size="sm" variant="outline" aria-label="Overlays"
           value={[...(view.vixOn && vixLine ? [vixLine.key] : []), ...lanes.filter((l) => !view.lanesOff.includes(l.key)).map((l) => l.key)]}

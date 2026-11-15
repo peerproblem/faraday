@@ -13,6 +13,7 @@ import type {
   Widget,
   WidgetType,
 } from "@/lib/spec";
+import { assetsIn, tickerOf } from "@/lib/market-symbols";
 import { toMs } from "@/lib/time";
 
 export type Placed = { widget: Widget; data: unknown };
@@ -272,4 +273,14 @@ export function reaction(points: [number, number][], t: number): { from: [number
   let k = j;
   while (k + 1 < points.length && nyDay(points[k + 1][0]) === day) k++;
   return { from: points[j - 1], to: points[k] };
+}
+
+/**
+ * The market symbols a board is about, besides the indices every finance board gets: assets its title, headline,
+ * figures or widget titles name (a currency, a national index), then the companies it ranks.
+ */
+export function boardSymbols(placed: Placed[], header: BoardData["header"] | null, title: string | null): string[] {
+  const text = [title, header?.title, header?.headline?.text, header?.subtitle, ...figures(placed).map((s) => s.label), ...placed.map((p) => p.widget.title)].join(" ");
+  const companies = (ranking(placed)?.entries ?? []).map((e) => tickerOf(e.name, e.ticker)).filter((t): t is string => t !== null);
+  return [...new Set([...assetsIn(text), ...companies])];
 }

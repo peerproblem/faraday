@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BoardData, BoardSpecV2, TableData } from "@/lib/spec";
-import { indexOfLabel, tickerOf } from "@/lib/market-symbols";
+import { assetsIn, indexOfLabel, tickerOf } from "@/lib/market-symbols";
 import { filled, metricSeries, parseNumber, placedWidgets, rankEntries, ranking, reaction, sessionAxis, tableLanes, unitGroups } from "./finance-data";
 
 const row = (id: string, cells: Record<string, string>, asOf: string | null = null) => ({ id, cells, sources: [`s${id}`], asOf });
@@ -125,5 +125,12 @@ describe("finance data", () => {
   it("finds tickers and the index a figure is about", () => {
     expect([tickerOf("Micron", "MU"), tickerOf("Nvidia", null), tickerOf("Advanced Micro Devices", ""), tickerOf("Acme Robotics", null)]).toEqual(["MU", "NVDA", "AMD", null]);
     expect([indexOfLabel("S&P 500 Change"), indexOfLabel("Dow Jones Change"), indexOfLabel("VIX Volatility Index"), indexOfLabel("Market Value Erased")]).toEqual(["^GSPC", "^DJI", "^VIX", null]);
+  });
+
+  it("picks the currency or index each finance topic is about, and nothing for a Wall Street board", () => {
+    expect(assetsIn("Egyptian pound hits record low near 56 per dollar")).toEqual(["EGP=X"]);
+    expect(assetsIn("Ueno Bank collapse topples Paraguay's president")).toEqual(["PYG=X"]);
+    expect(assetsIn("French 10-year yield tops 5% amid unrest")).toEqual(["^FCHI", "EURUSD=X"]);
+    expect(assetsIn("Post-Midterm AI Stock Sell-Off")).toEqual([]);
   });
 });

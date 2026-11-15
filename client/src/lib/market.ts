@@ -1,7 +1,7 @@
 // Hourly closes for the indices and stocks a finance board is about, for its price chart. Read on the server
 // when the page renders and cached for a few minutes; the board's own collection never sees it.
 import "server-only";
-import { INDICES, SYMBOL } from "@/lib/market-symbols";
+import { ASSETS, INDICES, SYMBOL } from "@/lib/market-symbols";
 
 export type MarketLine = {
   symbol: string;
@@ -31,8 +31,8 @@ async function line(symbol: string): Promise<MarketLine | null> {
       return typeof c === "number" && Number.isFinite(c) ? [[t * 1000, c]] : [];
     });
     if (points.length < 2) return null;
-    const index = INDICES.find((x) => x.symbol === symbol);
-    return { symbol, name: index?.name ?? r?.meta?.shortName?.replace(/,? (Inc|Corp|Corporation)\.?$/i, "") ?? symbol, points };
+    const known = [...INDICES, ...ASSETS].find((x) => x.symbol === symbol);
+    return { symbol, name: known?.name ?? r?.meta?.shortName?.replace(/,? (Inc|Corp|Corporation)\.?$/i, "") ?? symbol, points };
   } catch {
     return null;
   }
@@ -46,9 +46,9 @@ function cached(symbol: string): Promise<MarketLine | null> {
   return next;
 }
 
-/** The indices plus the given stocks. Null when nothing could be read, so the page falls back to reported figures. */
-export async function getMarket(stocks: string[]): Promise<MarketData | null> {
-  const symbols = [...new Set([...INDICES.map((x) => x.symbol), ...stocks])].filter((s) => SYMBOL.test(s)).slice(0, MAX_SYMBOLS);
+/** The indices plus the given assets and stocks. Null when nothing could be read, so the page falls back to reported figures. */
+export async function getMarket(extra: string[]): Promise<MarketData | null> {
+  const symbols = [...new Set([...INDICES.map((x) => x.symbol), ...extra])].filter((s) => SYMBOL.test(s)).slice(0, MAX_SYMBOLS);
   const lines = (await Promise.all(symbols.map(cached))).filter((l): l is MarketLine => l !== null);
   return lines.length ? { lines, fetchedAt: Date.now() } : null;
 }

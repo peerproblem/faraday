@@ -127,7 +127,11 @@ export function PriceChart({ bars, from, to, lines, vix, lanes, sources, label }
   const lead = shown[0] ?? null;
 
   // One lane per kind of event, the regulators' actions first, each with its own row above the prices.
-  const rails = useMemo(() => [...lanes].sort((a, b) => Number(a.kind !== "table") - Number(b.kind !== "table")), [lanes]);
+  // A lane with nothing in the window is left out.
+  const rails = useMemo(
+    () => lanes.filter((l) => l.events.some((e) => placeOf(e.t) >= from && placeOf(e.t) <= to)).sort((a, b) => Number(a.kind !== "table") - Number(b.kind !== "table")),
+    [lanes, from, to],
+  );
   const pins = useMemo(
     () =>
       rails.flatMap((lane, rail) => {
