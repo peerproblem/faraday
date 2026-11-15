@@ -1,6 +1,7 @@
 // Shared topics (system boards): discovery candidates, matching lookups, ranking, archiving and monitor allowance.
 // Pure data access plus the pure scoring functions the discover graph and the worker share.
 import { createHash } from "node:crypto";
+import { frozenBoard } from "../frozen-boards";
 import { all, json, one, run, type Param } from "../db/pool";
 import type { BoardCard, CandidateDecision, CrisisType, TopicCategory, TopicState } from "../spec";
 import { cardCols, effectiveTopicCategory, toCard } from "./boards";
@@ -265,6 +266,7 @@ export function allowanceAt(index: number, limits = { monitored: TOPIC_LIMITS.mo
 
 /** A priority topic can keep a search monitor outside the ranked allocation. */
 export function allowanceFor(boardId: string, index: number): MonitorAllowance {
+  if (frozenBoard(boardId)) return { search: false, page: false };
   const ranked = allowanceAt(index);
   if (index < 0 || ranked.search) return ranked;
   const priority = process.env.FARADAY_PRIORITY_SEARCH_MONITOR_BOARD_IDS?.split(",")

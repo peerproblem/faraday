@@ -27,10 +27,11 @@ export function createViewCache(ttlMs = 5_000) {
   };
 }
 
-export function etagFor(view: Pick<BoardView, "version" | "status" | "tier" | "presentation">) {
+export function etagFor(view: Pick<BoardView, "version" | "status" | "tier" | "presentation" | "displaySnapshot">) {
   const p = view.presentation;
   const layout = p ? `-${createHash("sha256").update(JSON.stringify(p)).digest("hex").slice(0, 16)}` : "";
-  return `"v${view.version}-${view.status}-${view.tier}${layout}"`;
+  const saved = view.displaySnapshot ? `-saved-${view.displaySnapshot.version}-${view.displaySnapshot.capturedAt}` : "";
+  return `"v${view.version}-${view.status}-${view.tier}${layout}${saved}"`;
 }
 
 export function etagMatches(ifNoneMatch: string | undefined, etag: string) {

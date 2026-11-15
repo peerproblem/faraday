@@ -1,5 +1,6 @@
 // OWNER: F-DB. Pure data access: no publishing, no network. Callers publish through bus.ts.
 import { createHash } from "node:crypto";
+import { frozenBoard, frozenBoardIds } from "../frozen-boards";
 import { customAlphabet } from "nanoid";
 import { all, json, one, run, tx, type Param } from "../db/pool";
 import type {
@@ -364,16 +365,14 @@ export async function savePlan(id: string, plan: Plan): Promise<void> {
 
 const KEEP_VERSIONS = 50;
 
-export const finlandAirspaceBaseline = { id: "oznxapju2rna", version: 2 };
-
 export async function getBoardVersion(id: string, version: number) {
-  const row = await one<{ spec: string | object; data: string | object }>(
-    "SELECT spec, data FROM board_versions WHERE board_id = ? AND version = ?", [id, version],
+  const row = await one<{ spec: string | object; data: string | object; created_at: number }>(
+    "SELECT spec, data, created_at FROM board_versions WHERE board_id = ? AND version = ?", [id, version],
   );
   if (!row) return null;
   const spec = typeof row.spec === "string" ? json<BoardSpecV2>(row.spec) : row.spec as BoardSpecV2;
   const data = typeof row.data === "string" ? json<BoardData>(row.data) : row.data as BoardData;
-  return spec && data ? { version, spec, data } : null;
+  return spec && data ? { version, spec, data, capturedAt: Number(row.created_at) } : null;
 }
 
 /**
@@ -414,8 +413,8 @@ export async function saveBoardVersion(
        ON DUPLICATE KEY UPDATE spec = VALUES(spec), data = VALUES(data), change_note = VALUES(change_note)`,
       [id, version, JSON.stringify(v.spec), JSON.stringify(v.data), v.changeNote, now],
     );
-    await db.run(`DELETE FROM board_versions WHERE board_id = ? AND version <= ? AND NOT (board_id = ? AND version = ?)`,
-      [id, version - KEEP_VERSIONS, finlandAirspaceBaseline.id, finlandAirspaceBaseline.version]);
+    await db.run(`DELETE FROM board_versions WHERE board_id = ? AND version <= ? AND version <> ?`,
+      [id, version - KEEP_VERSIONS, frozenBoard(id)?.version ?? 0]);
     return version;
   });
 }
@@ -458,8 +457,9 @@ export async function listDueBoards(now: number, limit: number): Promise<{ id: s
     `SELECT id, tier FROM boards
      WHERE deleted_at IS NULL AND status = 'live' AND spec_version = 2 AND tier <> 'paused'
        AND (next_poll_at IS NULL OR next_poll_at <= ?)
+       AND id NOT IN (${frozenBoardIds.map(() => "?").join(", ")})
      ORDER BY COALESCE(next_poll_at, 0), id LIMIT ?`,
-    [now, Math.max(1, Math.floor(limit))],
+    [now, ...frozenBoardIds, Math.max(1, Math.floor(limit))],
   );
   return rows.map((r) => ({ id: r.id, tier: r.tier }));
 }
@@ -978,8 +978,8 @@ export async function pruneOldData(now: number): Promise<{ events: number; versi
   const oldVersions = await all<{ board_id: string; version: number }>(
     `SELECT board_id, version FROM (
        SELECT board_id, version, ROW_NUMBER() OVER (PARTITION BY board_id ORDER BY version DESC) AS rn FROM board_versions
-     ) x WHERE rn > ? AND NOT (board_id = ? AND version = ?)`,
-    [KEEP_VERSIONS, finlandAirspaceBaseline.id, finlandAirspaceBaseline.version],
+     ) x WHERE rn > ? AND NOT (${frozenBoardIds.map(() => "(board_id = ? AND version = ?)").join(" OR ")})`,
+    [KEEP_VERSIONS, ...frozenBoardIds.flatMap((id) => [id, frozenBoard(id)!.version])],
   );
   let versions = 0;
   for (const v of oldVersions) {

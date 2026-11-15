@@ -1,3 +1,4 @@
+import { frozenBoard } from "../../frozen-boards";
 import { trustedFacts } from "../trust";
 import type { GraphFn } from "../../graph/runner";
 import {
@@ -46,6 +47,7 @@ type Reason = "schedule" | "manual" | "webhook" | "followup" | "discover";
 export const emptyDiff = (d: FactDiff) => d.added.length === 0 && d.changed.length === 0;
 
 export const updateGraph: GraphFn = async (ctx) => {
+  if (frozenBoard(ctx.boardId)) return;
   const payload = (ctx.job.payload ?? {}) as { reason?: Reason; newsQueries?: string[]; webQueries?: string[] };
   const reason = (payload.reason ?? "schedule") as Reason;
   const board = await loadBoard(ctx);

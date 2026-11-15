@@ -17,6 +17,7 @@ type WorkspaceProps = {
   flowingDetails?: boolean;
   main?: ReactNode;
   defaultEvidenceOpen?: boolean;
+  showSavedSources?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
   sidebar?: WorkspaceSidebarContent;
@@ -29,7 +30,7 @@ type WorkspaceProps = {
   configuredCards?: WorkspaceCard[];
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, defaultEvidenceOpen, showSavedSources, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -67,8 +68,8 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main,
   const activeSection = sections.find((section) => section.key === sectionKey) ?? sections[0];
   const situationTab = selection.tab === "data" && activeSection ? "data" : "overview";
   const figuresOpen = !configuredCards && (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
-  const evidenceSources = configuredCards ? undefined : sources;
-  const evidenceChanges = configuredCards ? undefined : changes;
+  const evidenceSources = configuredCards && !showSavedSources ? undefined : sources;
+  const evidenceChanges = configuredCards && !showSavedSources ? undefined : changes;
   const evidenceTabs = [
     { value: "sources", label: "Sources", content: evidenceSources },
     { value: "changes", label: "Changes", content: evidenceChanges },

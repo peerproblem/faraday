@@ -157,6 +157,12 @@ function BoardLayoutEditor({ board, templates }: { board: BoardChoice; templates
   }
 
   if (!loaded) return error ? <Text role="alert" size="sm">{error}</Text> : <Skeleton className="h-12 w-full" />;
+  if (loaded.frozen) return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Text size="sm" tone="muted">This board shows a saved snapshot.</Text>
+      <Button href={boardUrl(board.slug)} size="sm" variant="ghost">Open board</Button>
+    </div>
+  );
   return (
     <form className="flex min-w-0 flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <Field label="Start from a template">

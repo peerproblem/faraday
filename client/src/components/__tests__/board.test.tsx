@@ -26,13 +26,23 @@ describe("board v2", () => {
     const b = board("strike", {
       spec: { version: 2, widgets: [] },
       data: null,
-      displaySnapshot: { version: 2, spec: saved.spec!, data: saved.data! },
+      displaySnapshot: { version: 2, capturedAt: 1000, spec: saved.spec!, data: saved.data! },
       presentation: {
         workspace: true, cardsOnMap: true, evidenceOpen: true,
         overviewStatusChart: "table:city-protests",
       },
     });
-    render(<LiveBoard initial={b} workspace live={false} />);
+    const openStream = vi.fn();
+    vi.stubGlobal("EventSource", class extends EventTarget {
+      constructor() { super(); openStream(); }
+      close() {}
+    });
+    try {
+      render(<LiveBoard initial={b} workspace />);
+      expect(openStream).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
     const cards = within(screen.getByRole("group", { name: "Map cards" }));
     expect(cards.getByRole("button", { name: "Evidence" }).getAttribute("aria-expanded")).toBe("true");
     expect(within(cards.getByRole("region", { name: "Situation" }))

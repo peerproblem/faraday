@@ -1,4 +1,5 @@
 // Context.dev monitor lifecycle for a board (guide P4-3). Uses repo/boards monitor rows.
+import { frozenBoard } from "./frozen-boards";
 import { createHash } from "node:crypto";
 import { NotFoundError } from "context.dev";
 import { cassetteMode, ctx, hostOf, scrapeMarkdown, type MonitorChange } from "./contextdev";
@@ -207,7 +208,7 @@ async function stopReason(id: string): Promise<{ text: string | null; credits: b
  */
 export async function syncBoardMonitors(boardId: string, plan: Plan, tier: BoardTier, opts: { force?: boolean; now?: number } = {}): Promise<SyncResult> {
   const out: SyncResult = { notes: [], alerts: [] };
-  if (monitorsDisabled() || tier === "paused") return out;
+  if (monitorsDisabled() || frozenBoard(boardId) || tier === "paused") return out;
   const now = opts.now ?? Date.now();
   let rows: MonitorRow[];
   try {
@@ -288,7 +289,7 @@ export async function syncBoardMonitors(boardId: string, plan: Plan, tier: Board
 
 /** Sets the run schedule of the board's monitors for its tier. Never throws. */
 export async function setBoardMonitorSchedule(boardId: string, tier: BoardTier): Promise<number> {
-  if (monitorsDisabled() || tier === "paused") return 0;
+  if (monitorsDisabled() || frozenBoard(boardId) || tier === "paused") return 0;
   const minutes = scheduleMinutes(tier);
   let n = 0;
   try {
@@ -307,6 +308,22 @@ export async function setBoardMonitorSchedule(boardId: string, tier: BoardTier):
     console.error("[faraday] setBoardMonitorSchedule failed", boardId, errText(e));
   }
   return n;
+}
+
+/** Stop the provider schedule while keeping the monitor and its history. */
+export async function pauseBoardMonitors(boardId: string): Promise<void> {
+  if (monitorsDisabled()) return;
+  for (const monitor of await listMonitors(boardId)) {
+    if (monitor.remoteStatus === "paused" || monitor.remoteStatus === "dead") continue;
+    try {
+      const paused = await ctx().monitors.update(monitor.id, { status: "paused" });
+      if (paused.status !== "paused") throw new Error(`Unexpected monitor status: ${paused.status}`);
+      await updateMonitorRow(monitor.id, { remoteStatus: "paused", lastError: null, checkedAt: Date.now() });
+    } catch (err) {
+      if (isNotFound(err)) await updateMonitorRow(monitor.id, { remoteStatus: "dead" });
+      else console.error("[faraday] monitor pause failed", monitor.id, errText(err));
+    }
+  }
 }
 
 /** Deletes the board's monitors (or only those of one kind) at Context.dev and their rows. Never throws. */
@@ -407,7 +424,7 @@ export async function ackChanges(changes: Pick<MonitorChange, "id" | "monitorId"
 
 /** Asks Context.dev to run the board's monitors now. Never throws. */
 export async function runBoardMonitors(boardId: string): Promise<void> {
-  if (monitorsDisabled()) return;
+  if (monitorsDisabled() || frozenBoard(boardId)) return;
   try {
     for (const m of live(await listMonitors(boardId))) {
       await ctx().monitors.run(m.id).catch((e) => console.error("[faraday] monitor run failed", m.id, errText(e)));

@@ -62,7 +62,7 @@ export const saveLayoutTemplate = (id: string | null, name: string, settings: Bo
 
 const boardLayoutPath = (id: string) => `/api/admin/boards/${encodeURIComponent(id)}/layout`;
 export const getAdminBoardLayout = (id: string) =>
-  call<BoardLayoutState & { canUseMap: boolean; widgets: Array<Pick<Widget, "type" | "title"> & { key: string; hasStatus?: boolean }> }>(boardLayoutPath(id));
+  call<BoardLayoutState & { frozen?: boolean; canUseMap: boolean; widgets: Array<Pick<Widget, "type" | "title"> & { key: string; hasStatus?: boolean }> }>(boardLayoutPath(id));
 export const saveAdminBoardLayout = (id: string, body: BoardLayoutAssignment & { rev: number }) =>
   call<BoardLayoutState>(boardLayoutPath(id), { method: "POST", body });
 export const clearAdminBoardLayout = (id: string, rev: number) =>

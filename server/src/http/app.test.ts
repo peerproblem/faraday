@@ -11,7 +11,6 @@ const boards = vi.hoisted(() => ({
   getBoard: vi.fn(),
   getBoardView: vi.fn(),
   getBoardVersion: vi.fn(),
-  finlandAirspaceBaseline: { id: "oznxapju2rna", version: 2 },
   listBoards: vi.fn(),
   listEvents: vi.fn(),
   listTopics: vi.fn(async () => []),
@@ -117,31 +116,38 @@ beforeEach(() => {
 });
 
 describe("board views", () => {
-  it("restores Finland's map layout and returns its saved version for display", async () => {
+  it.each([
+    ["oznxapju2rna", "11-nov-2026-finnish-airspace-nsu0j", 2],
+    ["ps92ji01jll9", "storm-charles-is-battering-portugal-t53ag", 1],
+  ])("serves only the saved public version and historical evidence for %s", async (id, slug, version) => {
     const app = createApp();
-    const id = "oznxapju2rna";
-    const saved = { version: 2, spec: { version: 2, widgets: [], template: "finance" }, data: { widgets: {} } };
-    boards.getBoardView.mockResolvedValue(view({ id, version: 5 }));
+    const saved = { version, capturedAt: 100, spec: { version: 2, widgets: [], template: "finance" }, data: { widgets: {} } };
+    boards.getBoardView.mockResolvedValue(view({ id, slug, version: 5, lastPolledAt: 300, events: [ev(1), ev(200)] }));
+    boards.boardIdForSlug.mockResolvedValueOnce(id);
     boards.getBoardVersion.mockResolvedValue(saved);
-    const response = await app.request(`/api/boards/${id}`);
-    const board = (await response.json()) as BoardView;
-    expect(board.version).toBe(5);
-    expect(board.displaySnapshot).toEqual({ ...saved, spec: { version: 2, widgets: [] } });
-    expect(board.presentation).toEqual({
-      workspace: true, cardsOnMap: true, timelineOpen: true, evidenceOpen: true,
-      overviewStatusChart: "table:temporary-restrictions",
-    });
-    expect(boards.getBoardVersion).toHaveBeenCalledWith(id, 2);
     layouts.getBoardLayout.mockResolvedValue({ rev: 1, assignment: { templateId: null, settings: {
-      layout: "map", timelineOpen: false, evidenceOpen: false,
+      layout: "grid", timelineOpen: false, evidenceOpen: false,
     } } });
-    publish(id, { type: "status", status: "live", tier: "hot" });
-    const override = await app.request(`/api/boards/${id}`);
-    const updated = (await override.json()) as BoardView;
-    expect(updated.displaySnapshot).toBeUndefined();
-    expect(updated.presentation).toEqual({
-      workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: false,
+    const response = await app.request(`/api/boards/by-slug/${slug}`);
+    const board = (await response.json()) as BoardView;
+    expect(board).toMatchObject({ version, lastPolledAt: 100, data: saved.data, events: [ev(1)] });
+    expect(board.events).toHaveLength(1);
+    expect(board.displaySnapshot).toEqual({ ...saved, spec: { version: 2, widgets: [] } });
+    expect(board.presentation).toMatchObject({ workspace: true, timelineOpen: true, evidenceOpen: true });
+    if (version === 2) expect(board.presentation).toMatchObject({
+      cardsOnMap: true, overviewStatusChart: "table:temporary-restrictions",
     });
+    expect(layouts.getBoardLayout).not.toHaveBeenCalled();
+    expect(boards.getBoardVersion).toHaveBeenCalledWith(id, version);
+    expect((await app.request(`/api/boards/${id}/stream`)).status).toBe(204);
+    expect((await app.request(`/api/boards/${id}/refresh`, { method: "POST" })).status).toBe(409);
+    for (const group of ["search", "monitor"]) {
+      boards.getBoard.mockResolvedValueOnce(row({ id }));
+      evidence.contextEvidencePage.mockResolvedValueOnce({ items: [], nextBefore: null });
+      const page = await app.request(`/api/boards/${id}/evidence?group=${group}&before=40`);
+      expect(page.status).toBe(200);
+      expect(evidence.contextEvidencePage).toHaveBeenLastCalledWith(id, group, 40, 100);
+    }
     app.dispose();
   });
 
