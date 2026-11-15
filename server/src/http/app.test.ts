@@ -1,6 +1,6 @@
 import { generateKeyPairSync, scryptSync, sign as edSign } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { BoardEvent, BoardView } from "../spec";
+import type { BoardData, BoardEvent, BoardView } from "../spec";
 
 const boards = vi.hoisted(() => ({
   addEvent: vi.fn(),
@@ -130,9 +130,12 @@ describe("board views", () => {
     } } });
     const response = await app.request(`/api/boards/by-slug/${slug}`);
     const board = (await response.json()) as BoardView;
-    expect(board).toMatchObject({ version, lastPolledAt: 100, data: saved.data, events: [ev(1)] });
-    expect(board.events).toHaveLength(1);
-    expect(board.displaySnapshot).toEqual({ ...saved, spec: { version: 2, widgets: [] } });
+    expect(board).toMatchObject({ version, lastPolledAt: 100 });
+    expect(board.displaySnapshot).toMatchObject({ version, capturedAt: 100, spec: { version: 2, widgets: [] } });
+    if (version === 1) {
+      expect(board.data).toEqual(saved.data);
+      expect(board.events).toEqual([ev(1)]);
+    }
     expect(board.presentation).toMatchObject({ workspace: true, timelineOpen: true, evidenceOpen: true });
     if (version === 2) expect(board.presentation).toMatchObject({
       cardsOnMap: true, overviewStatusChart: "table:temporary-restrictions",
@@ -148,6 +151,56 @@ describe("board views", () => {
       expect(page.status).toBe(200);
       expect(evidence.contextEvidencePage).toHaveBeenLastCalledWith(id, group, 40, 100);
     }
+    app.dispose();
+  });
+
+  it("serves the Finland snapshot with only verified official claims and sources", async () => {
+    const app = createApp();
+    const id = "oznxapju2rna";
+    const data: BoardData = {
+      header: {
+        title: "Finland airspace", subtitle: null, crisisType: "conflict", accent: "red",
+        headline: { text: "Restrictions lifted at 07:20", sources: ["s43"] },
+        status: "resolved", statusP: null, severity: null, severityP: null, location: null, asOf: null, language: "en",
+      },
+      widgets: { w1: { sentences: [{ text: "Old Yle-derived claim", sources: ["s43"] }] } },
+      hidden: [], generatedAt: 90,
+    };
+    const spec = {
+      version: 2,
+      widgets: (["narrative", "timeline", "stat-grid", "table", "link-list"] as const).map((type, index) => ({
+        id: `w${index + 1}`, type, title: type, span: "full", bind: null, metrics: [],
+      })),
+    };
+    const government = "https://valtioneuvosto.fi/-/236553176/epailty-alueloukkaus-itaisella-suomenlahdella";
+    const ministry = "https://defmin.fi/-/epailty-alueloukkaus-itaisella-suomenlahdella";
+    const yle = "https://yle.fi/uutiset/lyhyesti/74-20256445";
+    const sources = [
+      { id: "s11", url: government }, { id: "s36", url: ministry }, { id: "s43", url: yle },
+    ].map(source => ({ ...source, fetchedAt: 90 })) as BoardView["sources"];
+    boards.getBoardView.mockResolvedValue(view({ id, data, sources, prompt: "Read https://yle.fi/example for the 07:20 lift" }));
+    boards.getBoardVersion.mockResolvedValue({ version: 2, capturedAt: 100, spec, data });
+
+    const response = await app.request(`/api/boards/${id}`);
+    expect(response.headers.get("etag")).toMatch(/-sources-2"$/);
+    const board = await response.json() as BoardView;
+    expect(board.sources.map(({ url }) => url)).toEqual([government, ministry]);
+    expect(JSON.stringify(board)).not.toMatch(/s43|yle\.fi|07:20|Old Yle-derived claim/);
+    expect(board.data).toEqual(board.displaySnapshot?.data);
+    expect(board.data?.header).toMatchObject({ status: null, headline: { sources: ["s11", "s36"] } });
+    expect(board.data?.widgets).toMatchObject({
+      w1: { sentences: [{ sources: ["s11"] }, { sources: ["s36"] }, { sources: ["s11"] }] },
+      w3: { items: [{ valueText: "About 5 min", sources: ["s11"] }] },
+      w4: { rows: [{ sources: ["s36"], cells: { "lifted-at": "Unspecified" } }, { sources: ["s36"] }] },
+      w5: { items: [{ url: government, sources: ["s11"] }, { url: ministry, sources: ["s36"] }] },
+    });
+
+    boards.getBoard.mockResolvedValueOnce(row({ id }));
+    evidence.contextEvidencePage.mockResolvedValueOnce({
+      items: [{ id: 3, url: yle }, { id: 2, url: ministry }], nextBefore: 2,
+    });
+    const archive = await app.request(`/api/boards/${id}/evidence`);
+    expect(await archive.json()).toEqual({ items: [{ id: 2, url: ministry }], nextBefore: 2 });
     app.dispose();
   });
 

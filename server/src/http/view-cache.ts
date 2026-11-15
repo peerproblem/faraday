@@ -27,11 +27,12 @@ export function createViewCache(ttlMs = 5_000) {
   };
 }
 
-export function etagFor(view: Pick<BoardView, "version" | "status" | "tier" | "presentation" | "displaySnapshot">) {
+export function etagFor(view: Pick<BoardView, "version" | "status" | "tier" | "presentation" | "displaySnapshot">, sourceRevision?: number) {
   const p = view.presentation;
   const layout = p ? `-${createHash("sha256").update(JSON.stringify(p)).digest("hex").slice(0, 16)}` : "";
   const saved = view.displaySnapshot ? `-saved-${view.displaySnapshot.version}-${view.displaySnapshot.capturedAt}` : "";
-  return `"v${view.version}-${view.status}-${view.tier}${layout}${saved}"`;
+  const sources = sourceRevision === undefined ? "" : `-sources-${sourceRevision}`;
+  return `"v${view.version}-${view.status}-${view.tier}${layout}${saved}${sources}"`;
 }
 
 export function etagMatches(ifNoneMatch: string | undefined, etag: string) {

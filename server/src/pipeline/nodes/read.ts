@@ -2,6 +2,7 @@ import { scrapeMarkdown } from "../../contextdev";
 import { oxylabsEnabled, oxyScrape } from "../../oxylabs";
 import { saveSourceText } from "../../repo/boards";
 import type { Usage } from "../../graph/runner";
+import { isYleUrl } from "../../source-policy";
 import type { Source } from "../../spec";
 import { LIMITS, pool } from "./util";
 
@@ -9,7 +10,7 @@ import { LIMITS, pool } from "./util";
 export function pickReadTargets(sources: Source[], max = LIMITS.maxScrapes(), alreadyRead: Set<string> = new Set()): Source[] {
   const score = (s: Source) => (s.sourceType === "official" ? 2 : s.kind === "web" ? 1 : 0) + (s.relevance ?? 0);
   return sources
-    .filter((s) => s.kind !== "social")
+    .filter((s) => s.kind !== "social" && !isYleUrl(s.url))
     .filter((s) => !alreadyRead.has(s.id) && (s.sourceType === "official" || s.kind === "web"))
     .filter((s) => !/\.(pdf|jpg|png|gif|mp4)(\?|$)/i.test(s.url) || s.url.toLowerCase().includes(".pdf"))
     .sort((a, b) => score(b) - score(a))
@@ -48,7 +49,7 @@ export async function readSources(
   const oxy = oxylabsEnabled();
   const stats: ReadStats = { oxylabsRead: 0, rescued: 0, oxylabsCalls: 0 };
   let renderedLeft = MAX_RENDERED_RETRIES;
-  const read = await pool(targets, 4, async (s) => {
+  const read = await pool(targets.filter((s) => !isYleUrl(s.url)), 4, async (s) => {
     try {
       let md: string | null = null;
       if (oxy && s.via === "oxylabs") {

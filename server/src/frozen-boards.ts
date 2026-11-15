@@ -1,8 +1,12 @@
-import type { BoardPresentation } from "./spec";
+import type { BoardPresentation, BoardView } from "./spec";
+import { finlandOfficialSnapshot, finlandSnapshotCopy } from "./finland-snapshot";
 
-const boards: Record<string, { version: number; presentation: BoardPresentation }> = {
+const boards: Record<string, { version: number; presentation: BoardPresentation; sourceRevision?: number; projectSnapshot?: (view: BoardView) => BoardView; cardCopy?: { headline: string; prompt: string } }> = {
   oznxapju2rna: {
     version: 2,
+    sourceRevision: 2,
+    projectSnapshot: finlandOfficialSnapshot,
+    cardCopy: finlandSnapshotCopy,
     presentation: {
       workspace: true, cardsOnMap: true, timelineOpen: true, evidenceOpen: true,
       overviewStatusChart: "table:temporary-restrictions",

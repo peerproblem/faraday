@@ -71,6 +71,14 @@ describe("oxylabs", () => {
     expect(docs[1].publishedAt).toBeNull();
   });
 
+  it("drops Yle search results and never sends their URLs to the scrape endpoint", async () => {
+    const yle = "https://www.yle.fi/article";
+    const calls = stubFetch([json(200, { results: [{ url: yle }, { url: "https://defmin.fi/release" }] })]);
+    expect((await oxySearch("Finland")).map(({ url }) => url)).toEqual(["https://defmin.fi/release"]);
+    expect(await oxyScrape(yle, { runJs: true })).toBeNull();
+    expect(calls.map(({ url }) => url)).toEqual(["https://webapi.oxylabs.io/v1/search"]);
+  });
+
   it("drops an invalid location and defaults max_results", async () => {
     const calls = stubFetch([json(200, { results: [] }), json(200, { results: [] })]);
     await oxySearch("q", { location: "ukraine" });

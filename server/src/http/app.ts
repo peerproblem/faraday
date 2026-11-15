@@ -6,6 +6,7 @@ import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { subscribe, subscribeAll, publish, subscriberCount } from "../bus";
 import { frozenBoard } from "../frozen-boards";
+import { isYleUrl } from "../source-policy";
 import { publicSources } from "../pipeline/public-source";
 import { one, all } from "../db/pool";
 import { contextEvidencePage } from "../repo/context-evidence";
@@ -41,7 +42,7 @@ import { listCandidates } from "../repo/candidates";
 import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
 import { discoverEnabled, distributeLive, setDiscoverEnabled, setDistributeLive } from "../repo/settings";
 import { listAdminTopics, setTopicCategory, setTopicState } from "../repo/topics";
-import { boardLayoutSchema, parseTopicFilter, resolveBoardPresentation, topicCategories, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
+import { boardLayoutSchema, parseTopicFilter, resolveBoardPresentation, topicCategories, widgetKeyOf, type BoardCard, type BoardEvent, type BoardSpecV2, type BoardView, type StreamMsg, type TableData } from "../spec";
 import { ADMIN_COOKIE, ADMIN_SESSION_MS, adminCookie, checkAdminLogin, issueAdminToken, readCookie, verifyAdminToken } from "./admin-auth";
 import { errMessage, log } from "./log";
 import { createLimiter } from "./rate-limit";
@@ -160,14 +161,15 @@ export function createApp(opts: AppOptions = {}) {
       ...stored, presentation, sources: publicSources(stored.sources),
       ...(snapshot ? { displaySnapshot: { ...snapshot, spec: publicSpec(snapshot.spec) } } : {}),
     };
-    cache.set(id, v);
-    return v;
+    const corrected = frozen?.projectSnapshot?.(v) ?? v;
+    cache.set(id, corrected);
+    return corrected;
   }
 
   /** The owner, the plan and the edit history are for admins (the studio); everyone else gets the board itself. */
   async function sendView(c: Context, v: BoardView | null) {
     if (!v) return c.json({ error: "Not found" }, 404);
-    const etag = etagFor(v);
+    const etag = etagFor(v, frozenBoard(v.id)?.sourceRevision);
     c.header("ETag", etag);
     c.header("Cache-Control", "no-cache");
     c.header("Vary", "Cookie");
@@ -274,7 +276,15 @@ export function createApp(opts: AppOptions = {}) {
 
   const limitOf = (c: Context, d: number) => Math.min(Math.max(Number(c.req.query("limit") ?? d) || d, 1), 100);
 
-  app.get("/api/boards", async (c) => c.json({ boards: await listBoards({ limit: limitOf(c, 50), publicOnly: true }) }));
+  function publicBoardCard(card: BoardCard): BoardCard {
+    const copy = frozenBoard(card.id)?.cardCopy;
+    return copy ? { ...card, ...copy, severity: null } : card;
+  }
+
+  app.get("/api/boards", async (c) => {
+    const boards = await listBoards({ limit: limitOf(c, 50), publicOnly: true });
+    return c.json({ boards: boards.map(publicBoardCard) });
+  });
 
   const topicStates = new Set(["active", "archived"]);
 
@@ -284,7 +294,8 @@ export function createApp(opts: AppOptions = {}) {
     const requestedType = c.req.query("type");
     const type = parseTopicFilter(requestedType);
     if (requestedType && !type) return c.json({ error: "Unknown topic category" }, 400);
-    return c.json({ topics: await listTopics({ state: state as "active" | "archived", crisisType: type, limit: limitOf(c, 50) }) });
+    const topics = await listTopics({ state: state as "active" | "archived", crisisType: type, limit: limitOf(c, 50) });
+    return c.json({ topics: topics.map(publicBoardCard) });
   });
 
   app.get("/api/boards/by-slug/:slug", async (c) => {
@@ -306,9 +317,11 @@ export function createApp(opts: AppOptions = {}) {
     const snapshot = frozen ? await getBoardVersion(id, frozen.version) : null;
     if (frozen && !snapshot) return c.json({ error: "Saved evidence unavailable" }, 503);
     c.header("Cache-Control", "no-store");
-    return c.json(snapshot
+    const page = snapshot
       ? await contextEvidencePage(id, group, before, snapshot.capturedAt)
-      : await contextEvidencePage(id, group, before));
+      : await contextEvidencePage(id, group, before);
+    if (frozen?.projectSnapshot) page.items = page.items.filter(({ url }) => !isYleUrl(url));
+    return c.json(page);
   });
 
   app.get("/api/boards/:id/runs/latest", async (c) => {

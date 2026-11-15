@@ -1,6 +1,7 @@
 // Oxylabs Web API (https://webapi.oxylabs.io): local search routed through a country, and page reads through
 // that country's proxies with optional JavaScript rendering. Calls are taped like Context.dev for eval record/replay.
 import { cassetteMode, hostOf, taped } from "./contextdev";
+import { isYleUrl } from "./source-policy";
 import type { FoundDoc } from "./repo/boards";
 
 const BASE = "https://webapi.oxylabs.io/v1";
@@ -88,7 +89,7 @@ export async function oxySearch(
     post<SearchResponse>("/search", { query, max_results: maxResults, ...(location ? { location } : {}) }, TIMEOUT_MS.search, opts.signal),
   );
   return (res.results ?? []).flatMap((r): FoundDoc[] => {
-    if (typeof r.url !== "string" || !/^https?:\/\//i.test(r.url)) return [];
+    if (typeof r.url !== "string" || !/^https?:\/\//i.test(r.url) || isYleUrl(r.url)) return [];
     const outline = (r.outline ?? []).filter((o): o is string => typeof o === "string");
     const snippet = outline.join("\n").trim();
     return [
@@ -111,7 +112,7 @@ export async function oxyScrape(
   url: string,
   opts: { location?: string | null; runJs?: boolean; signal?: AbortSignal } = {},
 ): Promise<string | null> {
-  if (!oxylabsEnabled()) return null;
+  if (isYleUrl(url) || !oxylabsEnabled()) return null;
   const location = countryCode(opts.location);
   const runJs = !!opts.runJs;
   try {

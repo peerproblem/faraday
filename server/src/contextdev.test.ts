@@ -59,6 +59,22 @@ describe("contextdev cassettes", () => {
     expect(save).toHaveBeenNthCalledWith(2, [expect.objectContaining({ url: "https://b.example/" })], 1);
   });
 
+  it("excludes Yle from web and news results and avoids scraping its subdomains", async () => {
+    delete process.env.EVAL_RECORD;
+    delete process.env.EVAL_REPLAY;
+    const yle = "https://svenska.yle.fi/article";
+    const search = vi.fn(async (_input: unknown) => ({ results: [...webResult.results, { url: yle }] }));
+    const scrape = vi.fn();
+    const news = vi.fn(async () => ({ data: [{ url: yle }, { url: "https://defmin.fi/release" }] }));
+    __setContextClientForTest({ web: { search, scrape }, news: { search: news } });
+
+    expect((await searchWeb("q", "last_week")).map(({ url }) => url)).toEqual(["https://www.gov.example/alert"]);
+    expect(search).toHaveBeenCalledWith(expect.objectContaining({ excludeDomains: ["yle.fi"] }), expect.anything());
+    expect((await searchNews("q", 0)).map(({ url }) => url)).toEqual(["https://defmin.fi/release"]);
+    expect(await scrapeMarkdown(yle)).toBeNull();
+    expect(scrape).not.toHaveBeenCalled();
+  });
+
   it("records, then replays without the network", async () => {
     process.env.EVAL_CASSETTE_DIR = dir;
     process.env.EVAL_RECORD = "1";

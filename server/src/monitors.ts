@@ -1,5 +1,6 @@
 // Context.dev monitor lifecycle for a board (guide P4-3). Uses repo/boards monitor rows.
 import { frozenBoard } from "./frozen-boards";
+import { isYleUrl } from "./source-policy";
 import { createHash } from "node:crypto";
 import { NotFoundError } from "context.dev";
 import { cassetteMode, ctx, hostOf, scrapeMarkdown, type MonitorChange } from "./contextdev";
@@ -117,7 +118,7 @@ export async function ensureBoardMonitors(
   const pages: string[] = [];
   for (const raw of officialUrls) {
     const u = normalizeUrl(raw);
-    if (!u || watched.has(u) || pages.includes(u)) continue;
+    if (!u || isYleUrl(u) || watched.has(u) || pages.includes(u)) continue;
     if (pages.length >= pageSlots) break;
     pages.push(u);
   }
@@ -220,6 +221,7 @@ export async function syncBoardMonitors(boardId: string, plan: Plan, tier: Board
   const hook = webhook();
   const minutes = scheduleMinutes(tier);
   for (const m of rows) {
+    if (m.kind === "page" && isYleUrl(m.target)) continue;
     try {
       const target = m.kind === "search" ? searchTarget(plan) : pageTarget(plan, m.target);
       const want = configHash(target, hook);
@@ -294,7 +296,7 @@ export async function setBoardMonitorSchedule(boardId: string, tier: BoardTier):
   let n = 0;
   try {
     for (const m of live(await listMonitors(boardId))) {
-      if (m.scheduleMinutes === minutes) continue;
+      if ((m.kind === "page" && isYleUrl(m.target)) || m.scheduleMinutes === minutes) continue;
       try {
         await ctx().monitors.update(m.id, { schedule: schedule(minutes) });
         await updateMonitorRow(m.id, { scheduleMinutes: minutes });
@@ -327,11 +329,11 @@ export async function pauseBoardMonitors(boardId: string): Promise<void> {
 }
 
 /** Deletes the board's monitors (or only those of one kind) at Context.dev and their rows. Never throws. */
-export async function removeBoardMonitors(boardId: string, opts?: { kind?: MonitorRow["kind"] }): Promise<number> {
+export async function removeBoardMonitors(boardId: string, opts?: { kind?: MonitorRow["kind"]; target?: string }): Promise<number> {
   let removed = 0;
   let rows: MonitorRow[] = [];
   try {
-    rows = (await listMonitors(boardId)).filter((m) => !opts?.kind || m.kind === opts.kind);
+    rows = (await listMonitors(boardId)).filter((m) => (!opts?.kind || m.kind === opts.kind) && (!opts?.target || m.target === opts.target));
   } catch (e) {
     console.error("[faraday] removeBoardMonitors: list failed", boardId, errText(e));
     return 0;
@@ -367,6 +369,7 @@ export async function collectMonitorChanges(
   const changes: MonitorChange[] = [];
   let calls = 0;
   for (const m of live(await listMonitors(boardId))) {
+    if (m.kind === "page" && isYleUrl(m.target)) continue;
     const from = m.lastSeenChangeAt ? Date.parse(m.lastSeenChangeAt) : m.createdAt;
     const since = Number.isFinite(from) ? new Date(from - CHANGE_OVERLAP_MS).toISOString() : undefined;
     try {
@@ -427,6 +430,7 @@ export async function runBoardMonitors(boardId: string): Promise<void> {
   if (monitorsDisabled() || frozenBoard(boardId)) return;
   try {
     for (const m of live(await listMonitors(boardId))) {
+      if (m.kind === "page" && isYleUrl(m.target)) continue;
       await ctx().monitors.run(m.id).catch((e) => console.error("[faraday] monitor run failed", m.id, errText(e)));
     }
   } catch (e) {
@@ -450,7 +454,7 @@ export function changeDocs(c: MonitorChange): FoundDoc[] {
   for (const ev of c.evidence) add(ev.url || c.url, ev.after.trim());
   if (!texts.has(c.url) && c.afterExcerpt) add(c.url, c.afterExcerpt.trim());
   const urls = texts.has(c.url) ? [...texts.keys()] : [c.url, ...texts.keys()];
-  return urls.map((url) => {
+  return urls.filter((url) => !isYleUrl(url)).map((url) => {
     const t = texts.get(url) ?? [];
     return {
       url,
@@ -473,6 +477,7 @@ export async function fetchChangeTexts(docs: FoundDoc[], signal?: AbortSignal): 
   let calls = 0;
   const out: FoundDoc[] = [];
   for (const d of docs) {
+    if (isYleUrl(d.url)) continue;
     if (d.snippet || calls >= MAX_CHANGE_SCRAPES) {
       out.push(d);
       continue;

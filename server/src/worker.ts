@@ -1,4 +1,5 @@
 import { frozenBoard } from "./frozen-boards";
+import { isYleUrl } from "./source-policy";
 // OWNER: F-RUNTIME. Worker entry point: queue consumers, scheduler and tiering, stale job reclaim, cleanup, heartbeat.
 // Graph registry: build -> buildGraph, edit -> editGraph, poll -> updateGraph, discover -> discoverGraph
 // (from ./pipeline/graphs), cleanup -> local.
@@ -200,13 +201,17 @@ export async function topicUpkeepOnce(now = Date.now()) {
   const ranked = await rankedTopicIds();
   const position = new Map(ranked.map((id, i) => [id, i]));
   const byBoard = new Map<string, Set<string>>();
+  let released = 0;
   for (const m of await listMonitors()) {
+    if (m.kind === "page" && isYleUrl(m.target)) {
+      released += await removeBoardMonitors(m.boardId, { kind: "page", target: m.target });
+      continue;
+    }
     const saved = frozenBoard(m.boardId);
     if (m.remoteStatus === "dead" || (saved ? m.remoteStatus === "paused" : !position.has(m.boardId))) continue;
     if (!byBoard.has(m.boardId)) byBoard.set(m.boardId, new Set());
     byBoard.get(m.boardId)!.add(m.kind);
   }
-  let released = 0;
   for (const [boardId, kinds] of byBoard) {
     if (frozenBoard(boardId)) {
       await pauseBoardMonitors(boardId);

@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ContextDev from "context.dev";
+import { isYleUrl } from "./source-policy";
 import type { FoundDoc } from "./repo/boards";
 
 export type { FoundDoc };
@@ -115,7 +116,7 @@ export async function searchNews(
         },
         { signal },
       );
-      const page: FoundDoc[] = (res.data ?? []).map((a) => ({
+      const page: FoundDoc[] = (res.data ?? []).filter((a) => !isYleUrl(a.url)).map((a) => ({
         url: a.url,
         title: a.title ?? null,
         publisher: a.source?.name ?? a.source?.domain ?? null,
@@ -133,7 +134,7 @@ export async function searchNews(
     } while (cursor);
     return results;
   });
-  const tagged = docs.map((d) => ({ ...d, via: "contextdev" as const }));
+  const tagged = docs.filter((d) => !isYleUrl(d.url)).map((d) => ({ ...d, via: "contextdev" as const }));
   if (cassetteMode() === "replay") await savePage?.(tagged);
   // Additional result pages are evidence. Keep the normal board input at its existing limit.
   return savePage ? tagged.slice(0, limit) : tagged;
@@ -152,13 +153,14 @@ export async function searchWeb(
         query,
         numResults,
         freshness,
+        excludeDomains: ["yle.fi"],
         highlightsOptions: { enabled: true, maxCharacters: 1500 },
         // Highlights read each page with the markdownOptions settings; Markdown itself stays off.
         markdownOptions: { maxAgeMs: CACHE_MAX_AGE_MS.searchContent },
       },
       { signal },
     );
-    return (res.results ?? []).map((r) => {
+    return (res.results ?? []).filter((r) => !isYleUrl(r.url)).map((r) => {
       const hl = r.highlights?.code === "SUCCESS" ? (r.highlights.highlights ?? []).join("\n") : null;
       return {
         url: r.url,
@@ -170,7 +172,7 @@ export async function searchWeb(
       };
     });
   });
-  const tagged = docs.map((d) => ({ ...d, via: "contextdev" as const }));
+  const tagged = docs.filter((d) => !isYleUrl(d.url)).map((d) => ({ ...d, via: "contextdev" as const }));
   await savePage?.(tagged);
   return tagged;
 }
@@ -180,6 +182,7 @@ export async function searchWeb(
  * (default CACHE_MAX_AGE_MS.scrape; 0 fetches fresh). It is left out of the cassette key: replay returns the recording.
  */
 export async function scrapeMarkdown(url: string, signal?: AbortSignal, opts: { maxAgeMs?: number } = {}): Promise<string | null> {
+  if (isYleUrl(url)) return null;
   const maxAgeMs = opts.maxAgeMs ?? CACHE_MAX_AGE_MS.scrape;
   return taped("web.scrape", [url], async () => {
     try {
