@@ -1,7 +1,7 @@
 // Runtime settings (app_settings). Admins change them from /admin; the worker reads them on its timers.
 import { one, run } from "../db/pool";
 
-export type SettingName = "discover_enabled";
+export type SettingName = "discover_enabled" | "distribute_cursor";
 
 export async function getSetting(name: SettingName): Promise<string | null> {
   const r = await one<{ value: string }>(`SELECT value FROM app_settings WHERE name = ?`, [name]);

@@ -1,4 +1,4 @@
-import { scryptSync } from "node:crypto";
+import { generateKeyPairSync, scryptSync, sign as edSign } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BoardEvent, BoardView } from "../spec";
 
@@ -809,6 +809,34 @@ describe("SSE stream", () => {
     const app = createApp();
     boards.getBoard.mockResolvedValue(null);
     expect((await app.request("/api/boards/zz/stream")).status).toBe(404);
+    app.dispose();
+  });
+});
+
+describe("Discord interactions", () => {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const pubHex = (publicKey.export({ format: "der", type: "spki" }) as Buffer).subarray(12).toString("hex");
+  const post = (app: ReturnType<typeof createApp>, raw: string, signed = true) => {
+    const ts = String(Math.floor(Date.now() / 1000));
+    const headers: Record<string, string> = signed ? { "x-signature-ed25519": edSign(null, Buffer.from(ts + raw), privateKey).toString("hex"), "x-signature-timestamp": ts } : {};
+    return app.request("/api/webhooks/discord", { method: "POST", body: raw, headers });
+  };
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("answers a signed ping, refuses unsigned requests, and is off without configuration", async () => {
+    const app = createApp();
+    expect((await post(app, '{"type":1}')).status).toBe(404);
+    expect((await app.request("/api/discord/install")).status).toBe(404);
+    vi.stubEnv("DISCORD_BOT_TOKEN", "t");
+    vi.stubEnv("DISCORD_APPLICATION_ID", "123");
+    vi.stubEnv("DISCORD_PUBLIC_KEY", pubHex);
+    expect((await post(app, '{"type":1}', false)).status).toBe(401);
+    const ping = await post(app, '{"type":1}');
+    expect(ping.status).toBe(200);
+    expect(await ping.json()).toEqual({ type: 1 });
+    const install = await app.request("/api/discord/install");
+    expect(install.status).toBe(302);
+    expect(install.headers.get("location")).toBe("https://discord.com/oauth2/authorize?client_id=123&scope=bot+applications.commands&permissions=19456");
     app.dispose();
   });
 });

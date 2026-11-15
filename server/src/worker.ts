@@ -33,6 +33,7 @@ import {
   type Job,
   type JobKind,
 } from "./repo/jobs";
+import { distributeOnce } from "./distribute/run";
 import { discoverEnabled } from "./repo/settings";
 import { pruneStepOutputs, writeWorkerHeartbeat, type GraphName } from "./repo/runs";
 import { allowanceAt, archivePausedTopics, rankedTopicIds, recomputeRanks } from "./repo/topics";
@@ -294,6 +295,8 @@ export function startWorker() {
     every(HOUR, "cleanup enqueue", () => maybeEnqueueCleanup()),
     every(DISCOVER_INTERVAL_MS, "discover enqueue", () => maybeEnqueueDiscover()),
     every(TOPIC_UPKEEP_MS, "topic upkeep", () => topicUpkeepOnce()),
+    // Posts new topics and material changes to X and to Discord channels that follow them (off unless DISTRIBUTE_ENABLED=1).
+    every(60_000, "distribute", () => distributeOnce()),
   ];
 
   log("info", "worker started", { workerId, pools: pools.map((p) => `${p.name}x${p.size}`).join(" ") });
