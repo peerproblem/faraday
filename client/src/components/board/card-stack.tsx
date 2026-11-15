@@ -52,7 +52,9 @@ export function BoardCardStack({ id, situation, evidence, open, onOpenChange, re
                   className="size-[var(--sw-space-6)] shrink-0 cursor-grab touch-none" iconOnly title={`Reorder ${label}`}
                   leading={<Icon name="grip" width={16} height={16} />} />}
                 <h3 className="min-w-0 flex-1 text-sm font-semibold">
-                  <CollapsibleTrigger className="mx-0 w-full justify-between px-1">{label}</CollapsibleTrigger>
+                  <CollapsibleTrigger className="fd-workspace-card-trigger mx-0 w-full justify-between px-1">
+                    <span className="fd-workspace-card-label">{label}</span>
+                  </CollapsibleTrigger>
                 </h3>
               </div>
               <CollapsiblePanel className="fd-workspace-card-body">
