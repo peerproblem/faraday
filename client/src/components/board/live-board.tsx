@@ -5,6 +5,7 @@ import { useBoard } from "@/lib/client/use-board";
 import { api } from "@/lib/config";
 import type { ReactNode } from "react";
 import type { BoardView } from "@/lib/spec";
+import type { WildfireBoard } from "@/components/wildfire/boards";
 import { AgentBridge } from "./agent-bridge";
 import { Board } from "./board";
 
@@ -26,12 +27,13 @@ export function BoardToasts() {
 }
 
 /** The shared (baseline) board: data updates are highlighted, the layout never animates. */
-export function LiveBoard({ initial, live = true, actions, workspace, wildfireOverview, workspaceNavigation }: {
+export function LiveBoard({ initial, live = true, actions, workspace, wildfire, strikeOverview, workspaceNavigation }: {
   initial: BoardView;
   live?: boolean;
   actions?: ReactNode;
   workspace?: boolean;
-  wildfireOverview?: boolean;
+  wildfire?: WildfireBoard;
+  strikeOverview?: boolean;
   workspaceNavigation?: ReactNode;
 }) {
   const frozen = !!initial.displaySnapshot;
@@ -69,7 +71,8 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfireOv
         incidentOverview={board.presentation?.incidentOverview}
         sidebarSettings={board.presentation?.sidebar}
         configuredCards={board.presentation?.cards}
-        wildfireOverview={wildfireOverview}
+        wildfire={wildfire}
+        strikeOverview={strikeOverview}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`shared:${board.id}`}
       />

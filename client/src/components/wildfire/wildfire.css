@@ -1,0 +1,50 @@
+/* The wildfire workspace: a day-by-day log on the left, the map in the middle, the incident overview on the right.
+   Colours, type and radii come from sw3; this file only lays the parts out. */
+.fd-fire-log,
+.fd-fire-overview {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fd-fire-log {
+  gap: var(--sw-space-5);
+}
+.fd-fire-overview {
+  gap: var(--sw-space-4);
+}
+.fd-fire-section {
+  display: grid;
+  gap: var(--sw-space-3);
+  min-width: 0;
+}
+.fd-fire-day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sw-space-2);
+  min-width: 0;
+}
+.fd-fire-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sw-space-4) var(--sw-space-3);
+}
+
+/* Side panels sized to the board: wide enough to read, narrow enough to leave the map the largest part. */
+@container (width >= 64rem) {
+  .fd-wildfire-workspace .fd-workspace-sidebar {
+    width: clamp(15rem, var(--fd-workspace-sidebar-width, min(22%, 20rem)), min(24rem, 32%));
+  }
+  .fd-wildfire-workspace .fd-board-workspace[data-has-map] > .fd-workspace-details {
+    --fd-workspace-details-min-width: 20rem;
+    width: clamp(var(--fd-workspace-details-min-width), var(--fd-workspace-details-width, min(28%, 27rem)), min(54%, 46rem));
+  }
+  .fd-wildfire-workspace .fd-workspace-sidebar:not([data-open]),
+  .fd-wildfire-workspace .fd-board-workspace[data-has-map] > .fd-workspace-details:not([data-open]) {
+    width: 40px;
+  }
+  .fd-wildfire-workspace .fd-board-workspace[data-has-map] > .fd-workspace-details[data-wide] {
+    width: min(54%, 46rem);
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { JumpToOptions, Map } from "maplibre-gl";
-import { MapView, type MapMarker } from "@sw3/ui/map";
+import { MapView, type MapArea, type MapMarker } from "@sw3/ui/map";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { SegmentedControl } from "./segmented-control";
 
@@ -24,26 +24,36 @@ if (process.env.NODE_ENV === "development") mapStyles.push("satellite");
 const styleOptions = mapStyles.map((value) => ({ value, label: basemaps[value].label }));
 
 export type MapPointKind = NonNullable<MapMarker["kind"]>;
+export type { MapArea };
 export type MapPoint = { id: string; name: string; lat: number; lon: number; kind: MapPointKind; note?: string };
 
 /** Places on an sw3 MapView, each with its kind's marker, a popup and a line in the locations list below the map. */
 export default function PointMap({
   points,
+  areas,
   center,
   label = "Places on the map",
   height = 340,
   fill = false,
   fixedCamera = false,
   interactive = true,
+  fitPadding,
+  nameMarkers = false,
   onLoad,
 }: {
   points: MapPoint[];
+  /** Named regions drawn under the markers, such as a closure or warning area. */
+  areas?: readonly MapArea[];
   center: { lat: number; lon: number; zoom: number } | null;
   label?: string;
   height?: number;
   fill?: boolean;
   fixedCamera?: boolean;
   interactive?: boolean;
+  /** Room kept clear around the fitted places, for panels that sit over the map. */
+  fitPadding?: { top: number; right: number; bottom: number; left: number };
+  /** Name each marker in its tag even on a full-height map, for a board that shows the tags on hover. */
+  nameMarkers?: boolean;
   onLoad?: (map: Map) => void;
 }) {
   const [style, setStyle] = useState<MapStyle>("streets");
@@ -76,6 +86,11 @@ export default function PointMap({
     if (pendingCamera.current) {
       map.jumpTo(pendingCamera.current);
       pendingCamera.current = null;
+    } else if (fitPadding && !fixedCamera && points.length > 1) {
+      const lons = points.map((p) => p.lon);
+      const lats = points.map((p) => p.lat);
+      map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+        { padding: fitPadding, maxZoom: 15, duration: 0 });
     }
     onLoad?.(map);
   }
@@ -122,10 +137,11 @@ export default function PointMap({
       ) : undefined}
       height={height}
       markerListLabel={label}
+      areas={areas}
       markers={points.map((p) => ({
         lngLat: [p.lon, p.lat],
         kind: interactive ? p.kind : "default",
-        label: fill ? undefined : p.name,
+        label: fill && !nameMarkers ? undefined : p.name,
         description: interactive ? p.note || undefined : undefined,
         popup: interactive && (p.note || fill) ? { title: p.name, description: p.note ?? "" } : undefined,
       }))}

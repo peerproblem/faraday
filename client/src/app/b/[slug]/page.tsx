@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { BLOCKADE_BOARD_ID } from "@/components/blockade/blockade-data";
+import { LiveBlockadeBoard } from "@/components/blockade/live-blockade-board";
 import { LiveBoard } from "@/components/board/live-board";
 import { boardSymbols, placedWidgets } from "@/components/finance/finance-data";
 import { LiveFinanceBoard } from "@/components/finance/live-finance-board";
 import { WorkspaceNavigation } from "@/components/site-header";
+import { wildfireBoards } from "@/components/wildfire/boards";
 import { Link } from "@/components/ui/link";
 import { Text } from "@/components/ui/typography";
 import { boardSlugFromHost, boardUrl, DOMAIN, SITE_URL } from "@/lib/config";
@@ -64,12 +67,20 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
       </div>
     );
   }
+  if (board.id === BLOCKADE_BOARD_ID && board.specVersion >= 2 && !board.presentation) {
+    return (
+      <div className="fd-workspace-shell">
+        <LiveBlockadeBoard initial={board} navigation={<WorkspaceNavigation />} />
+      </div>
+    );
+  }
   return (
     <div className="fd-workspace-shell">
       <LiveBoard
         initial={board}
         workspace
-        wildfireOverview={board.id === "1egbu07xcl61"}
+        wildfire={wildfireBoards[board.id]}
+        strikeOverview={board.id === "ff5w6w58p6cr"}
         workspaceNavigation={<WorkspaceNavigation />}
       />
     </div>

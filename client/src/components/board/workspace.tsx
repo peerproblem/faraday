@@ -28,9 +28,11 @@ type WorkspaceProps = {
   changes?: ReactNode;
   contextEvidence?: ReactNode;
   configuredCards?: WorkspaceCard[];
+  /** Fills the Details panel in place of the card stack, for a board with its own panel design. */
+  details?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, defaultEvidenceOpen, showSavedSources, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, defaultEvidenceOpen, showSavedSources, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards, details }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -46,11 +48,14 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main,
     measure: () => {
       const details = document.getElementById(`${id}-details`);
       const board = details?.parentElement;
-      if (!details || !board || !getComputedStyle(details).getPropertyValue("--fd-workspace-details-min-width")) return null;
+      const declared = details && getComputedStyle(details).getPropertyValue("--fd-workspace-details-min-width");
+      if (!details || !board || !declared) return null;
 
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
       const room = Math.min(board.clientWidth * (overlay ? 0.48 : main ? 0.42 : 0.54), 46 * rem);
-      const min = main ? 17 * rem : overlay ? Math.min(23 * rem, room) : 23 * rem;
+      // A board design may declare a narrower minimum than the default 23rem.
+      const floor = (/^[\d.]+rem$/.test(declared.trim()) ? parseFloat(declared) : 23) * rem;
+      const min = main ? 17 * rem : overlay ? Math.min(floor, room) : floor;
       const max = Math.max(min, room);
       return { size: details.getBoundingClientRect().width, bounds: { min, max } };
     },
@@ -112,7 +117,9 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main,
   const stackCards: ComponentProps<typeof BoardCardStack>["cards"] | undefined =
     configuredCards?.map((card) => ({ ...card, open: customOpen[card.id] ?? card.open }));
   if (stackCards && contextEvidence) stackCards.push(evidenceCard);
-  const cards = stackCards?.length === 0 ? null : (
+  const cards = details ? (
+    <div id={`${id}-detail-cards`} className="fd-workspace-details-body">{details}</div>
+  ) : stackCards?.length === 0 ? null : (
     <BoardCardStack
       key={stackCards?.map((card) => card.id).join(",")}
       id={`${id}-detail-cards`}

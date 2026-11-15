@@ -1,0 +1,135 @@
+/* The general strike board. Scoped to .fd-strike-workspace and the parts StrikeOverview renders. */
+
+/* The timeline carries full sentences and the details carry charts, so both sit a little wider than the default. */
+@container (width >= 64rem) {
+  .fd-strike-workspace .fd-workspace-sidebar {
+    width: clamp(12rem, var(--fd-workspace-sidebar-width, min(23%, 21rem)), min(26.25rem, 32%));
+  }
+  .fd-strike-workspace .fd-board-workspace[data-has-map] > .fd-workspace-details {
+    width: clamp(var(--fd-workspace-details-min-width), var(--fd-workspace-details-width, min(30%, 27rem)), min(54%, 46rem));
+  }
+}
+
+.fd-strike-figures {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--sw-space-3);
+  inset-inline-start: var(--sw-space-3);
+  inline-size: min(35rem, calc(100% - var(--sw-space-20)));
+  container-type: inline-size;
+  pointer-events: none;
+}
+.fd-strike-figures > ul {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sw-space-2);
+}
+@container (width < 27rem) {
+  .fd-strike-figures > ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.fd-strike-figure {
+  height: 100%;
+  padding: var(--sw-space-3);
+}
+.fd-strike-figure .sw-stat {
+  height: 100%;
+  justify-content: space-between;
+}
+
+.fd-strike-day {
+  display: grid;
+  gap: var(--sw-space-2);
+  margin: 0 0 var(--sw-space-4);
+  padding-block-end: var(--sw-space-4);
+  border-block-end: 1px solid var(--sw-hairline);
+}
+
+.fd-strike-overview {
+  display: grid;
+  gap: var(--sw-space-5);
+  min-width: 0;
+}
+/* One colour per side, wherever the two sides are compared. */
+.fd-strike-overview [data-side="for"] {
+  --fd-strike-side: var(--sw-chart-1);
+}
+.fd-strike-overview [data-side="against"] {
+  --fd-strike-side: var(--sw-chart-4);
+}
+.fd-strike-claim {
+  display: grid;
+  align-content: space-between;
+  gap: var(--sw-space-2);
+  min-width: 0;
+  padding: var(--sw-space-3);
+  border-radius: var(--sw-radius-lg, 12px);
+  background: color-mix(in oklab, var(--fd-strike-side) 10%, transparent);
+}
+.fd-strike-claim .sw-stat__value {
+  color: color-mix(in oklab, var(--fd-strike-side) 78%, var(--sw-foreground));
+}
+.fd-strike-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--fd-strike-side);
+}
+/* One colour per kind of count, on the map cards and in the sections: marches, transport, policing. */
+.fd-strike-workspace [data-kind="march"] {
+  --fd-strike-kind: var(--sw-chart-1);
+}
+.fd-strike-workspace [data-kind="transport"] {
+  --fd-strike-kind: var(--sw-chart-7);
+}
+.fd-strike-workspace [data-kind="policing"] {
+  --fd-strike-kind: var(--sw-danger);
+}
+.fd-strike-workspace [data-kind] .sw-stat__value {
+  color: color-mix(in oklab, var(--fd-strike-kind) 80%, var(--sw-foreground));
+}
+.fd-strike-transport .sw-bar-list {
+  padding: 0;
+}
+.fd-strike-transport .sw-bar-list__bar {
+  background: color-mix(in oklab, var(--sw-chart-7) 24%, transparent);
+}
+.fd-strike-rows {
+  display: grid;
+  min-width: 0;
+}
+.fd-strike-rows > li {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-block: var(--sw-space-2);
+}
+.fd-strike-rows > li + li {
+  border-block-start: 1px solid var(--sw-hairline);
+}
+.fd-strike-rows > li:first-child {
+  padding-block-start: 0;
+}
+.fd-strike-rows > li:last-child {
+  padding-block-end: 0;
+}
+.fd-strike-rows > .fd-strike-city {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sw-space-3);
+}
+
+/* The Data tab's summary reads at the size of the rest of the panel, one sentence per paragraph. */
+.fd-strike-workspace .fd-workspace-details .fd-workspace-widget > .sw-text[data-size="base"] {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.fd-strike-workspace .fd-workspace-details .fd-workspace-widget > .sw-text[data-size="base"] > span {
+  display: block;
+}
+.fd-strike-workspace .fd-workspace-details .fd-workspace-widget > .sw-text[data-size="base"] > span + span {
+  margin-block-start: var(--sw-space-3);
+}
