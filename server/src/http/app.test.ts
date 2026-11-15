@@ -38,7 +38,12 @@ const views = vi.hoisted(() => ({
 }));
 const users = vi.hoisted(() => ({ upsertUser: vi.fn(async () => "u-new"), getUser: vi.fn() }));
 const conn = vi.hoisted(() => ({ address: "203.0.113.9" }));
-const settings = vi.hoisted(() => ({ discoverEnabled: vi.fn(async () => false), setDiscoverEnabled: vi.fn(async () => {}) }));
+const settings = vi.hoisted(() => ({
+  discoverEnabled: vi.fn(async () => false),
+  setDiscoverEnabled: vi.fn(async () => {}),
+  distributeLive: vi.fn(async () => false),
+  setDistributeLive: vi.fn(async () => {}),
+}));
 const topicsRepo = vi.hoisted(() => ({ listAdminTopics: vi.fn(async () => []), setTopicState: vi.fn(async () => true) }));
 
 vi.mock("../repo/boards", () => boards);
@@ -511,12 +516,28 @@ describe("admin login, session and settings", () => {
     expect((await app.request("/api/admin/settings")).status).toBe(403);
     session.sessionUserId.mockResolvedValue(null);
     const cookie = cookieOf(await login(app, "tester", PASSWORD));
-    expect(await (await app.request("/api/admin/settings", withCookie(cookie))).json()).toEqual({ discoverEnabled: false });
+    const off = { discoverEnabled: false, distributeLive: false, distributeReady: false };
+    expect(await (await app.request("/api/admin/settings", withCookie(cookie))).json()).toEqual(off);
     settings.discoverEnabled.mockResolvedValueOnce(true);
     const on = await app.request("/api/admin/settings", withCookie(cookie, json({ discoverEnabled: true })));
-    expect(await on.json()).toEqual({ discoverEnabled: true });
+    expect(await on.json()).toEqual({ ...off, discoverEnabled: true });
     expect(settings.setDiscoverEnabled).toHaveBeenCalledWith(true);
+    expect(settings.setDistributeLive).not.toHaveBeenCalled();
     expect((await app.request("/api/admin/settings", withCookie(cookie, json({ discoverEnabled: "yes" })))).status).toBe(400);
+    expect((await app.request("/api/admin/settings", withCookie(cookie, json({})))).status).toBe(400);
+    app.dispose();
+  });
+
+  it("turns real posting to X and Discord on and off for admins only", async () => {
+    const app = createApp();
+    expect((await app.request("/api/admin/settings", json({ distributeLive: true }))).status).toBe(401);
+    expect(settings.setDistributeLive).not.toHaveBeenCalled();
+    const cookie = cookieOf(await login(app, "tester", PASSWORD));
+    settings.distributeLive.mockResolvedValueOnce(true);
+    const on = await app.request("/api/admin/settings", withCookie(cookie, json({ distributeLive: true })));
+    expect(await on.json()).toMatchObject({ distributeLive: true });
+    expect(settings.setDistributeLive).toHaveBeenCalledWith(true);
+    expect((await app.request("/api/admin/settings", withCookie(cookie, json({ distributeLive: "on" })))).status).toBe(400);
     app.dispose();
   });
 

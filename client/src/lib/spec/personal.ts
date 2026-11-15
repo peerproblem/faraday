@@ -102,3 +102,9 @@ export type TopicCandidateView = {
 
 /** GET /api/admin/requests: data people asked a topic to track. */
 export type TopicRequestView = { id: number; boardId: string; userId: string; text: string; status: "open" | "accepted" | "rejected"; createdAt: number };
+
+/**
+ * GET /api/admin/settings. distributeLive: posts really go out to X and Discord (off: they are only recorded).
+ * distributeReady: the engine runs its distribution loop and has an X or Discord account, so distributeLive takes effect.
+ */
+export type AdminSettings = { discoverEnabled: boolean; distributeLive: boolean; distributeReady: boolean };
