@@ -22,6 +22,7 @@ const boards = vi.hoisted(() => ({
   touchViewed: vi.fn(),
 }));
 const jobs = vi.hoisted(() => ({ enqueue: vi.fn(), hasPendingJob: vi.fn(), queueStats: vi.fn() }));
+const evidence = vi.hoisted(() => ({ contextEvidencePage: vi.fn() }));
 const runs = vi.hoisted(() => ({ latestRunView: vi.fn(), latestWorkerHeartbeat: vi.fn(), nodeStats: vi.fn() }));
 const monitors = vi.hoisted(() => ({ removeBoardMonitors: vi.fn(), runBoardMonitors: vi.fn() }));
 const session = vi.hoisted(() => ({ sessionUserId: vi.fn() }));
@@ -57,6 +58,7 @@ const layouts = vi.hoisted(() => ({
 vi.mock("../repo/boards", () => boards);
 vi.mock("../repo/board-layouts", () => layouts);
 vi.mock("../repo/jobs", () => jobs);
+vi.mock("../repo/context-evidence", () => evidence);
 vi.mock("../repo/runs", () => runs);
 vi.mock("../monitors", () => monitors);
 vi.mock("../session", () => session);
@@ -111,6 +113,21 @@ beforeEach(() => {
 });
 
 describe("board views", () => {
+  it("pages evidence for the requested board and validates the search group and cursor", async () => {
+    const app = createApp();
+    boards.getBoard.mockResolvedValueOnce(undefined);
+    expect((await app.request("/api/boards/missing/evidence")).status).toBe(404);
+    expect((await app.request("/api/boards/b1/evidence?group=other")).status).toBe(400);
+    expect((await app.request("/api/boards/b1/evidence?before=0")).status).toBe(400);
+    boards.getBoard.mockResolvedValueOnce(row());
+    evidence.contextEvidencePage.mockResolvedValueOnce({ items: [], nextBefore: null });
+    const page = await app.request("/api/boards/b1/evidence?group=monitor&before=40");
+    expect(page.headers.get("cache-control")).toBe("no-store");
+    expect(await page.json()).toEqual({ items: [], nextBefore: null });
+    expect(evidence.contextEvidencePage).toHaveBeenCalledWith("b1", "monitor", 40);
+    app.dispose();
+  });
+
   it("keeps the finance market desk and strips its template from the public response", async () => {
     const app = createApp();
     boards.getBoardView.mockResolvedValue(view({ spec: { version: 2, widgets: [], template: "finance" } }));

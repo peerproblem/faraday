@@ -89,3 +89,24 @@ export type StreamMsg =
   | { type: "event"; event: BoardEvent }
   /** Not stored. Shown while a build or edit runs. */
   | { type: "partial"; stage?: string; spec?: BoardSpecV2; header?: Partial<HeaderData>; widgets?: Record<string, WidgetData> };
+export type ContextEvidenceKind = "news" | "web" | "monitor";
+export type ContextEvidenceItem = {
+  id: number;
+  kind: ContextEvidenceKind;
+  url: string;
+  title: string;
+  publisher?: string | null;
+  publishedAt?: string | null;
+  detectedAt?: string | null;
+  summary?: string | null;
+  importance?: "low" | "medium" | "high" | null;
+  relatedUrls?: string[];
+  addedUrls?: string[];
+  removedUrls?: string[];
+  before?: string | null;
+  after?: string | null;
+  diff?: string;
+  snapshots?: { url: string | null; before: string; after: string }[];
+  collectedAt: number;
+};
+export type ContextEvidencePage = { items: ContextEvidenceItem[]; nextBefore: number | null };

@@ -11,7 +11,8 @@ import { m009 } from "./009_source_provenance";
 import { m010 } from "./010_quote_translation";
 import { m011 } from "./011_distribution";
 import { m012 } from "./012_board_layouts";
+import { m014 } from "./014_context_evidence";
 
 // F-DB owns this folder. Add 010, 011... here in order. Never change what an applied migration does; rewrites for
 // engine compatibility (MariaDB and MySQL) must leave the same schema and data.
-export const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012];
+export const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m014];
