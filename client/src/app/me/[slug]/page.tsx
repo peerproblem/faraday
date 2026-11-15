@@ -21,5 +21,5 @@ export default async function MyDashboardPage({ params }: PageProps<"/me/[slug]"
   const board = await getBoardBySlug(slug);
   if (!board) notFound();
   const view = await getMyView(board.id, (await headers()).get("cookie"));
-  return <PersonalBoard initial={board} initialView={view} workspace workspaceNavigation={<WorkspaceNavigation />} />;
+  return <PersonalBoard initial={board} initialView={view} workspaceNavigation={<WorkspaceNavigation />} />;
 }

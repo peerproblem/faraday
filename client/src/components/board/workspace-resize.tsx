@@ -41,12 +41,32 @@ function decode(raw: string | null): Sizes {
   return sizes;
 }
 
-export function useWorkspaceSizes(scope: string | undefined) {
+type PanelPreference = { open?: boolean; width?: number };
+type LegacyPanels = { sidebar?: PanelPreference; inspector?: PanelPreference };
+
+export function useLegacyWorkspacePanels(scope: string | undefined): LegacyPanels {
+  const boardId = scope?.startsWith("personal:") ? scope.slice("personal:".length) : null;
+  const key = boardId ? `sw-app-shell:faraday-map-focus-${boardId}` : null;
+  const raw = useSyncExternalStore(subscribe, () => read(key), () => null);
+  if (!raw) return {};
+  try {
+    const saved = JSON.parse(raw);
+    const panel = (value: PanelPreference | null | undefined): PanelPreference => ({
+      open: typeof value?.open === "boolean" ? value.open : undefined,
+      width: typeof value?.width === "number" && Number.isFinite(value.width) && value.width > 0 ? value.width : undefined,
+    });
+    return { sidebar: panel(saved?.sidebar), inspector: panel(saved?.inspector) };
+  } catch {
+    return {};
+  }
+}
+
+export function useWorkspaceSizes(scope: string | undefined, fallback: Sizes) {
   const key = scope ? `faraday:workspace-sizes:v1:${scope}` : null;
   const stored = useSyncExternalStore(subscribe, () => read(key), () => null);
   const [local, setLocal] = useState<Sizes>({});
   const [draft, setDraft] = useState<Sizes>({});
-  const sizes = { ...decode(stored), ...local };
+  const sizes = { ...fallback, ...decode(stored), ...local };
 
   function handle(sizeKey: SizeKey) {
     return {

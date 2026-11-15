@@ -42,7 +42,23 @@ describe("personal dashboard", () => {
     // A half-width widget spans 6 of the grid's 12 columns. Each tile has its own view-transition-name for the layout animation.
     const tile = frame.closest<HTMLElement>('[data-sw="dashboard-tile"]')!;
     expect(tile.style.gridColumn).toBe("span 6");
+    expect(screen.queryByRole("region", { name: "Board workspace" })).toBeNull();
+    expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
     expect(tile.style.viewTransitionName).toBe(`fd-w-${keyOf(b, first.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`);
+  });
+
+  test("preserves existing Map focus panel preferences without saving the personal layout", () => {
+    const b = board();
+    const key = `sw-app-shell:faraday-map-focus-${b.id}`;
+    const saved = JSON.stringify({ sidebar: { open: false, width: 280 }, inspector: { open: true, width: 510 } });
+    vi.stubGlobal("localStorage", { getItem: (name: string) => name === key ? saved : null, setItem: vi.fn() });
+    render(<PersonalBoard initial={b} initialView={{ layout: { ...emptyLayout(b.version), design: "map-focus" }, rev: 2 }} live={false} />);
+    const timeline = screen.getByRole("complementary", { name: "Incident timeline" });
+    const details = screen.getByRole("complementary", { name: "Board details" });
+    expect(within(timeline).getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
+    expect(timeline.style.getPropertyValue("--fd-workspace-timeline-width")).toBe("280px");
+    expect(details.style.getPropertyValue("--fd-workspace-details-width")).toBe("510px");
+    expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
   });
 
   test("saves a board design by revision and restores it on reload", async () => {

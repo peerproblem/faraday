@@ -9,7 +9,7 @@ import { useReorder } from "@/components/ui/reorder";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 
-import { cardBounds, timelineBounds, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
+import { cardBounds, timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
 
 type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
 type WorkspaceProps = {
@@ -27,11 +27,14 @@ type WorkspaceProps = {
 
 export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
   const id = useId();
-  const resize = useWorkspaceSizes(workspaceKey);
+  const legacy = useLegacyWorkspacePanels(workspaceKey);
+  const resize = useWorkspaceSizes(workspaceKey, { timeline: legacy.sidebar?.width, details: legacy.inspector?.width });
   const timelineSize = resize("timeline");
   const detailsSize = resize("details");
-  const [timelineOpen, setTimelineOpen] = useState(true);
-  const [detailsOpen, setDetailsOpen] = useState(true);
+  const [timelineOverride, setTimelineOpen] = useState<boolean>();
+  const [detailsOverride, setDetailsOpen] = useState<boolean>();
+  const timelineOpen = timelineOverride ?? legacy.sidebar?.open ?? true;
+  const detailsOpen = detailsOverride ?? legacy.inspector?.open ?? true;
   const [wide, setWide] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"timeline" | "details" | null>(null);
   const detailsWidth: CornerWidth | undefined = map ? {
@@ -135,7 +138,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
             <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
               aria-label={timelineOpen ? "Collapse timeline" : "Expand timeline"} aria-expanded={timelineOpen} aria-controls={`${id}-timeline-content`}
               leading={<Icon name={timelineOpen ? "chevron-left" : "chevron-right"} width={16} height={16} />}
-              onClick={() => setTimelineOpen((open) => !open)} />
+              onClick={() => setTimelineOpen(!timelineOpen)} />
             <Button className="fd-workspace-close" size="sm" variant="ghost" iconOnly aria-label="Close timeline"
               leading={<Icon name="close" width={16} height={16} />} onClick={() => setMobilePanel(null)} />
           </div>
@@ -164,7 +167,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
             <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
               aria-label={detailsOpen ? "Collapse details" : "Expand details"} aria-expanded={detailsOpen} aria-controls={`${id}-detail-cards`}
               leading={<Icon name={detailsOpen ? "chevron-right" : "chevron-left"} width={16} height={16} />}
-              onClick={() => setDetailsOpen((value) => !value)} />
+              onClick={() => setDetailsOpen(!detailsOpen)} />
           )}
           <Button className="fd-workspace-close" size="sm" variant="ghost" iconOnly aria-label="Close details"
             leading={<Icon name="close" width={16} height={16} />} onClick={() => setMobilePanel(null)} />

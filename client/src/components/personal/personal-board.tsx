@@ -80,14 +80,12 @@ export function PersonalBoard({
   initial,
   initialView,
   live = true,
-  workspace: preferWorkspace = false,
   workspaceNavigation,
 }: {
   initial: BoardView;
   initialView: PersonalViewState | null;
   /** False renders a saved board without the stream (dev fixtures). */
   live?: boolean;
-  workspace?: boolean;
   workspaceNavigation?: ReactNode;
 }) {
   const router = useRouter();
@@ -117,7 +115,7 @@ export function PersonalBoard({
 
   const available = visibleWidgets(spec, data, isBuilding(board.status));
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
-  const workspace = hasMap && (current.design ?? (preferWorkspace ? "map-focus" : "standard")) === "map-focus" && available.some((w) =>
+  const workspace = hasMap && current.design === "map-focus" && available.some((w) =>
     w.type === "map" && !current.hidden.includes(widgetKeyOf(w)),
   );
   const hiddenWidgets = (spec?.widgets ?? []).filter((w) => current.hidden.includes(widgetKeyOf(w)));
