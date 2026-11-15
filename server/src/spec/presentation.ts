@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { OverviewChart } from "./personal";
 import { widgetTypes } from "./widgets";
 
 const cardContentSchema = z.discriminatedUnion("kind", [
@@ -41,6 +42,7 @@ export type BoardPresentation = {
   cardsOnMap?: boolean;
   timelineOpen?: boolean;
   evidenceOpen?: boolean;
+  overviewChart?: OverviewChart;
   sidebar?: BoardLayout["sidebar"];
   cards?: BoardLayoutCard[];
 };

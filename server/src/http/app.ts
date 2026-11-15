@@ -50,7 +50,7 @@ import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
 import { discoverEnabled, distributeLive, setDiscoverEnabled, setDistributeLive } from "../repo/settings";
 import { listAdminTopics, setTopicState } from "../repo/topics";
 import { sessionUserId } from "../session";
-import { boardLayoutSchema, crisisTypes, emptyLayout, resolveBoardPresentation, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type MeView, type StreamMsg, type TableData, type ViewEditResult, type ViewSaveResult } from "../spec";
+import { boardLayoutSchema, crisisTypes, emptyLayout, resolveBoardPresentation, widgetKeyOf, type BoardEvent, type BoardPresentation, type BoardSpecV2, type BoardView, type MeView, type StreamMsg, type TableData, type ViewEditResult, type ViewSaveResult } from "../spec";
 import { getUser, isAdminEmail, upsertUser } from "../users";
 import { defaultLayoutModel, editLayout, type LayoutModel } from "../views/edit-layout";
 import { layoutInputSchema, sanitizeLayout } from "../views/sanitize";
@@ -80,6 +80,13 @@ export type AppOptions = {
 export const sseState = { connections: 0, touchedAt: new Map<string, number>() };
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+const finlandAirspacePresentation: BoardPresentation = {
+  workspace: true,
+  cardsOnMap: true,
+  timelineOpen: true,
+  evidenceOpen: true,
+  overviewChart: { type: "donut", widget: "table:temporary-restrictions" },
+};
 
 function publicSpec(spec: BoardSpecV2): BoardSpecV2 {
   return { version: spec.version, widgets: spec.widgets };
@@ -198,7 +205,8 @@ export function createApp(opts: AppOptions = {}) {
     const stored = await getBoardView(id);
     if (!stored) return null;
     const { assignment } = await getBoardLayout(id);
-    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance");
+    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance")
+      ?? (stored.slug === "11-nov-2026-finnish-airspace-nsu0j" ? finlandAirspacePresentation : undefined);
     // English only: non-English source titles and snippets never leave the server.
     const v: BoardView = { ...stored, presentation, sources: publicSources(stored.sources) };
     cache.set(id, v);

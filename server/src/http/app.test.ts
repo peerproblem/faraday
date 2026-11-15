@@ -113,6 +113,25 @@ beforeEach(() => {
 });
 
 describe("board views", () => {
+  it("restores Finland's map and overview chart defaults while honoring an admin layout", async () => {
+    const app = createApp();
+    boards.getBoardView.mockResolvedValue(view({ slug: "11-nov-2026-finnish-airspace-nsu0j" }));
+    const response = await app.request("/api/boards/b1");
+    expect((await response.json() as BoardView).presentation).toEqual({
+      workspace: true, cardsOnMap: true, timelineOpen: true, evidenceOpen: true,
+      overviewChart: { type: "donut", widget: "table:temporary-restrictions" },
+    });
+    layouts.getBoardLayout.mockResolvedValue({ rev: 1, assignment: { templateId: null, settings: {
+      layout: "map", timelineOpen: false, evidenceOpen: false,
+    } } });
+    publish("b1", { type: "status", status: "live", tier: "hot" });
+    const override = await app.request("/api/boards/b1");
+    expect((await override.json() as BoardView).presentation).toEqual({
+      workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: false,
+    });
+    app.dispose();
+  });
+
   it("pages evidence for the requested board and validates the search group and cursor", async () => {
     const app = createApp();
     boards.getBoard.mockResolvedValueOnce(undefined);

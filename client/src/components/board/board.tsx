@@ -62,6 +62,7 @@ export type BoardProps = {
   cardsOnMap?: boolean;
   defaultTimelineOpen?: boolean;
   defaultEvidenceOpen?: boolean;
+  sharedOverviewChart?: PersonalLayout["overviewChart"];
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
@@ -297,7 +298,7 @@ export function Board(props: BoardProps) {
     } : undefined;
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
-    const chart = props.layout?.overviewChart;
+    const chart = props.layout?.overviewChart ?? props.sharedOverviewChart;
     const chartEntry = chart?.type === "donut" ? sections.find((entry) => entry.key === chart.widget) : undefined;
     const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid" && !cardIncludes(entry)) : [];
     const figureItems = figureSections.flatMap((entry) => {
