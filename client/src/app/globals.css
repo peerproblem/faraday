@@ -399,10 +399,13 @@ body:has(.fd-workspace-shell) .fd-site-header {
   min-inline-size: 0;
   max-block-size: 100%;
   padding: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 .fd-workspace-map-cards .fd-workspace-detail-card {
+  /* Keep the squircle's outsetting SVG layers out of the stack's scroll bounds. */
+  overflow: clip;
   pointer-events: auto;
 }
 .fd-workspace-map-cards .fd-workspace-detail-card[data-open] {
@@ -528,6 +531,14 @@ body:has(.fd-workspace-shell) .fd-site-header {
   flex-shrink: 0;
   min-height: var(--sw-space-10);
   padding-inline: var(--sw-space-2) var(--sw-space-3);
+}
+.fd-workspace-card-trigger:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.fd-workspace-card-trigger:focus-visible .fd-workspace-card-label {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 .fd-workspace-resize {
   position: absolute;
