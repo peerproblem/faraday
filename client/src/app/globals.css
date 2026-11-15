@@ -241,6 +241,7 @@ body:has(.fd-map-focus) {
 }
 
 .fd-map-focus-stage {
+  position: relative;
   grid-area: main;
   min-width: 0;
   min-height: 0;
@@ -279,10 +280,18 @@ body:has(.fd-map-focus) {
 
 .fd-map-focus-pane {
   display: grid;
+  align-content: start;
   grid-template-columns: minmax(0, 1fr);
   padding: 12px;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.fd-map-focus-overview {
+  padding-block-start: var(--sw-space-2);
 }
 
 .fd-map-focus-pane[hidden] {
@@ -320,4 +329,111 @@ body:has(.fd-map-focus) {
   text-align: inherit;
   white-space: normal;
   overflow-wrap: normal;
+}
+
+.fd-map-focus-card-stack {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sw-space-2);
+  padding: var(--sw-space-2);
+  height: 100%;
+}
+.fd-map-focus-detail-card {
+  position: relative;
+  flex: none;
+  min-height: 0;
+  min-width: 0;
+}
+.fd-map-focus-detail-card[data-open] {
+  flex: 1 1 0;
+  min-height: min(144px, 24%);
+}
+.fd-map-focus-detail-card[data-open][data-reorder-id="situation"]:not([data-fixed-height]) {
+  flex-grow: 2.4;
+}
+.fd-map-focus-detail-card[data-open][data-fixed-height] {
+  flex: 0 1 var(--fd-workspace-card-height);
+}
+.fd-map-focus-card-tabs,
+.fd-map-focus-card-fold,
+.fd-map-focus-card-body,
+.fd-map-focus-card-body > div {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.fd-map-focus-card-body[hidden] {
+  display: none;
+}
+.fd-map-focus-card-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: var(--sw-space-10);
+  padding-inline: var(--sw-space-2) var(--sw-space-3);
+}
+.fd-workspace-resize {
+  position: absolute;
+  z-index: 2;
+  color: var(--sw-muted-foreground);
+  touch-action: none;
+}
+.fd-workspace-resize:hover,
+.fd-workspace-resize[data-dragging],
+.fd-workspace-resize:focus-visible {
+  color: var(--sw-foreground);
+}
+.fd-workspace-resize:focus-visible {
+  outline: 2px solid var(--sw-accent);
+  outline-offset: -2px;
+}
+.fd-workspace-resize--height {
+  display: grid;
+  place-items: center;
+  inset-inline-end: var(--sw-space-1);
+  inset-block-end: var(--sw-space-1);
+  width: var(--sw-space-6);
+  height: var(--sw-space-6);
+  cursor: ns-resize;
+}
+.fd-map-focus-detail-card[data-open][data-resize-edge="start"] .fd-map-focus-card-header {
+  padding-inline-end: var(--sw-space-10);
+}
+.fd-workspace-resize--height[data-edge="start"] {
+  inset-block-start: var(--sw-space-1);
+  inset-block-end: auto;
+}
+.fd-workspace-resize--height[data-edge="start"] > svg {
+  transform: scaleY(-1);
+}
+.fd-map-focus-figures {
+  --sw-sq-bg: var(--sw-background);
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--sw-space-3);
+  inset-inline-start: var(--sw-space-3);
+  width: min(19rem, calc(100% - var(--sw-space-20)));
+}
+.fd-map-focus-figures-body {
+  max-height: min(42dvh, 17rem);
+  padding: var(--sw-space-2) var(--sw-space-3) var(--sw-space-3);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.fd-map-focus-figures-body > [data-widget] + [data-widget] {
+  margin-block-start: var(--sw-space-3);
+}
+.fd-map-focus-breakdown {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sw-space-3);
+}
+.fd-map-focus-card-tabs {
+  gap: 0;
+  overflow: hidden;
 }

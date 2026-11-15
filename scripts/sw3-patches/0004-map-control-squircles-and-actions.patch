@@ -1,0 +1,84 @@
+--- a/packages/ui/src/map/map-view.tsx
++++ b/packages/ui/src/map/map-view.tsx
+@@ -116,6 +116,8 @@
+   interactive?: boolean
+   /** Overlay content (e.g. a Stat) pinned to the top-left. */
+   overlay?: ReactNode
++  /** Additional map buttons below the zoom controls in the top-right corner. */
++  controls?: ReactNode
+   /** Called with the MapLibre map once it has loaded, for advanced use. */
+   onLoad?(map: MlMap): void
+ }
+@@ -159,14 +161,14 @@
+  */
+ export function MapView({
+   routes, geojson, markers, markerListLabel = 'Map locations', areas, areaListLabel = 'Map areas', center, zoom = 13, fitToData = true, animateRoutes,
+-  height = 360, basemap = 'auto', interactive = true, overlay, onLoad, workerUrl,
++  height = 360, basemap = 'auto', interactive = true, overlay, controls, onLoad, workerUrl,
+   className, radius = 'lg', bordered = false, style, ...card
+ }: MapViewProps) {
+   const el = useRef<HTMLDivElement>(null)
+   const mapRef = useRef<MlMap | null>(null)
+   const popupRef = useRef<maplibregl.Popup | null>(null)
+   const zoomControl = useRef<HTMLElement | null>(null)
+-  const zoomShape = useSquircle<HTMLElement>({ concentric: true })
++  const zoomShape = useSquircle<HTMLElement>({ radius: 'sm' })
+   const measureZoomControl = zoomShape.ref
+   const [dark, setDark] = useState(false)
+   const listId = useId()
+@@ -405,6 +407,7 @@
+       <Card data-sw="map" padding="none" radius={radius} bordered={bordered} clipContent className={cx('sw-map', className)} style={{ ...style, height }} {...card}>
+         <div ref={el} className="sw-map__canvas" />
+         {overlay && <div className="sw-map__overlay">{overlay}</div>}
++        {controls && <div data-sw="map-controls" data-after-zoom={interactive ? '' : undefined} className="sw-map__controls">{controls}</div>}
+       </Card>
+       {officialBasemap && (
+         <p data-sw="map-attribution" className="sw-map-attribution">
+--- a/packages/ui/src/styles/map.css
++++ b/packages/ui/src/styles/map.css
+@@ -1,8 +1,26 @@
+ /* MapView — map chrome restyled with SW3 tokens. */
+-.sw-map { --sw-map-control-inset: var(--sw-space-3); position: relative; isolation: isolate; overflow: hidden; }
++.sw-map {
++  --sw-map-control-inset: var(--sw-space-3);
++  --sw-map-control-size: var(--sw-space-10);
++  --sw-map-control-bg: light-dark(var(--sw-background), var(--sw-muted));
++  position: relative;
++  isolation: isolate;
++  overflow: hidden;
++}
+ .sw-map__canvas { position: absolute !important; inset: 0; container-type: inline-size; }
+ .sw-map .maplibregl-canvas:focus-visible { outline: 2px solid var(--sw-accent); outline-offset: -3px; }
+ .sw-map__overlay { --sw-inset: var(--sw-map-control-inset); position: absolute; top: var(--sw-inset); left: var(--sw-inset); z-index: 2; pointer-events: auto; }
++.sw-map__controls {
++  --sw-button-secondary-bg: var(--sw-map-control-bg);
++  position: absolute;
++  top: var(--sw-map-control-inset);
++  right: var(--sw-map-control-inset);
++  z-index: 2;
++  display: grid;
++  gap: var(--sw-space-2);
++  justify-items: end;
++}
++.sw-map__controls[data-after-zoom] { top: calc(var(--sw-map-control-inset) + 2 * var(--sw-map-control-size) + var(--sw-space-2)); }
+ /* Control group: sm squircle radius + 1px frame, no shadow (same recipe as every other framed control). */
+ .sw-map .maplibregl-ctrl-group { border: 1px solid var(--sw-frame); border-radius: var(--sw-radius-sm); corner-shape: var(--sw-corner-shape); overflow: hidden; box-shadow: none; background: var(--sw-background); }
+ .sw-map .maplibregl-ctrl-group:not(:empty) { box-shadow: none; }
+@@ -11,13 +29,13 @@
+ .sw-map .maplibregl-ctrl-top-right [data-sw='map-zoom'] {
+   margin: var(--sw-inset) var(--sw-inset) 0 0;
+   border: 0;
+-  border-radius: max(0px, calc(var(--sw-sq-r) - var(--sw-inset)));
++  border-radius: var(--sw-radius-sm);
+   color: var(--sw-foreground);
+-  background: light-dark(var(--sw-background), var(--sw-muted));
++  background: var(--sw-map-control-bg);
+ }
+ .sw-map [data-sw='map-zoom'] button {
+-  width: var(--sw-space-10);
+-  height: var(--sw-space-10);
++  width: var(--sw-map-control-size);
++  height: var(--sw-map-control-size);
+   color: inherit;
+ }
+ .sw-map [data-sw='map-zoom'] button:not(:disabled):hover { background-color: var(--sw-item-hover); }

@@ -1,0 +1,16 @@
+{
+  "version": 8,
+  "name": "Sentinel-2 satellite imagery (2025)",
+  "sources": {
+    "sentinel-2": {
+      "type": "raster",
+      "tiles": ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg"],
+      "tileSize": 256,
+      "maxzoom": 14,
+      "attribution": "EOxCloudless <a href=\"https://cloudless.eox.at\">cloudless.eox.at</a> by <a href=\"https://eox.at\">EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2025)"
+    }
+  },
+  "layers": [
+    { "id": "sentinel-2", "type": "raster", "source": "sentinel-2" }
+  ]
+}

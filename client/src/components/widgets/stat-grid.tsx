@@ -24,12 +24,24 @@ export function pickMetrics<T extends { key: string }>(items: T[], metrics: stri
  */
 const statTone: Record<StatItem["tone"], "danger" | "warning" | "success" | "neutral"> = { critical: "danger", warning: "warning", ok: "success", info: "neutral" };
 
-export function StatGridWidget({ data, sources, tier, building, filter }: WidgetProps<"stat-grid">) {
+export function StatGridWidget({ data, sources, tier, building, filter, statOverlay }: WidgetProps<"stat-grid">) {
   const items = pickMetrics(
     (data?.items ?? []).filter((k) => k && typeof k.key === "string" && typeof k.valueText === "string"),
     filter?.metrics,
   );
   if (!items.length) return <Empty building={building} title="No figures yet" description="The sources have not given any figures." />;
+  if (statOverlay) {
+    return (
+      <ul className="grid grid-cols-2 gap-2">
+        {items.map((item) => (
+          <li key={item.key} className="min-w-0">
+            <Stat size="sm" label={item.label} value={item.unit ? `${item.valueText} ${item.unit}` : item.valueText}
+              tone={statTone[item.tone] ?? "neutral"} caption={item.tone === "warning" ? "Disruption" : undefined} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return (
     // Metric cells inside the tile, no cards of their own: the tile is the frame. At least 14rem wide, so the widest
     // board fits five across, which is as many as the design system allows in a row.

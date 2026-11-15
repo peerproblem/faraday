@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { BoardHeaderButton } from "@/components/board/header-button";
 import { Board, isBuilding, visibleWidgets } from "@/components/board/board";
 import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
 import {
@@ -232,7 +233,7 @@ export function PersonalBoard({
 
   const designControl = hasMap && (
     <Popover>
-      <PopoverTrigger variant="ghost" size="xs" radius={0} aria-label="Board design" title="Board design">Design</PopoverTrigger>
+      <PopoverTrigger render={<BoardHeaderButton icon="settings" aria-label="Board design" title="Board design" />} />
       <PopoverContent align="end">
         <div className="grid w-64 max-w-full gap-3">
           <PopoverTitle>Board design</PopoverTitle>

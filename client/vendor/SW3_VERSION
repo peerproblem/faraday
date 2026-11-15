@@ -2,4 +2,4 @@ repo: peerproblem/sw3.0-ui-sdk
 ref: c371d21
 commit: c371d219915985a6dc9bef466305e002885bff74
 version: 1.0.0
-patches: 0001-bridge-content-containers.patch 0002-table-sort-button-name-without-arrow.patch 0003-map-keeps-its-canvas-when-unframed.patch
+patches: 0001-bridge-content-containers.patch 0002-table-sort-button-name-without-arrow.patch 0003-map-keeps-its-canvas-when-unframed.patch 0004-map-control-squircles-and-actions.patch

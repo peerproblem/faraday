@@ -73,3 +73,8 @@ so the stand-ins (and `standins.css`) are gone:
 - No `.sw-*` selector in app CSS.
 - Mark any control that changes or deletes someone's board with `data-sw-confirm=""`.
 - Board data carries no style. The server still sends `header.accent`; the client ignores it.
+
+### Board hover surfaces
+
+Use an SW3 Button or Squircle to paint a filled hover state so its fill follows the component outline.
+The corner resize handle has an icon-only hover state and stays transparent throughout the pointer interaction.

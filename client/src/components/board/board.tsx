@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DashboardGrid } from "@/components/ui/dashboard";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu";
+import { Menu, MenuContent, MenuTrigger } from "@/components/ui/menu";
 import { Icon } from "@/components/ui/icon";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Meter } from "@/components/ui/meter";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
@@ -24,6 +26,8 @@ import { transitionName } from "@/lib/client/view-transition";
 import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, Source, Widget } from "@/lib/spec";
 import { outletsOf, wireItems } from "@/lib/source-brand";
 import { newest } from "@/lib/time";
+import { BoardHeaderButton } from "./header-button";
+import { StatusBreakdown } from "./status-breakdown";
 import { MapFocus } from "./map-focus";
 
 export type BoardProps = {
@@ -140,7 +144,7 @@ export function Board(props: BoardProps) {
     }
   }
 
-  function widgetContent(entry: LaidOutWidget, mapFocus = false) {
+  function widgetContent(entry: LaidOutWidget, mapFocus = false, statOverlay = false) {
     const Comp = widgetComponent(entry.widget.type)!;
     return (
       <Comp
@@ -154,6 +158,7 @@ export function Board(props: BoardProps) {
         tier={tier}
         building={building}
         mapFocus={mapFocus}
+        statOverlay={statOverlay}
       />
     );
   }
@@ -173,9 +178,10 @@ export function Board(props: BoardProps) {
       entry !== map && entry !== timeline && entry !== sourceList && entry !== changes &&
       !overview.includes(entry) && !official.includes(entry),
     );
-    const focusWidget = (entry: LaidOutWidget) => (
+    const figures = overview.filter(({ widget }) => widget.type === "stat-grid");
+    const focusWidget = (entry: LaidOutWidget, statOverlay = false) => (
       <WidgetBoundary resetKey={entry.data ?? data?.widgets[entry.widget.id]}>
-        {widgetContent(entry, true)}
+        {widgetContent(entry, true, statOverlay)}
       </WidgetBoundary>
     );
     return (
@@ -187,24 +193,41 @@ export function Board(props: BoardProps) {
           {header?.status && <Badge variant="outline">{situationLabel[header.status] ?? header.status}</Badge>}
         </div>}
         actions={<div className="flex shrink-0 items-center gap-1">
+          {onRefresh && status === "live" && tier !== "paused" && (
+            <Tooltip content="Check the web now">
+              <BoardHeaderButton icon="search" loading={refreshing} aria-label="Check for updates" onClick={() => void refresh()} />
+            </Tooltip>
+          )}
           {props.mapFocus.designControl}
           <Menu>
             <MenuTrigger asChild>
-              <Button size="xs" variant="ghost" radius={0} iconOnly aria-label="Board actions" leading={<Icon name="more" />} />
+              <BoardHeaderButton icon="more" aria-label="Board actions" />
             </MenuTrigger>
-            <MenuContent>
-              {onRefresh && status === "live" && tier !== "paused" && (
-                <MenuItem disabled={refreshing} onSelect={() => void refresh()}>Check for updates</MenuItem>
-              )}
-              {props.mapFocus.menu}
-            </MenuContent>
+            <MenuContent>{props.mapFocus.menu}</MenuContent>
           </Menu>
         </div>}
         map={focusWidget(map)}
+        mapFigures={figures.length ? figures.map((entry) => (
+          <section key={entry.key} className="grid gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">{entry.widget.title}</h2>
+              <Popover>
+                <PopoverTrigger variant="ghost" size="sm" iconOnly aria-label={`Details for ${entry.widget.title}`}
+                  leading={<Icon name="info" width={16} height={16} />} />
+                <PopoverContent align="start" padding="sm">
+                  <PopoverTitle>{entry.widget.title} · Sources and notes</PopoverTitle>
+                  <ScrollArea maxHeight={340} aria-label="Figure sources and notes">{focusWidget(entry)}</ScrollArea>
+                </PopoverContent>
+              </Popover>
+            </div>
+            {focusWidget(entry, true)}
+          </section>
+        )) : undefined}
         timeline={timeline ? focusWidget(timeline) : undefined}
         overview={<>
           {header?.headline?.text && <Text size="sm">{header.headline.text} <SourceChips ids={header.headline.sources} sources={byId} /></Text>}
-          {overview.map((entry) => (
+          <StatusBreakdown sections={sections} data={data} />
+          {overview.filter((entry) => entry.widget.type !== "stat-grid").map((entry) => (
             <section key={entry.key} aria-label={entry.widget.title} className="grid gap-2">
               <Heading as="h3" size="sm">{entry.widget.title}</Heading>
               {focusWidget(entry)}
