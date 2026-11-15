@@ -170,16 +170,15 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
             leading={<Icon name="close" width={16} height={16} />} onClick={() => setMobilePanel(null)} />
         </div>
         <div {...reorder.getContainerProps()} id={`${id}-detail-cards`} className="fd-workspace-card-stack">
-          {cardOrder.filter((key) => key !== "evidence" || hasEvidence).map((key, index) => {
+          {cardOrder.filter((key) => key !== "evidence" || hasEvidence).map((key) => {
             const name = key as keyof typeof cardLabels;
             const label = cardLabels[name];
             const cardId = `${id}-${name}`;
             const cardSize = resize(name);
-            const resizeEdge = index === 0 ? "end" : "start";
             return (
               <Card key={name} {...reorder.getItemProps(name)} id={cardId} role="region" aria-label={label}
                 radius="lg" padding="none" bordered className="fd-workspace-detail-card" data-open={open[name] ? "" : undefined}
-                data-fixed-height={cardSize.value ? "" : undefined} data-resize-edge={resizeEdge}
+                data-fixed-height={cardSize.value ? "" : undefined}
                 style={cardSize.value ? { "--fd-workspace-card-height": `${cardSize.value}px` } as CSSProperties : undefined}>
                 <Collapsible open={open[name]} onOpenChange={(value) => setOpen((current) => ({ ...current, [name]: value }))}
                   keepMounted={name === "situation"} className="fd-workspace-card-fold">
@@ -197,7 +196,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
                   </CollapsiblePanel>
                 </Collapsible>
                 {open[name] && <WorkspaceResizeHandle {...cardSize} target={cardId} label={`Resize ${label} card`}
-                  axis="height" edge={resizeEdge} getBounds={cardBounds} cornerWidth={detailsWidth} />}
+                  axis="height" getBounds={cardBounds} cornerWidth={detailsWidth} />}
               </Card>
             );
           })}

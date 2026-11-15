@@ -520,18 +520,8 @@ body:has(.fd-workspace-shell) .fd-site-header {
   height: var(--sw-space-6);
   cursor: ns-resize;
 }
-.fd-workspace-detail-card[data-resize-edge="end"] .fd-workspace-tab-body {
+.fd-workspace-detail-card[data-open] .fd-workspace-tab-body {
   padding-block-end: var(--sw-space-8);
-}
-.fd-workspace-detail-card[data-open][data-resize-edge="start"] .fd-workspace-card-header {
-  padding-inline-start: var(--sw-space-8);
-}
-.fd-workspace-resize--height[data-edge="start"] {
-  inset-block-start: var(--sw-space-1);
-  inset-block-end: auto;
-}
-.fd-workspace-resize--height[data-edge="start"] > svg {
-  transform: scaleY(-1);
 }
 .fd-workspace-resize--width {
   display: none;
@@ -661,9 +651,6 @@ body:has(.fd-workspace-shell) .fd-site-header {
   }
   .fd-workspace-resize--height[data-two-axis] {
     cursor: nesw-resize;
-  }
-  .fd-workspace-resize--height[data-two-axis][data-edge="start"] {
-    cursor: nwse-resize;
   }
   .fd-board-workspace[data-has-map] > .fd-workspace-details {
     flex: none;

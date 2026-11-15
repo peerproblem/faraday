@@ -113,7 +113,6 @@ type HandleProps = {
   target: string;
   label: string;
   axis: "height" | "width";
-  edge?: "start" | "end";
   value: number | undefined;
   getBounds: (target: HTMLElement) => SizeBounds;
   onResize: (size: number | null) => void;
@@ -124,7 +123,7 @@ function constrain(value: number, { min, max }: SizeBounds) {
   return Math.round(Math.min(max, Math.max(min, value)));
 }
 
-export function WorkspaceResizeHandle({ target, label, axis, edge = "end", value, getBounds, onResize, onCommit, cornerWidth }: HandleProps) {
+export function WorkspaceResizeHandle({ target, label, axis, value, getBounds, onResize, onCommit, cornerWidth }: HandleProps) {
   const drag = useRef<{
     id: number;
     start: number;
@@ -135,8 +134,7 @@ export function WorkspaceResizeHandle({ target, label, axis, edge = "end", value
   } | null>(null);
   const [dragging, setDragging] = useState(false);
   const vertical = axis === "height";
-  const reverse = vertical && edge === "start";
-  const position = (event: PointerEvent) => vertical ? (reverse ? -event.clientY : event.clientY) : event.clientX;
+  const position = (event: PointerEvent) => vertical ? event.clientY : event.clientX;
 
   function measure() {
     const element = document.getElementById(target);
@@ -174,7 +172,6 @@ export function WorkspaceResizeHandle({ target, label, axis, edge = "end", value
       aria-valuetext={value ? `${value} pixels` : "Automatic"}
       title={label}
       className={`fd-workspace-resize fd-workspace-resize--${axis}`}
-      data-edge={edge}
       data-two-axis={cornerWidth ? "" : undefined}
       data-dragging={dragging ? "" : undefined}
       onPointerDown={(event) => {
@@ -223,7 +220,7 @@ export function WorkspaceResizeHandle({ target, label, axis, edge = "end", value
         event.preventDefault();
         const { size, bounds } = measured;
         const next = event.key === "Home" ? bounds.min : event.key === "End" ? bounds.max
-          : size + (event.key === backwards ? -step : step) * (reverse ? -1 : 1);
+          : size + (event.key === backwards ? -step : step);
         onCommit(constrain(next, bounds));
       }}
     >
