@@ -135,6 +135,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main,
       resize={resize}
       detailsWidth={detailsWidth}
       flowing={flowingDetails}
+      contentSized={Boolean(stackCards) && !overlay && !flowingDetails}
       fadeScrollEdges={overlay && !!mapFooter}
     />
   );

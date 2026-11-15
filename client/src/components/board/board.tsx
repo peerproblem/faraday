@@ -243,7 +243,7 @@ export function Board(props: BoardProps) {
         fillMap={fillMap}
         wrapSourceTitles={!!props.wildfire}
         collapseSourceGroups={!!props.wildfire || cyber || props.houthiBriefing || transport}
-        compactTrendAxis={(!!props.wildfire || transport) && compact}
+        compactTrendAxis={compact && Boolean(props.wildfire || transport || props.configuredCards)}
         cyberPresentation={cyber}
         outagePresentation={outage}
         transportPresentation={transport}
@@ -379,7 +379,7 @@ export function Board(props: BoardProps) {
         : renderWorkspaceWidget(entry)];
     });
     return (
-      <div className="fd-configured-card-content">
+      <div className="fd-configured-card-content" data-multi-section={sections.length > 1 ? "" : undefined}>
         {sections.map((section, index) => <div key={index} className="min-w-0">{section}</div>)}
         {!sections.length && <Text size="sm" tone="muted">No content available yet.</Text>}
       </div>
@@ -419,7 +419,8 @@ export function Board(props: BoardProps) {
       changes: changelog ? renderWorkspaceWidget(changelog, true) : undefined,
       contextEvidence: props.boardId ? <ContextEvidence boardId={props.boardId} checkedAt={lastPolledAt} /> : undefined,
     };
-    if (props.stormBriefing && props.snapshotAt !== undefined) {
+    // A configured map card takes precedence over the alternate briefing in saved presentations.
+    if (props.stormBriefing && props.snapshotAt !== undefined && !props.mapCard) {
       const getData = <T,>(key: string) => {
         const entry = widgets.find((widget) => widget.key === key);
         return entry ? data?.widgets[entry.widget.id] as T | undefined : undefined;
