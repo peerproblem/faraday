@@ -21,6 +21,26 @@ const board = (name: string, patch: Partial<BoardView> = {}) => ({ ...getFixture
 const section = (title: string) => screen.getByRole("region", { name: title });
 
 describe("board v2", () => {
+  test("the left sidebar can show any card content while keeping the default right cards", async () => {
+    const user = userEvent.setup();
+    const b = board("strike", {
+      presentation: {
+        workspace: true, cardsOnMap: true,
+        sidebar: {
+          title: "Access", open: true,
+          contents: [{ kind: "widget", type: "table", key: "table:city-protests" }],
+        },
+      },
+    });
+    render(<LiveBoard initial={b} workspace live={false} />);
+    const sidebar = screen.getByRole("complementary", { name: "Access" });
+    expect(within(sidebar).getByRole("table")).toBeTruthy();
+    expect(screen.queryByRole("complementary", { name: "Incident timeline" })).toBeNull();
+    expect(section("Situation")).toBeTruthy();
+    await user.click(within(sidebar).getByRole("button", { name: "Collapse Access" }));
+    expect(within(sidebar).getByRole("button", { name: "Expand Access" }).getAttribute("aria-expanded")).toBe("false");
+  });
+
   test("one map card can combine live widgets and use a different chart without changing an unassigned security board", () => {
     const mapBoard = board("strike", {
       presentation: {

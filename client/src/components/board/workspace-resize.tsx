@@ -107,8 +107,8 @@ export function useWorkspaceSizes(scope: string | undefined, fallback: Sizes) {
   return handle;
 }
 
-/** The timeline follows the board width so a saved value can be restored on a smaller screen. */
-export function timelineBounds(target: HTMLElement): SizeBounds {
+/** The sidebar follows the board width so a saved value can be restored on a smaller screen. */
+export function sidebarBounds(target: HTMLElement): SizeBounds {
   const board = target.parentElement;
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
   const peers = board?.querySelector<HTMLElement>(".fd-workspace-details")?.offsetWidth ?? 0;

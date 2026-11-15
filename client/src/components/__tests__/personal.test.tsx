@@ -55,8 +55,8 @@ describe("personal dashboard", () => {
     render(<PersonalBoard initial={b} initialView={{ layout: { ...emptyLayout(b.version), design: "map-focus" }, rev: 2 }} live={false} />);
     const timeline = screen.getByRole("complementary", { name: "Incident timeline" });
     const map = screen.getByRole("region", { name: "Situation map" });
-    expect(within(timeline).getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
-    expect(timeline.style.getPropertyValue("--fd-workspace-timeline-width")).toBe("280px");
+    expect(within(timeline).getByRole("button", { name: "Expand Timeline" }).getAttribute("aria-expanded")).toBe("false");
+    expect(timeline.style.getPropertyValue("--fd-workspace-sidebar-width")).toBe("280px");
     expect(map.style.getPropertyValue("--fd-workspace-details-width")).toBe("510px");
     expect(within(map).getByRole("region", { name: "Situation" })).toBeTruthy();
     expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
@@ -68,9 +68,9 @@ describe("personal dashboard", () => {
     render(<PersonalBoard initial={{ ...b, presentation: { workspace: true, cardsOnMap: true } }}
       initialView={{ layout: { ...emptyLayout(b.version), design: "standard" }, rev: 3 }} live={false} />);
     expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Collapse timeline" }).getAttribute("aria-expanded")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "Collapse timeline" }));
-    expect(screen.getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "Collapse Timeline" }).getAttribute("aria-expanded")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Collapse Timeline" }));
+    expect(screen.getByRole("button", { name: "Expand Timeline" }).getAttribute("aria-expanded")).toBe("false");
     const figures = within(screen.getByRole("list", { name: "Map figures" }));
     expect(figures.getByText("111 trains")).toBeTruthy();
     expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
@@ -94,7 +94,7 @@ describe("personal dashboard", () => {
     const b = board();
     const presentation = { workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: true };
     render(<PersonalBoard initial={{ ...b, presentation }} initialView={null} live={false} />);
-    expect(screen.getByRole("button", { name: "Expand timeline" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Expand Timeline" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Evidence" }).getAttribute("aria-expanded")).toBe("true");
     await user.click(screen.getByRole("button", { name: "Board settings" }));
     expect(screen.queryByRole("combobox", { name: "Dashboard preset" })).toBeNull();

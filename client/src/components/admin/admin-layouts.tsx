@@ -37,12 +37,8 @@ function LayoutFields({ settings, onChange, canUseMap = true, widgets }: {
           </SelectContent>
         </Select>
       </Field>
-      {settings.layout === "map" && <>
-        <Switch size="sm" label="Open timeline by default" checked={settings.timelineOpen}
-          onCheckedChange={(timelineOpen) => onChange({ ...settings, timelineOpen })} />
-        {settings.cards === undefined && <Switch size="sm" label="Open Evidence by default" checked={settings.evidenceOpen}
-          onCheckedChange={(evidenceOpen) => onChange({ ...settings, evidenceOpen })} />}
-      </>}
+      {settings.layout === "map" && settings.cards === undefined && <Switch size="sm" label="Open Evidence by default" checked={settings.evidenceOpen}
+        onCheckedChange={(evidenceOpen) => onChange({ ...settings, evidenceOpen })} />}
       <CardCompositionFields settings={settings} onChange={onChange} widgets={widgets} />
     </>
   );

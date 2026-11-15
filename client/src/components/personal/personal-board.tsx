@@ -441,6 +441,7 @@ export function PersonalBoard({
         cardsOnMap={workspace && (board.presentation?.cardsOnMap ?? true)}
         defaultTimelineOpen={board.presentation?.timelineOpen}
         defaultEvidenceOpen={board.presentation?.evidenceOpen}
+        sidebarSettings={board.presentation?.sidebar}
         configuredCards={board.presentation?.cards}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}

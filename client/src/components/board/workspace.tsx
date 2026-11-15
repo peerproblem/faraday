@@ -7,18 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 
 import { BoardCardStack, type WorkspaceCard } from "./card-stack";
-import { timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
+import { useLegacyWorkspacePanels, useWorkspaceSizes, type CornerWidth } from "./workspace-resize";
+import { WorkspaceSidebar, type WorkspaceSidebarContent } from "./workspace-sidebar";
 
 type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
 type WorkspaceProps = {
   workspaceKey?: string;
   cardsOnMap?: boolean;
   flowingDetails?: boolean;
-  defaultTimelineOpen?: boolean;
   defaultEvidenceOpen?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
-  timeline?: ReactNode;
+  sidebar?: WorkspaceSidebarContent;
   overview: ReactNode;
   sections: Panel[];
   sources?: ReactNode;
@@ -28,19 +28,18 @@ type WorkspaceProps = {
   configuredCards?: WorkspaceCard[];
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultTimelineOpen, defaultEvidenceOpen, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor, configuredCards }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, editor, configuredCards }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
   const resize = useWorkspaceSizes(workspaceKey, { timeline: legacy.sidebar?.width, details: legacy.inspector?.width });
-  const timelineSize = resize("timeline");
+  // Keep the saved width under its original browser storage key.
+  const sidebarSize = resize("timeline");
   const detailsSize = resize("details");
-  const [timelineOverride, setTimelineOpen] = useState<boolean>();
   const [detailsOverride, setDetailsOpen] = useState<boolean>();
-  const timelineOpen = timelineOverride ?? defaultTimelineOpen ?? legacy.sidebar?.open ?? true;
   const detailsOpen = detailsOverride ?? legacy.inspector?.open ?? true;
   const [wide, setWide] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState<"timeline" | "details" | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<"sidebar" | "details" | null>(null);
   const detailsWidth: CornerWidth | undefined = map ? {
     measure: () => {
       const details = document.getElementById(`${id}-details`);
@@ -139,37 +138,17 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   const detailsStyle = detailsSize.value
     ? { "--fd-workspace-details-width": `${detailsSize.value}px` } as CSSProperties
     : undefined;
+  const visibleMobilePanel = (overlay && mobilePanel === "details") || (!sidebar && mobilePanel === "sidebar") ? null : mobilePanel;
 
   return (
     <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined}
-      data-mobile-panel={overlay && mobilePanel === "details" ? undefined : mobilePanel ?? undefined} onKeyDown={(event) => {
+      data-mobile-panel={visibleMobilePanel ?? undefined} onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented) setMobilePanel(null);
       }}>
-      {timeline && (
-        <div className="fd-workspace-mobile-tools">
-          <Button variant="secondary" size="sm" aria-controls={`${id}-timeline`} aria-expanded={mobilePanel === "timeline"} onClick={() => setMobilePanel("timeline")}>Timeline</Button>
-        </div>
-      )}
-
-      {timeline && (
-        <aside id={`${id}-timeline`} className="fd-workspace-timeline" aria-label="Incident timeline" data-open={timelineOpen ? "" : undefined}
-          style={timelineSize.value ? { "--fd-workspace-timeline-width": `${timelineSize.value}px` } as CSSProperties : undefined}>
-          <div className="fd-workspace-panel-header">
-            <h2 className="text-sm font-semibold">Timeline</h2>
-            <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
-              aria-label={timelineOpen ? "Collapse timeline" : "Expand timeline"} aria-expanded={timelineOpen} aria-controls={`${id}-timeline-content`}
-              leading={<Icon name={timelineOpen ? "chevron-left" : "chevron-right"} width={16} height={16} />}
-              onClick={() => setTimelineOpen(!timelineOpen)} />
-            <Button className="fd-workspace-close" size="sm" variant="ghost" iconOnly aria-label="Close timeline"
-              leading={<Icon name="close" width={16} height={16} />} onClick={() => setMobilePanel(null)} />
-          </div>
-          <div id={`${id}-timeline-content`} className="fd-workspace-timeline-content">
-            {timeline}
-          </div>
-          {timelineOpen && <WorkspaceResizeHandle {...timelineSize} target={`${id}-timeline`} label="Resize timeline width"
-            axis="width" getBounds={timelineBounds} />}
-        </aside>
-      )}
+      {sidebar && <WorkspaceSidebar id={`${id}-sidebar`} size={sidebarSize}
+        sidebar={{ ...sidebar, defaultOpen: sidebar.defaultOpen ?? legacy.sidebar?.open }}
+        mobileOpen={visibleMobilePanel === "sidebar"}
+        onMobileOpenChange={(open) => setMobilePanel(open ? "sidebar" : null)} />}
 
       {map && <div className="fd-workspace-map" aria-label="Situation map" role="region"
         data-cards-on-map={overlay && cards ? "" : undefined} style={overlay ? detailsStyle : undefined}>

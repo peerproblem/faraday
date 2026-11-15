@@ -133,11 +133,12 @@ describe("board views", () => {
     expect(body).not.toContain("internal-id");
     expect(JSON.parse(body).presentation).toEqual({ workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: true });
     const cards = [{ id: "access", title: "Access", placement: "right", open: true, contents: [{ kind: "summary" }] }];
-    layouts.getBoardLayout.mockResolvedValue({ rev: 2, assignment: { templateId: "internal-id", settings: { ...settings, cards } } });
+    const sidebar = { title: "Sources", open: false, contents: [{ kind: "widget", type: "sources" }] };
+    layouts.getBoardLayout.mockResolvedValue({ rev: 2, assignment: { templateId: "internal-id", settings: { ...settings, cards, sidebar } } });
     publish("b1", { type: "status", status: "live", tier: "hot" });
     const composed = await app.request("/api/boards/b1", { headers: { "If-None-Match": next.headers.get("etag")! } });
     expect(composed.status).toBe(200);
-    expect((await composed.json() as BoardView).presentation?.cards).toEqual(cards);
+    expect((await composed.json() as BoardView).presentation).toMatchObject({ cards, sidebar });
     app.dispose();
   });
 

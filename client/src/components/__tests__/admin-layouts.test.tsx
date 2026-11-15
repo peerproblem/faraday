@@ -22,7 +22,9 @@ test("saves a template and applies a customized copy to the selected board", asy
   vi.mocked(getLayoutLibrary).mockResolvedValue({
     templates: [], boards: [{ id: "b1", title: "Map board", slug: "sample-map" }],
   });
-  vi.mocked(getAdminBoardLayout).mockResolvedValue({ assignment: null, canUseMap: true, widgets: [], rev: 0 });
+  vi.mocked(getAdminBoardLayout).mockResolvedValue({
+    assignment: null, canUseMap: true, widgets: [{ key: "sources", type: "sources", title: "Reporting" }], rev: 0,
+  });
   vi.mocked(saveLayoutTemplate).mockResolvedValue(template);
   vi.mocked(saveAdminBoardLayout).mockImplementation(async (_id, { rev, ...assignment }) => ({ assignment, rev: rev + 1 }));
 
@@ -35,10 +37,18 @@ test("saves a template and applies a customized copy to the selected board", asy
   await user.click(await screen.findByRole("combobox", { name: "Start from a template" }));
   await user.click(await screen.findByRole("option", { name: template.name }));
   const saveBoard = screen.getByRole("button", { name: "Save for this board" });
-  await user.click(within(saveBoard.closest("form")!).getByRole("switch", { name: "Open Evidence by default" }));
+  const editor = within(saveBoard.closest("form")!);
+  await user.click(editor.getByRole("switch", { name: "Open Evidence by default" }));
+  await user.click(editor.getByRole("combobox", { name: "Left sidebar" }));
+  await user.click(await screen.findByRole("option", { name: "Custom contents" }));
+  await user.click(editor.getByRole("combobox", { name: "Content 1" }));
+  await user.click(await screen.findByRole("option", { name: "Reporting" }));
   await user.click(saveBoard);
   await waitFor(() => expect(saveAdminBoardLayout).toHaveBeenCalledExactlyOnceWith("b1", {
-    templateId: template.id, settings: { ...settings, evidenceOpen: true }, rev: 0,
+    templateId: template.id, settings: {
+      ...settings, evidenceOpen: true,
+      sidebar: { title: "Details", open: true, contents: [{ kind: "widget", type: "sources", key: "sources" }] },
+    }, rev: 0,
   }));
   expect(saveLayoutTemplate).toHaveBeenCalledTimes(1);
 });
