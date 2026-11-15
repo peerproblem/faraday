@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { TrendChart } from "@/components/ui/charts";
 import { Stat } from "@/components/ui/stat";
 import { Text } from "@/components/ui/typography";
-import type { StatGridData, StatItem } from "@/lib/spec";
+import type { MapFigure } from "@/components/board/map-figures";
+import type { Source, StatGridData, StatItem } from "@/lib/spec";
+import { when } from "@/lib/time";
 import { AsOf } from "./as-of";
 import { cleanPoints, trendSummary } from "./chart";
 import { SourceChips } from "./source-chips";
@@ -33,19 +35,29 @@ export function getStatItems(data: StatGridData | undefined, metrics: string[] |
   );
 }
 
-export function MapFigureCards({ items, bordered = false }: { items: StatItem[]; bordered?: boolean }) {
+export function MapFigureCards({ items, sources, bordered = false }: {
+  items: MapFigure[];
+  sources: Map<string, Source>;
+  bordered?: boolean;
+}) {
   return (
     <ul className="fd-workspace-map-figures" aria-label="Map figures">
       {items.map((item) => {
         const tone = statTone[item.tone];
         return (
-          <li key={`${item.key}:${item.label}`}>
+          <li key={`${item.key}:${item.label}`} className={item.update ? "fd-map-figure-with-update" : undefined}>
             <Card bordered={bordered} padding="none" radius="md" className="fd-map-figure" style={{ padding: "var(--sw-space-3)" }}>
               <Text as="span" size="sm" tone="muted">{item.label}</Text>
               <Text as="span" size="lg" className="font-semibold tabular-nums"
                 style={tone && tone !== "neutral" ? { color: `var(--sw-${tone})` } : undefined}>
                 {item.valueText}{item.unit && ` ${item.unit}`}
               </Text>
+              {item.update && (
+                <div className="flex flex-wrap items-center gap-1">
+                  <Text as="span" size="sm" tone="muted"><time dateTime={item.update.at}>{when(item.update.at)}</time></Text>
+                  <span className="fd-map-figure-source"><SourceChips ids={item.update.sourceIds} sources={sources} collapseAt={2} /></span>
+                </div>
+              )}
             </Card>
           </li>
         );

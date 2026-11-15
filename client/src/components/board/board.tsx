@@ -23,10 +23,10 @@ import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
-import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, Widget } from "@/lib/spec";
+import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
 import { BoardHeaderButton } from "./header-button";
-import { selectMapFigures } from "./map-figures";
+import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
 
@@ -253,13 +253,23 @@ export function Board(props: BoardProps) {
   if (props.workspace) {
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
+    const chart = props.layout?.overviewChart;
+    const chartEntry = chart?.type === "donut" ? sections.find((entry) => entry.key === chart.widget) : undefined;
     const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid") : [];
     const figureItems = figureSections.flatMap((entry) => {
       const figures = (entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined;
       const metrics = entry.filter?.kind === "stat-grid" ? entry.filter.metrics : undefined;
       return getStatItems(figures, metrics);
     });
-    const mapFigures = selectMapFigures(figureItems, summaryText ?? undefined);
+    const hasDatedFigures = figureItems.some((item) => item.asOf || item.history?.length);
+    const restrictionFigure = figureSections.length > 0 && !hasDatedFigures && latestRestrictionFigure(
+      sections.flatMap((entry) => {
+        const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+        return entry.widget.type === "table" && table?.columns?.length && table.rows?.length ? [table] : [];
+      }),
+      byId,
+    );
+    const mapFigures = restrictionFigure ? [restrictionFigure] : selectMapFigures(figureItems, summaryText ?? undefined);
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
     const mapTools = map && props.tools?.(map);
     const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
@@ -275,7 +285,7 @@ export function Board(props: BoardProps) {
               <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
               {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
             </> : undefined}
-            mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} /> : undefined}
+            mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             timeline={timeline ? renderWorkspaceWidget(timeline, true) : undefined}
             overview={<>
               {evacuation && (
@@ -298,7 +308,7 @@ export function Board(props: BoardProps) {
                 </section>
               )}
               {summary}
-              <StatusBreakdown sections={sections} data={data} />
+              {chartEntry && <StatusBreakdown entry={chartEntry} data={data} />}
               {overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
               {props.wildfireOverview && releases.length > 0 && (
                 <details className="border-t border-hairline pt-3">

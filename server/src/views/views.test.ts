@@ -50,6 +50,13 @@ describe("sanitizeLayout", () => {
     expect(sanitizeLayout({ hidden: ["map"], pinned: ["map", "narrative"] }, spec, plan).pinned).toEqual(["narrative"]);
   });
 
+  it("persists an overview chart only when it references a table on this board", () => {
+    const overviewChart = { type: "donut", widget: "table:shelters" };
+    expect(sanitizeLayout({ overviewChart }, spec, plan).overviewChart).toEqual(overviewChart);
+    expect(sanitizeLayout({ overviewChart: { ...overviewChart, widget: "map" } }, spec, plan).overviewChart).toBeUndefined();
+    expect(sanitizeLayout({ overviewChart }, null, null).overviewChart).toBeUndefined();
+  });
+
   it("caps list lengths", () => {
     const many = Array.from({ length: 100 }, (_, i) => `trend:m${i}`);
     const big: BoardSpecV2 = { version: 2, widgets: many.map((k, i) => w(`w${i}`, "trend", k.slice(6), [], k)) };

@@ -2,7 +2,7 @@
 
 import { ChartCard, DonutChart } from "@/components/ui/charts";
 import { Text } from "@/components/ui/typography";
-import type { BoardData, TableData, WidgetFilter } from "@/lib/spec";
+import type { BoardData, TableData } from "@/lib/spec";
 import type { LaidOutWidget } from "@/lib/client/apply-layout";
 import { matchRows, statusTone } from "@/components/widgets/table";
 
@@ -22,38 +22,35 @@ function tableBreakdown(table: TableData, query: string | null | undefined) {
   return { total: rows.length, slices: [...buckets.values()].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label)) };
 }
 
-export function StatusBreakdown({ sections, data }: { sections: LaidOutWidget[]; data: BoardData | null }) {
-  for (const entry of sections) {
-    if (entry.widget.type !== "table") continue;
-    const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
-    if (!table?.columns?.length || !table.rows?.length) continue;
-    const filter = entry.filter as Extract<WidgetFilter, { kind: "table" }> | undefined;
-    const breakdown = tableBreakdown(table, filter?.query);
-    if (!breakdown) continue;
-    const title = `${entry.widget.title} by status`;
-    const tones = breakdown.slices.map((slice) => statusTone(slice.label));
-    const distinctTones = new Set(tones).size === tones.length;
-    const slices = breakdown.slices.map((slice, index) => ({
-      ...slice,
-      color: distinctTones && tones[index] !== "neutral" ? `var(--sw-${tones[index]})` : `var(--sw-chart-${index + 1})`,
-    }));
-    return (
-      <ChartCard title={title} variant="ghost" padding="none" bordered={false} className="min-w-0">
-        <div className="fd-workspace-breakdown">
-          <DonutChart data={slices} height={132} arcWidth={16} centralLabel={breakdown.total.toLocaleString()}
-            centralSubLabel="records" aria-label={`${title}. ${slices.map((slice) => `${slice.label}: ${slice.value}`).join(", ")}.`} />
-          <ul className="grid min-w-0 gap-2">
-            {slices.map((slice) => (
-              <li key={slice.label} className="flex min-w-0 items-start gap-2">
-                <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: slice.color }} />
-                <Text as="span" size="sm" className="min-w-0 flex-1 break-words">{slice.label}</Text>
-                <Text as="span" size="sm" className="tabular-nums">{slice.value.toLocaleString()}</Text>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </ChartCard>
-    );
-  }
-  return null;
+export function StatusBreakdown({ entry, data }: { entry: LaidOutWidget; data: BoardData | null }) {
+  if (entry.widget.type !== "table") return null;
+  const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+  if (!table?.columns?.length || !table.rows?.length) return null;
+  const breakdown = tableBreakdown(table, entry.filter?.kind === "table" ? entry.filter.query : undefined);
+  if (!breakdown) return null;
+
+  const title = `${entry.widget.title} by status`;
+  const tones = breakdown.slices.map((slice) => statusTone(slice.label));
+  const distinctTones = new Set(tones).size === tones.length;
+  const slices = breakdown.slices.map((slice, index) => ({
+    ...slice,
+    color: distinctTones && tones[index] !== "neutral" ? `var(--sw-${tones[index]})` : `var(--sw-chart-${index + 1})`,
+  }));
+  return (
+    <ChartCard title={title} variant="ghost" padding="none" bordered={false} className="min-w-0">
+      <div className="fd-workspace-breakdown">
+        <DonutChart data={slices} height={132} arcWidth={16} centralLabel={breakdown.total.toLocaleString()}
+          centralSubLabel="records" aria-label={`${title}. ${slices.map((slice) => `${slice.label}: ${slice.value}`).join(", ")}.`} />
+        <ul className="grid min-w-0 gap-2">
+          {slices.map((slice) => (
+            <li key={slice.label} className="flex min-w-0 items-start gap-2">
+              <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: slice.color }} />
+              <Text as="span" size="sm" className="min-w-0 flex-1 break-words">{slice.label}</Text>
+              <Text as="span" size="sm" className="tabular-nums">{slice.value.toLocaleString()}</Text>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </ChartCard>
+  );
 }

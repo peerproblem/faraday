@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Listbox } from "@/components/ui/listbox";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EmptyState } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -34,14 +35,9 @@ import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/cl
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import { emptyLayout, widgetKeyOf, type BoardDesign, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type WidgetFilter } from "@/lib/spec";
+import { emptyLayout, widgetKeyOf, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type TableData, type WidgetFilter } from "@/lib/spec";
 
-const designOptions: { value: BoardDesign; label: string; description: string }[] = [
-  { value: "standard", label: "Standard", description: "Widgets in a grid" },
-  { value: "map-focus", label: "Map focus", description: "Map beside a details panel" },
-  { value: "map-overlay", label: "Cards on map", description: "Situation and Evidence over the map" },
-];
-const mapOverlayCategories = new Set<CrisisType>(["flood", "wildfire", "earthquake", "storm", "heatwave", "conflict"]);
+const monitorCategories = new Set<CrisisType>(["flood", "wildfire", "earthquake", "storm", "heatwave", "conflict"]);
 
 const MIN_INSTRUCTION = 3;
 const MAX_INSTRUCTION = 500;
@@ -84,17 +80,19 @@ export function PersonalBoard({
   initial,
   initialView,
   live = true,
+  localPreview = false,
   workspaceNavigation,
 }: {
   initial: BoardView;
   initialView: PersonalViewState | null;
   /** False renders a saved board without the stream (dev fixtures). */
   live?: boolean;
+  localPreview?: boolean;
   workspaceNavigation?: ReactNode;
 }) {
   const router = useRouter();
   const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
-  const { layout, saving, change, replace, saveNow } = useLayout(board.id, initialView);
+  const { layout, saving, change, replace, saveNow } = useLayout(board.id, initialView, localPreview);
   const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -122,14 +120,19 @@ export function PersonalBoard({
   const available = visibleWidgets(spec, data, isBuilding(board.status));
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
   const crisisType = data?.header?.crisisType;
-  const recommendedDesign: BoardDesign = spec?.template !== "finance" && crisisType && mapOverlayCategories.has(crisisType)
-    ? "map-overlay"
-    : "standard";
-  const mapDesign = current.design === "map-focus" || current.design === "map-overlay";
+  const finance = spec?.template === "finance";
+  const recommendMonitor = hasMap && !finance && !!crisisType && monitorCategories.has(crisisType);
+  const mapDesign = !finance && (current.design === "map-focus" || current.design === "map-overlay");
   const workspace = hasMap && mapDesign && available.some((w) =>
     w.type === "map" && !current.hidden.includes(widgetKeyOf(w)),
   );
   const hiddenWidgets = (spec?.widgets ?? []).filter((w) => current.hidden.includes(widgetKeyOf(w)));
+  const chartTables = available.filter((widget) => {
+    if (widget.type !== "table" || current.hidden.includes(widgetKeyOf(widget))) return false;
+    const table = data?.widgets[widget.id] as TableData | undefined;
+    return table?.columns.some((column) => column.kind === "status");
+  });
+  const chartWidget = chartTables.find((widget) => widgetKeyOf(widget) === current.overviewChart?.widget);
 
   async function sendEdit() {
     const text = instruction.trim();
@@ -257,30 +260,59 @@ export function PersonalBoard({
         <PopoverContent align="end" className="fd-board-settings">
           <div className="grid min-w-0 gap-3">
             <PopoverTitle>Board settings</PopoverTitle>
-            {hasMap && (
+            {(hasMap || finance) && (
               <Listbox
-                aria-label="Dashboard layout"
+                aria-label="Dashboard preset"
                 activation="manual"
                 framed={false}
-                value={current.design ?? "standard"}
-                items={designOptions.map((option) => ({
-                  ...option,
-                  meta: option.value === recommendedDesign ? "Recommended" : undefined,
-                }))}
+                value={mapDesign && hasMap ? "map-overlay" : "standard"}
+                items={[
+                  { type: "group", label: finance ? "Finance" : "General", items: [{
+                    value: "standard",
+                    label: finance ? "Finance dashboard" : "Standard dashboard",
+                    description: finance ? "Market data and research in a grid" : "Widgets in a grid",
+                    meta: !recommendMonitor ? "Recommended" : undefined,
+                  }] },
+                  ...(hasMap && !finance ? [{
+                    type: "group" as const, label: "Natural hazards", items: [{
+                      value: "map-overlay",
+                      label: "Natural disaster monitor",
+                      description: "Map with a timeline and floating cards",
+                      meta: recommendMonitor ? "Recommended" : undefined,
+                    }],
+                  }] : []),
+                ]}
                 onKeyDown={(event) => { if (event.key === " ") event.preventDefault(); }}
                 onValueChange={(value) => {
-                  const chosen = designOptions.find((option) => option.value === value);
-                  if (!chosen) return;
+                  if (value !== "standard" && value !== "map-overlay") return;
                   commit({
                     ...current,
-                    design: chosen.value,
-                    hidden: chosen.value !== "standard"
+                    design: value,
+                    hidden: value === "map-overlay"
                       ? current.hidden.filter((key) => !available.some((widget) => widget.type === "map" && widgetKeyOf(widget) === key))
                       : current.hidden,
                   });
                   setSettingsOpen(false);
                 }}
               />
+            )}
+            {workspace && chartTables.length > 0 && (
+              <fieldset className="min-w-0 border-t border-hairline pt-2">
+                <legend className="px-1 text-sm">Overview chart</legend>
+                <Select aria-label="Overview chart" size="sm" value={chartWidget ? widgetKeyOf(chartWidget) : "none"}
+                  onValueChange={(value) => {
+                    const widget = chartTables.find((item) => widgetKeyOf(item) === value);
+                    commit({ ...current, overviewChart: widget ? { type: "donut", widget: widgetKeyOf(widget) } : undefined });
+                  }}>
+                  <SelectTrigger className="w-full min-w-0" />
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {chartTables.map((widget) => (
+                      <SelectItem key={widgetKeyOf(widget)} value={widgetKeyOf(widget)}>{widget.title} by status (donut)</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </fieldset>
             )}
             {available.length > 0 && (
               <fieldset className="grid min-w-0 gap-2 border-t border-hairline pt-2">
@@ -315,7 +347,7 @@ export function PersonalBoard({
           <BoardHeaderButton icon="more" aria-label="Board actions" />
         </MenuTrigger>
         <MenuContent placement="bottom-end" aria-label="Board actions">
-          <MenuItem disabled={!!busy} onSelect={() => void undo()}>Undo</MenuItem>
+          {!localPreview && <MenuItem disabled={!!busy} onSelect={() => void undo()}>Undo</MenuItem>}
           <MenuItem onSelect={() => router.push(boardUrl(board.slug))}>Open shared board</MenuItem>
           <MenuSeparator />
           <MenuItem onSelect={() => setResetOpen(true)} data-sw-confirm="">Reset layout</MenuItem>
@@ -360,7 +392,7 @@ export function PersonalBoard({
           ) : (
             <EmptyState headingLevel={3} title="Nothing is hidden" description="Hide a section with its eye button while you edit." />
           )}
-          <div>
+          {!localPreview && <div>
             <AlertDialog>
               <AlertDialogTrigger variant="danger" size="sm" loading={busy === "remove"} data-sw-confirm="">
                 Remove from my dashboards
@@ -378,7 +410,7 @@ export function PersonalBoard({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          </div>
+          </div>}
         </Card>
   );
   const editForm = (
@@ -437,7 +469,7 @@ export function PersonalBoard({
         stage={partial?.stage}
         connected={connected}
         lastPolledAt={board.lastPolledAt}
-        onRefresh={refresh}
+        onRefresh={localPreview ? undefined : refresh}
         layout={current}
         version={board.version}
         animate
@@ -445,14 +477,14 @@ export function PersonalBoard({
         actions={actions}
         tools={tools}
         workspace={workspace}
-        cardsOnMap={workspace && current.design === "map-overlay"}
+        cardsOnMap={workspace}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
-        workspaceEditor={workspace && editing ? <>{editForm}{hiddenSections}</> : undefined}
+        workspaceEditor={workspace && editing ? <>{!localPreview && editForm}{hiddenSections}</> : undefined}
       />
 
       {!workspace && editing ? hiddenSections : null}
-      {!workspace ? editForm : null}
+      {!workspace && !localPreview ? editForm : null}
       <BoardToasts />
     </div>
   );

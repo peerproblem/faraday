@@ -2,8 +2,6 @@
 
 import { flushSync } from "react-dom";
 
-type ViewTransitionDoc = Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } };
-
 export function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
@@ -14,12 +12,14 @@ export function prefersReducedMotion(): boolean {
  * is applied at once. Maps are told to resize once the transition is over: their canvas is stretched during it.
  */
 export function transitionLayout(update: () => void): void {
-  const doc = typeof document !== "undefined" ? (document as ViewTransitionDoc) : null;
+  const doc = typeof document !== "undefined" ? document : null;
   if (!doc?.startViewTransition || prefersReducedMotion()) {
     update();
     return;
   }
   const t = doc.startViewTransition(() => flushSync(update));
+  // A newer transition or viewport resize can skip the animation while the layout update still succeeds.
+  void t.ready.catch(() => {});
   void t.finished.finally(() => window.dispatchEvent(new Event("resize")));
 }
 

@@ -24,7 +24,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const board = (): BoardView => getFixture("flood")!.board;
+const board = (): BoardView => getFixture("strike")!.board;
 const order = (c: HTMLElement) => [...c.querySelectorAll("[data-widget]")].map((el) => el.getAttribute("data-widget"));
 const keyOf = (b: BoardView, id: string) => widgetKeyOf(b.spec!.widgets.find((w) => w.id === id)!);
 const posts = (part: string) => (fetchMock.mock.calls as Call[]).filter(([u, i]) => u.includes(part) && i?.method === "POST");
@@ -54,10 +54,11 @@ describe("personal dashboard", () => {
     vi.stubGlobal("localStorage", { getItem: (name: string) => name === key ? saved : null, setItem: vi.fn() });
     render(<PersonalBoard initial={b} initialView={{ layout: { ...emptyLayout(b.version), design: "map-focus" }, rev: 2 }} live={false} />);
     const timeline = screen.getByRole("complementary", { name: "Incident timeline" });
-    const details = screen.getByRole("complementary", { name: "Board details" });
+    const map = screen.getByRole("region", { name: "Situation map" });
     expect(within(timeline).getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
     expect(timeline.style.getPropertyValue("--fd-workspace-timeline-width")).toBe("280px");
-    expect(details.style.getPropertyValue("--fd-workspace-details-width")).toBe("510px");
+    expect(map.style.getPropertyValue("--fd-workspace-details-width")).toBe("510px");
+    expect(within(map).getByRole("region", { name: "Situation" })).toBeTruthy();
     expect(posts(`/api/me/views/${b.id}`)).toHaveLength(0);
   });
 
@@ -68,12 +69,12 @@ describe("personal dashboard", () => {
     fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
     const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
     await user.click(screen.getByRole("button", { name: "Board settings" }));
-    await user.click(screen.getByRole("option", { name: /Map focus/ }));
+    await user.click(screen.getByRole("option", { name: /Natural disaster monitor/ }));
     expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
     await waitFor(() => expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1));
     const save = JSON.parse(String(posts(`/api/me/views/${b.id}`)[0][1]!.body));
     expect(save.rev).toBe(3);
-    expect(save.layout.design).toBe("map-focus");
+    expect(save.layout.design).toBe("map-overlay");
     expect(save.layout.hidden).not.toContain("map");
     unmount();
 
@@ -83,42 +84,45 @@ describe("personal dashboard", () => {
     await user.click(screen.getByRole("button", { name: "Collapse timeline" }));
     expect(screen.getByRole("button", { name: "Expand timeline" }).getAttribute("aria-expanded")).toBe("false");
     const figures = within(screen.getByRole("list", { name: "Map figures" }));
-    expect(figures.getAllByRole("listitem")).toHaveLength(2);
-    expect(figures.getByText("41,000")).toBeTruthy();
+    expect(figures.getByText("111 trains")).toBeTruthy();
     expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1);
     expect(screen.queryByRole("tabpanel", { name: "Sources" })).toBeNull();
 
     await user.click(screen.getByRole("tab", { name: "Data" }));
     const selector = screen.getByRole("combobox", { name: "Data section" });
     await user.click(selector);
-    await user.click(screen.getByRole("option", { name: "Road closures" }));
-    expect(selector.textContent).toContain("Road closures");
-    expect(screen.queryByRole("heading", { name: "Road closures" })).toBeNull();
-    const table = screen.getByRole("table", { name: /Road closures/ });
+    await user.click(screen.getByRole("option", { name: "Transport & Public Service Disruptions" }));
+    expect(selector.textContent).toContain("Transport & Public Service Disruptions");
+    expect(screen.queryByRole("heading", { name: "Transport & Public Service Disruptions" })).toBeNull();
+    const table = screen.getByRole("table", { name: /Transport & Public Service Disruptions/ });
     expect(within(table).getAllByRole("row")).toHaveLength(5);
-    const pager = screen.getByRole("navigation", { name: "Road closures pages" });
+    const pager = screen.getByRole("navigation", { name: "Transport & Public Service Disruptions pages" });
     await user.click(within(pager).getByRole("button", { name: "Next page" }));
-    expect(screen.getByText("5–8 of 24 rows")).toBeTruthy();
+    expect(screen.getByText("5–8 of 34 rows")).toBeTruthy();
   });
 
   test("recommends map cards without changing other views and saves the selection", async () => {
     const user = userEvent.setup();
     const b = board();
+    const conflictBoard: BoardView = {
+      ...b,
+      data: { ...b.data!, header: { ...b.data!.header, crisisType: "conflict" } },
+    };
     const path = `/api/me/views/${b.id}`;
-    const layout: PersonalLayout = { ...emptyLayout(b.version), design: "map-focus" };
+    const layout: PersonalLayout = { ...emptyLayout(b.version), design: "standard" };
     fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
-    const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
+    const { unmount } = render(<PersonalBoard initial={conflictBoard} initialView={{ layout, rev: 3 }} live={false} />);
 
     await user.click(screen.getByRole("button", { name: "Board settings" }));
-    expect(screen.getByText("Recommended").closest('[role="option"]')?.textContent).toContain("Cards on map");
-    expect(screen.getByRole("complementary", { name: "Board details" })).toBeTruthy();
+    expect(screen.getByText("Recommended").closest('[role="option"]')?.textContent).toContain("Natural disaster monitor");
+    expect(screen.queryByRole("region", { name: "Situation map" })).toBeNull();
     expect(posts(path)).toHaveLength(0);
 
-    const choices = screen.getByRole("listbox", { name: "Dashboard layout" });
+    const choices = screen.getByRole("listbox", { name: "Dashboard preset" });
     fireEvent.keyDown(choices, { key: "End" });
-    expect(choices.getAttribute("aria-activedescendant")).toBe(screen.getByRole("option", { name: /Cards on map/ }).id);
+    expect(choices.getAttribute("aria-activedescendant")).toBe(screen.getByRole("option", { name: /Natural disaster monitor/ }).id);
     fireEvent.keyDown(choices, { key: " " });
-    expect(screen.getByRole("option", { name: /Map focus/ }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("option", { name: /Standard dashboard/ }).getAttribute("aria-selected")).toBe("true");
     expect(posts(path)).toHaveLength(0);
     fireEvent.keyDown(choices, { key: "Enter" });
     await waitFor(() => expect(posts(path)).toHaveLength(1));
@@ -126,12 +130,35 @@ describe("personal dashboard", () => {
     expect(save.layout.design).toBe("map-overlay");
     unmount();
 
-    render(<PersonalBoard initial={b} initialView={{ layout: save.layout, rev: 4 }} live={false} />);
+    render(<PersonalBoard initial={conflictBoard} initialView={{ layout: save.layout, rev: 4 }} live={false} />);
     const map = within(screen.getByRole("region", { name: "Situation map" }));
     expect(map.getByRole("region", { name: "Situation" })).toBeTruthy();
     expect(map.getByRole("region", { name: "Evidence" })).toBeTruthy();
     expect(screen.queryByRole("complementary", { name: "Board details" })).toBeNull();
     expect(posts(path)).toHaveLength(1);
+  });
+
+  test("only shows the overview donut on the personal board that chose its table", async () => {
+    const user = userEvent.setup();
+    const b = board();
+    const layout: PersonalLayout = { ...emptyLayout(b.version), design: "map-overlay" };
+    fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
+    const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
+    const title = "Turnout & Protests by City by status";
+    const chart = { name: new RegExp("^Turnout & Protests by City by status\\.") };
+    expect(screen.queryByRole("img", chart)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Board settings" }));
+    await user.click(screen.getByRole("combobox", { name: "Overview chart" }));
+    await user.click(screen.getByRole("option", { name: `${title} (donut)` }));
+    expect(within(screen.getByRole("tabpanel", { name: "Overview" })).getByRole("img", chart)).toBeTruthy();
+    const path = `/api/me/views/${b.id}`;
+    await waitFor(() => expect(posts(path)).toHaveLength(1));
+    const saved = JSON.parse(String(posts(path)[0][1]!.body)).layout;
+    expect(saved.overviewChart).toEqual({ type: "donut", widget: "table:city-protests" });
+    unmount();
+
+    render(<PersonalBoard initial={{ ...b, id: "another-board" }} initialView={{ layout, rev: 1 }} live={false} />);
+    expect(screen.queryByRole("img", chart)).toBeNull();
   });
 
   test("hiding a widget shows at once and saves 300 ms later with the revision it builds on", async () => {

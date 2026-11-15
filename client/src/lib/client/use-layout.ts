@@ -12,7 +12,7 @@ export const SAVE_DEBOUNCE_MS = 300;
  * A person's layout for one topic. Changes show at once (inside a view transition) and are saved 300 ms after the
  * last one. Saves carry the revision they build on; a 409 means another tab saved first, so its layout is shown.
  */
-export function useLayout(boardId: string, initial: PersonalViewState | null) {
+export function useLayout(boardId: string, initial: PersonalViewState | null, localPreview = false) {
   const [layout, setLayout] = useState<PersonalLayout | null>(initial?.layout ?? null);
   const [saving, setSaving] = useState(false);
   const rev = useRef(initial?.rev ?? 0);
@@ -21,6 +21,20 @@ export function useLayout(boardId: string, initial: PersonalViewState | null) {
   const inFlight = useRef(false);
 
   const show = useCallback((next: PersonalLayout | null) => transitionLayout(() => setLayout(next)), []);
+  const previewKey = localPreview ? `faraday:preview-layout:${boardId}` : null;
+
+  useEffect(() => {
+    if (!previewKey) return;
+    const frame = requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem(previewKey);
+        if (saved) setLayout(JSON.parse(saved) as PersonalLayout);
+      } catch {
+        // The preview is still interactive when browser storage is unavailable.
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [previewKey]);
 
   // Sends pending changes one at a time until none are left.
   const flush = useCallback(async () => {
@@ -35,7 +49,11 @@ export function useLayout(boardId: string, initial: PersonalViewState | null) {
         const r = await saveView(boardId, body, rev.current);
         if (r.rev < rev.current) continue;
         rev.current = r.rev;
-        if (!pending.current && r.layout.design !== body.design) {
+        if (!pending.current && (
+          r.layout.design !== body.design ||
+          r.layout.overviewChart?.type !== body.overviewChart?.type ||
+          r.layout.overviewChart?.widget !== body.overviewChart?.widget
+        )) {
           show(r.layout);
           toast.danger("Could not apply this layout", { description: "Showing the saved layout." });
         }
@@ -73,11 +91,19 @@ export function useLayout(boardId: string, initial: PersonalViewState | null) {
   const change = useCallback(
     (next: PersonalLayout) => {
       show(next);
+      if (previewKey) {
+        try {
+          localStorage.setItem(previewKey, JSON.stringify(next));
+        } catch {
+          // Keep the current preview state if browser storage is unavailable.
+        }
+        return;
+      }
       pending.current = next;
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
     },
-    [flush, show],
+    [flush, previewKey, show],
   );
 
   /** Shows a layout the server already saved (a prompt edit or an undo). */

@@ -417,6 +417,7 @@ body:has(.fd-workspace-shell) .fd-site-header {
   overflow: hidden;
 }
 .fd-workspace-timeline {
+  --fd-timeline-resize-width: var(--sw-space-2);
   background: var(--sw-background);
 }
 .fd-workspace-details {
@@ -570,13 +571,15 @@ body:has(.fd-workspace-shell) .fd-site-header {
   place-items: center;
   inset-inline-end: 0;
   inset-block: 0;
-  width: var(--sw-space-3);
+  width: var(--fd-timeline-resize-width);
   cursor: ew-resize;
 }
 .fd-workspace-resize--width::before {
   content: "";
   width: 2px;
   height: var(--sw-space-6);
+  /* Center the mark between the inset scrollbar thumb and the divider. */
+  margin-inline-end: 3px;
   background: currentColor;
 }
 .fd-workspace-map-figures {
@@ -595,6 +598,12 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-workspace-map-figures > li {
   inline-size: 8.5rem;
   max-inline-size: 100%;
+}
+.fd-workspace-map-figures > .fd-map-figure-with-update {
+  inline-size: 12rem;
+}
+.fd-map-figure-source {
+  pointer-events: auto;
 }
 .fd-map-figure {
   display: flex;
@@ -699,6 +708,10 @@ body:has(.fd-workspace-shell) .fd-site-header {
   }
   .fd-workspace-map[data-cards-on-map] > .fd-workspace-map-figures {
     max-inline-size: max(0px, calc(100% - var(--fd-map-cards-controls-inset) - var(--sw-space-10) - 2 * var(--sw-space-3)));
+  }
+  .fd-workspace-timeline[data-open] > .fd-workspace-timeline-content {
+    margin-inline-end: var(--fd-timeline-resize-width);
+    scrollbar-gutter: stable;
   }
   .fd-workspace-resize--width {
     display: grid;

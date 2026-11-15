@@ -33,6 +33,9 @@ export const layoutInputSchema = z.object({
     .max(50)
     .default([]),
   design: z.unknown().optional().transform((value) => boardDesign.safeParse(value).data),
+  overviewChart: z.unknown().optional().transform((value) =>
+    z.object({ type: z.literal("donut"), widget: z.string().max(200) }).safeParse(value).data,
+  ),
   header: z.object({ compact: z.boolean().default(false) }).default({ compact: false }),
   baseVersion: z.number().int().min(0).max(1e9).default(0),
 });
@@ -136,5 +139,13 @@ export function sanitizeLayout(input: LayoutInput | PersonalLayout, spec: BoardS
     if (clean) filters[k] = clean;
   }
 
-  return { order, hidden, size, pinned, filters, extras, header: { compact: raw.header.compact }, ...(raw.design !== undefined ? { design: raw.design } : {}), baseVersion: raw.baseVersion };
+  const overviewChart = raw.overviewChart && ctx.widgets.get(raw.overviewChart.widget)?.type === "table"
+    ? raw.overviewChart
+    : undefined;
+  return {
+    order, hidden, size, pinned, filters, extras, header: { compact: raw.header.compact },
+    ...(raw.design !== undefined ? { design: raw.design } : {}),
+    ...(overviewChart ? { overviewChart } : {}),
+    baseVersion: raw.baseVersion,
+  };
 }

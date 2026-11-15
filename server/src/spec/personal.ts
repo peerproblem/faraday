@@ -5,8 +5,10 @@ import type { BoardCard } from "./view";
 /** A widget's stable key (Widget.key / widgetKeyOf): "map", "table:road-closures". */
 export type WidgetKey = string;
 
+/** Both map IDs resolve to the same monitor. New selections save as "map-overlay". */
 export const boardDesigns = ["standard", "map-focus", "map-overlay"] as const;
 export type BoardDesign = (typeof boardDesigns)[number];
+export type OverviewChart = { type: "donut"; widget: WidgetKey };
 
 /** Display-only filters. A widget applies its filter when rendering; the board data never changes. */
 export type WidgetFilter =
@@ -37,6 +39,8 @@ export type PersonalLayout = {
   header: { compact: boolean };
   /** Optional so views saved before board designs still load as standard. */
   design?: BoardDesign;
+  /** Optional chart shown in the map monitor's Overview for this personal board. */
+  overviewChart?: OverviewChart;
   /** The baseline version seen when this layout was last saved; widgets added after it get a "New" badge. */
   baseVersion: number;
 };

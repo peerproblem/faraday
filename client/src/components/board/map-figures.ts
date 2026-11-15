@@ -1,4 +1,40 @@
-import type { StatItem } from "@/lib/spec";
+import type { Source, StatItem, TableData } from "@/lib/spec";
+import { toMs } from "@/lib/time";
+
+export type MapFigure = Pick<StatItem, "key" | "label" | "valueText" | "unit" | "tone"> & {
+  update?: { at: string; sourceIds: string[] };
+};
+
+/** Use the latest dated, cited update in a restriction table, where each row is a report rather than a unique area. */
+export function latestRestrictionFigure(tables: TableData[], sources: ReadonlyMap<string, Source>): MapFigure | undefined {
+  let result: MapFigure | undefined;
+  let newestAt = -Infinity;
+  for (const table of tables) {
+    const status = table.columns.find((column) => column.kind === "status");
+    if (!status || !table.columns.some((column) => column.key === "lifted-at" && column.kind === "time")) continue;
+
+    for (const row of table.rows) {
+      const at = row.asOf;
+      const timestamp = toMs(at);
+      const value = row.cells[status.key]?.trim();
+      if (!at?.includes("T") || timestamp === null || timestamp <= newestAt || !value) continue;
+      const sourceIds = (row.sources ?? []).filter((id) => sources.has(id));
+      if (!sourceIds.length) continue;
+
+      newestAt = timestamp;
+      result = {
+        key: "latest-restriction",
+        label: "Latest restriction status",
+        valueText: value,
+        unit: null,
+        tone: /^lifted$/i.test(value) ? "ok" : "info",
+        update: { at, sourceIds },
+      };
+    }
+  }
+  return result;
+}
+
 
 const amountPattern = /^[+-]?\d+(?:\.\d+)?[+%]?$/u;
 const genericWords = new Set(["in", "of", "the", "by", "over", "last", "people", "person", "total", "number"]);
