@@ -128,7 +128,7 @@ export function sortRows(data: TableData, sort: TableSort | null) {
 }
 
 /** Rows whose cells contain the text, ignoring case. */
-export function TableWidget({ widget, data, sources, tier, building, mapFocus: compact, cyberPresentation, outagePresentation }: WidgetProps<"table">) {
+export function TableWidget({ widget, data, sources, tier, building, mapFocus: compact, cyberPresentation, outagePresentation, transportPresentation }: WidgetProps<"table">) {
   const [sort, setSort] = useState<TableSort | null>(null);
   const [page, setPage] = useState(1);
   const rows = useMemo(() => (data ? sortRows(data, sort) : []), [data, sort]);
@@ -176,9 +176,9 @@ export function TableWidget({ widget, data, sources, tier, building, mapFocus: c
           {pageCount > 1 && <Pagination aria-label={`${widget.title} pages`} size="sm" variant="compact" pageCount={pageCount} page={current} onPageChange={setPage} />}
         </div>
       )}
-      {(cyberPresentation || outagePresentation) && compact && (
+      {(cyberPresentation || outagePresentation || transportPresentation) && compact && (
         <div className="fd-cyber-records">
-          {!outagePresentation && <Select aria-label={`${widget.title} sort`} size="sm"
+          {!outagePresentation && !transportPresentation && <Select aria-label={`${widget.title} sort`} size="sm"
             value={sort ? `${dataColumns.findIndex(column => column.key === sort.columnId)}:${sort.direction}` : "original"}
             onValueChange={(value) => {
               const [index, direction] = (value ?? "original").split(":");
@@ -210,7 +210,7 @@ export function TableWidget({ widget, data, sources, tier, building, mapFocus: c
           </ol>
         </div>
       )}
-      <div className={(cyberPresentation || outagePresentation) && compact ? "fd-cyber-table-view" : "contents"}>
+      <div className={(cyberPresentation || outagePresentation || transportPresentation) && compact ? "fd-cyber-table-view" : "contents"}>
       <Table
         // The card already shows the title. Keep the caption as the accessible table and scroll region name.
         caption={`${widget.title}: ${rows.length === 1 ? "1 row" : `${rows.length} rows`}`}

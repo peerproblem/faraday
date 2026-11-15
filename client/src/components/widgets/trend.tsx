@@ -2,19 +2,19 @@
 
 import { TrendChart } from "@/components/ui/charts";
 import { Text } from "@/components/ui/typography";
-import { shortTime } from "@/lib/time";
+import { shortTime, when } from "@/lib/time";
 import { cleanPoints, trendSummary } from "./chart";
 import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
 import { CyberTrend } from "./cyber-trend";
 import { Empty } from "./widget-frame";
 
-export function TrendWidget({ data, sources, building, mapFocus, compactTrendAxis, cyberPresentation }: WidgetProps<"trend">) {
+export function TrendWidget({ data, sources, building, mapFocus, compactTrendAxis, cyberPresentation, transportPresentation }: WidgetProps<"trend">) {
   const points = data?.points ?? [];
   const pts = cleanPoints(points);
   if (pts.length < 2 || !data) return <Empty building={building} title="Not enough reports for a trend" description="A trend needs at least two reports of the figure." />;
   if (cyberPresentation) return <CyberTrend data={data} sources={sources} />;
-  const summary = trendSummary(data.label, points, data.unit);
+  const summary = transportPresentation ? `${data.label} · ${pts.length} dated reports` : trendSummary(data.label, points, data.unit);
   const last = data.points[data.points.length - 1];
   return (
     <figure className="m-0 flex min-w-0 flex-col gap-3">
@@ -42,8 +42,19 @@ export function TrendWidget({ data, sources, building, mapFocus, compactTrendAxi
         <Text as="span" size="sm" tone="muted">
           {summary}
         </Text>
-        {last ? <SourceChips ids={last.sources} sources={sources} /> : null}
+        {!transportPresentation && last ? <SourceChips ids={last.sources} sources={sources} /> : null}
       </figcaption>
+      {transportPresentation && <>
+        <Text size="sm" tone="muted">Reported totals may cover different periods or services. Compare the source reports before interpreting a change as recovery.</Text>
+        <details className="fd-transport-readings">
+          <summary>Reported readings & sources ({points.length})</summary>
+          <ul>{points.map((point, index) => <li key={`${point.t}:${index}`}>
+            <time dateTime={point.t}>{when(point.t)}</time>
+            <strong>{point.v.toLocaleString("en-US", { maximumFractionDigits: 2 })}{data.unit ? ` ${data.unit}` : ""}</strong>
+            <SourceChips ids={point.sources} sources={sources} collapseAt={3} compactLabel />
+          </li>)}</ul>
+        </details>
+      </>}
     </figure>
   );
 }
