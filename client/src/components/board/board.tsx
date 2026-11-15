@@ -24,7 +24,6 @@ import { SITE_URL } from "@/lib/config";
 import { widgetKeyOf, type AlertListData, type StatusGridData, type TimelineData, type TrendData, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardMapRegion, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type MapData, type NarrativeData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
 import type { BoardEntry } from "./entry";
-import { OutageOverview, OutageSituation, type OutageProps } from "./outage-overview";
 import { CyberIncidentOverview } from "./cyber-incident-overview";
 import { BoardHeaderButton } from "./header-button";
 import { ContextEvidence } from "./context-evidence";
@@ -120,8 +119,7 @@ export function Board(props: BoardProps) {
   const widgets: BoardEntry[] = visible.map((widget) => ({ key: widgetKeyOf(widget), widget }));
   const cyber = props.workspace && header?.crisisType === "cyberattack";
   const mapEntry = widgets.find(({ widget }) => widget.type === "map");
-  const outage = props.workspace && header?.crisisType === "outage";
-  const map = cyber || outage ? undefined : mapEntry;
+  const map = cyber ? undefined : mapEntry;
   const timeline = map || props.workspace ? widgets.find(({ widget }) => widget.type === "timeline") : undefined;
   const changelog = widgets.find(({ widget }) => widget.type === "changelog");
   const sourcesWidget = widgets.find(({ widget }) => widget.type === "sources");
@@ -220,7 +218,6 @@ export function Board(props: BoardProps) {
         collapseSourceGroups={props.wildfireOverview || cyber}
         compactTrendAxis={props.wildfireOverview && compact}
         cyberPresentation={cyber}
-        outagePresentation={outage}
       />
     );
   }
@@ -341,24 +338,11 @@ export function Board(props: BoardProps) {
     const narrativeData = (narrative && data?.widgets[narrative.widget.id]) as NarrativeData | undefined;
     const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
     const housing = props.wildfireOverview ? figureItems.filter((item) => /homes-(?:destroyed|damaged)$/.test(item.key)) : [];
-    const cyberMap = (cyber || outage) && mapEntry ? (data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
-    const dataSections = cyber || outage
-      ? [...mainWidgets, ...(cyber && mapEntry && cyberMap?.points?.length ? [mapEntry] : [])]
+    const cyberMap = cyber && mapEntry ? (data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
+    const dataSections = cyber
+      ? [...mainWidgets, ...(mapEntry && cyberMap?.points?.length ? [mapEntry] : [])]
       : [...sections, ...figureSections];
     const cyberDetails = cyber ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
-    const outageProps: OutageProps = {
-      headline: header?.headline, sources: byId, checkedAt: lastCheckedAt, map: cyberMap,
-      metrics: featured.flatMap(e => e.widget.type === "stat-grid" ? getStatItems(data?.widgets[e.widget.id] as StatGridData | undefined) : []),
-      services: featured.flatMap(e => e.widget.type === "status-grid" ? (data?.widgets[e.widget.id] as StatusGridData | undefined)?.items ?? [] : []),
-      tables: sections.flatMap(e => e.widget.type === "table" && data?.widgets[e.widget.id] ? [{ title: e.widget.title, data: data.widgets[e.widget.id] as TableData }] : []),
-      resources: spec?.widgets.flatMap(w => w.type === "link-list" ? (data?.widgets[w.id] as LinkListData | undefined)?.items ?? [] : []) ?? [],
-      advisories: sections.flatMap(e => e.widget.type === "alert-list" ? (data?.widgets[e.widget.id] as AlertListData | undefined)?.items ?? [] : []),
-    };
-    const outageOverview = outage ? <OutageOverview {...outageProps} renderMap={(selectedMap, focused) => mapEntry ? (
-      <WidgetBoundary resetKey={selectedMap}><MapWidget key={focused ? selectedMap.center?.name : "all"}
-        widget={{ ...mapEntry.widget, type: "map" }} data={selectedMap} sources={byId} allSources={sources}
-        events={events} status={status} tier={tier} building={building} fillMap fixedCamera={focused} /></WidgetBoundary>
-    ) : null} /> : undefined;
     const cyberOverview = cyber ? (
       <CyberIncidentOverview
         headline={header?.headline}
@@ -389,10 +373,10 @@ export function Board(props: BoardProps) {
     ) : undefined;
     return (
       <OfficialReleasesContext.Provider value={releases}>
-        <div className={`@container fd-workspace-board${props.wildfireOverview ? " fd-wildfire-workspace" : ""}${outage ? " fd-outage-workspace" : ""}`}>
+        <div className={`@container fd-workspace-board${props.wildfireOverview ? " fd-wildfire-workspace" : ""}`}>
           {boardHeader}
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
-            main={outageOverview ?? cyberOverview}
+            main={cyberOverview}
             defaultEvidenceOpen={props.defaultEvidenceOpen}
             showSavedSources={props.snapshotAt !== undefined}
             configuredCards={configuredCards?.map((card) => ({
@@ -416,7 +400,7 @@ export function Board(props: BoardProps) {
             </> : undefined}
             mapFigures={!props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
-            overview={outage ? <OutageSituation {...outageProps} /> : cyber ? (cyberDetails ? <>
+            overview={cyber ? (cyberDetails ? <>
               <h3 className="text-sm font-semibold">Incident summary</h3>
               {lastChecked && <Text size="sm" tone="muted">{lastChecked}</Text>}
               {header?.headline && <Text size="sm">{header.headline.text}</Text>}

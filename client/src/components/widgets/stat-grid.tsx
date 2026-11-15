@@ -57,14 +57,13 @@ export function MapFigureCards({ items, sources, bordered = false }: {
   );
 }
 
-export function StatGridWidget({ data, sources, tier, building, mapFocus, cyberPresentation, outagePresentation }: WidgetProps<"stat-grid">) {
-  const adapted = cyberPresentation || outagePresentation;
+export function StatGridWidget({ data, sources, tier, building, mapFocus, cyberPresentation }: WidgetProps<"stat-grid">) {
   const items = getStatItems(data);
   if (!items.length) return <Empty building={building} title="No figures yet" description="The sources have not given any figures." />;
   return (
     // Metric cells inside the tile, no cards of their own: the tile is the frame. At least 14rem wide, so the widest
     // board fits five across, which is as many as the design system allows in a row.
-    <ul className={adapted
+    <ul className={cyberPresentation
       ? "grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-4"
       : "grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-x-6 gap-y-5"}>
       {items.map((k) => {
@@ -74,16 +73,16 @@ export function StatGridWidget({ data, sources, tier, building, mapFocus, cyberP
               <Stat
                 size="sm"
                 label={k.label}
-                value={adapted ? formatReportedMetric(k.valueText, k.unit) : k.unit ? `${k.valueText} ${k.unit}` : k.valueText}
-                delta={adapted ? undefined : k.delta ?? undefined}
-                trend={!adapted && k.delta ? "flat" : undefined}
+                value={cyberPresentation ? formatReportedMetric(k.valueText, k.unit) : k.unit ? `${k.valueText} ${k.unit}` : k.valueText}
+                delta={cyberPresentation ? undefined : k.delta ?? undefined}
+                trend={!cyberPresentation && k.delta ? "flat" : undefined}
                 tone={statTone[k.tone] ?? "neutral"}
                 // The dashboard Stat shows no warning badge, so a disruption is named in its caption.
                 caption={k.tone === "warning" ? "Disruption" : undefined}
               >
                 {!mapFocus && history.length > 1 ? <TrendChart spark values={history.map((p) => p.v)} aria-label={trendSummary(k.label, k.history ?? [], k.unit)} /> : null}
               </Stat>
-              {adapted && k.delta && <Text size="sm" tone="muted">{k.delta}</Text>}
+              {cyberPresentation && k.delta && <Text size="sm" tone="muted">{k.delta}</Text>}
               {k.conflict?.length ? (
                 <Text size="sm" tone="subtle">
                   <Badge variant="warning">Sources disagree</Badge>{" "}
