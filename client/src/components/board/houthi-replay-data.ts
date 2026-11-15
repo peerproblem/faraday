@@ -181,9 +181,9 @@ function emptyCounts(): Counts {
   return { interceptions: 0, strikes: 0, infrastructure: 0, maritime: 0, other: 0 };
 }
 
-export function houthiActivity(frames: ReplayDay[], day: number) {
-  const first = frames[0]?.day ?? day;
-  const span = ((frames.at(-1)?.day ?? day) - first) / dayMs + 1;
+export function houthiActivity(frames: ReplayDay[]) {
+  const first = frames[0]?.day ?? 0;
+  const span = ((frames.at(-1)?.day ?? first) - first) / dayMs + 1;
   // Group longer windows into equal date intervals so silent periods remain visible.
   const step = Math.max(1, Math.ceil(span / 20)) * dayMs;
   const data: ActivityBucket[] = Array.from({ length: Math.ceil(span * dayMs / step) }, (_, index) => ({
@@ -191,15 +191,21 @@ export function houthiActivity(frames: ReplayDay[], day: number) {
     date: new Date(first + index * step).toISOString().slice(0, 10),
   }));
   const counts = emptyCounts();
+  const mixByDay = new Map<number, ReturnType<typeof reportMix>>();
   for (const frame of frames) {
     const bucket = data[Math.floor((frame.day - first) / step)];
     for (const { kind } of frame.reports) {
       bucket[kind] += 1;
-      if (frame.day <= day) counts[kind] += 1;
+      counts[kind] += 1;
     }
+    mixByDay.set(frame.day, reportMix(counts));
   }
+  return { data, interval: step / dayMs, mixByDay };
+}
+
+function reportMix(counts: Counts) {
   const breakdown = houthiSeries
     .map(({ key, label, color }) => ({ key, label, color, value: counts[key] }))
     .filter(({ value }) => value > 0);
-  return { data, breakdown, interval: step / dayMs, total: breakdown.reduce((n, { value }) => n + value, 0) };
+  return { breakdown, total: breakdown.reduce((n, { value }) => n + value, 0) };
 }

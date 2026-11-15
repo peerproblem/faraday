@@ -3,7 +3,7 @@
 import { BarChart, ChartCard, DonutChart } from "@sw3/ui/charts";
 import { LngLatBounds, Marker } from "maplibre-gl";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { Icon } from "@/components/ui/icon";
@@ -110,33 +110,43 @@ function LocationMarker({ map, marker, active, sources, onInspect }: {
   );
 }
 
-function ActivityCharts({ frames, frame }: { frames: ReplayDay[]; frame: ReplayDay }) {
-  const { data, breakdown, interval, total } = useMemo(() => houthiActivity(frames, frame.day), [frames, frame.day]);
-  const latest = frames.at(-1)!;
+const ReportsOverTime = memo(function ReportsOverTime({ activity, firstDay, lastDay }: {
+  activity: ReturnType<typeof houthiActivity>;
+  firstDay: number;
+  lastDay: number;
+}) {
+  return (
+    <ChartCard
+      title="Reports over time"
+      description={activity.interval > 1 ? `Grouped in ${activity.interval}-day intervals` : undefined}
+      className="fd-houthi-chart"
+      radius="md"
+      padding="sm"
+      legend={series}
+    >
+      <BarChart
+        aria-label={`Report counts by type from ${formatHouthiDay(firstDay)} to ${formatHouthiDay(lastDay)}`}
+        height={116}
+        data={activity.data}
+        x="date"
+        xFormat={(value) => formatHouthiDay(Date.parse(String(value)))}
+        series={series}
+        mode="stacked"
+        yDomain={[0, undefined]}
+        yFormat={(value) => Number.isInteger(value) ? String(value) : ""}
+      />
+    </ChartCard>
+  );
+});
 
+function ActivityCharts({ frames, frame }: { frames: ReplayDay[]; frame: ReplayDay }) {
+  const activity = useMemo(() => houthiActivity(frames), [frames]);
+  const mix = activity.mixByDay.get(frame.day);
+  if (!mix) return null;
+  const { breakdown, total } = mix;
   return (
     <>
-      <ChartCard
-        title="Reports over time"
-        description={interval > 1 ? `Grouped in ${interval}-day intervals` : undefined}
-        className="fd-houthi-chart"
-        radius="md"
-        padding="sm"
-        legend={series}
-      >
-        <BarChart
-          aria-label={`Report counts by type from ${formatHouthiDay(frames[0].day)} to ${formatHouthiDay(latest.day)}`}
-          height={116}
-          data={data}
-          x="date"
-          xFormat={(value) => formatHouthiDay(Date.parse(String(value)))}
-          series={series}
-          mode="stacked"
-          yDomain={[0, undefined]}
-          yFormat={(value) => Number.isInteger(value) ? String(value) : ""}
-        />
-      </ChartCard>
-
+      <ReportsOverTime activity={activity} firstDay={frames[0].day} lastDay={frames[frames.length - 1].day} />
       <ChartCard title="Report mix" description={`Through ${formatHouthiDay(frame.day)}`} className="fd-houthi-chart" radius="md" padding="sm">
         <div className="fd-houthi-report-mix">
           <DonutChart
@@ -178,6 +188,7 @@ export function HouthiReplay({ timeline, strikes, map: mapData, sources, timelin
   const { frames, locationReports } = useMemo(() => buildHouthiReplay(timeline, strikes, mapData, sources),
     [timeline, strikes, mapData, sources]);
   const [map, setMap] = useState<PointMapInstance | null>(null);
+  const [readyMap, setReadyMap] = useState<PointMapInstance | null>(null);
   const [fallbackStart, setFallbackStart] = useState(false);
   const mapHost = useRef<HTMLDivElement>(null);
   const rightSlot = useRef<HTMLDivElement>(null);
@@ -218,6 +229,7 @@ export function HouthiReplay({ timeline, strikes, map: mapData, sources, timelin
     setMap(loadedMap);
     loadedMap.once("remove", () => {
       setMap((previous) => previous === loadedMap ? null : previous);
+      setReadyMap((previous) => previous === loadedMap ? null : previous);
       setInspectedPlace(null);
     });
   }, []);
@@ -227,6 +239,12 @@ export function HouthiReplay({ timeline, strikes, map: mapData, sources, timelin
     if (!map || !host) return;
     const bounds = new LngLatBounds([36, 12], [58, 29]);
     let lastFit: string | undefined;
+    let settleTimeout: number | undefined;
+    const startReplay = () => {
+      window.clearTimeout(settleTimeout);
+      map.off("idle", startReplay);
+      setReadyMap(map);
+    };
     const fit = () => {
       const left = overlayRect(timelineSlot.current);
       const right = overlayRect(rightSlot.current);
@@ -240,8 +258,12 @@ export function HouthiReplay({ timeline, strikes, map: mapData, sources, timelin
       };
       const fitKey = [viewport.width, viewport.height, padding.left, padding.right, padding.bottom].join(":");
       if (!viewport.width || !viewport.height || fitKey === lastFit) return;
+      if (lastFit === undefined) {
+        // The load event precedes the camera fit. Wait through the tile work it starts.
+        map.once("idle", startReplay);
+        settleTimeout = window.setTimeout(startReplay, 2_500);
+      }
       lastFit = fitKey;
-      map.resize();
       map.fitBounds(bounds, { padding, duration: 0, maxZoom: 6 });
     };
     let raf = 0;
@@ -254,6 +276,8 @@ export function HouthiReplay({ timeline, strikes, map: mapData, sources, timelin
       if (slot) resize.observe(slot);
     }
     return () => {
+      window.clearTimeout(settleTimeout);
+      map.off("idle", startReplay);
       resize.disconnect();
       cancelAnimationFrame(raf);
     };
@@ -268,7 +292,8 @@ export function HouthiReplay({ timeline, strikes, map: mapData, sources, timelin
 
   const nextDay = frames[index + 1]?.day;
   const inspecting = markers.some(({ place }) => place.id === inspectedPlace);
-  const playing = !inspecting && !reducedMotion && (map || fallbackStart) && nextDay !== undefined;
+  const ready = map ? readyMap === map : fallbackStart;
+  const playing = !inspecting && !reducedMotion && ready && nextDay !== undefined;
   useEffect(() => {
     if (!playing || nextDay === undefined) return;
     let timer: number | undefined;
