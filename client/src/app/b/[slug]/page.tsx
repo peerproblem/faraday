@@ -71,6 +71,7 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
         initial={board}
         workspace
         wildfire={wildfireBoards[board.id]}
+        strikeOverview={board.id === "ff5w6w58p6cr"}
         workspaceNavigation={<WorkspaceNavigation />}
       />
     </div>

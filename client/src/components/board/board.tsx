@@ -31,6 +31,7 @@ import { ContextEvidence } from "./context-evidence";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
+import { StrikeDayChart, StrikeMapFigures, StrikeOverview } from "./strike-overview";
 import { automaticChartEntry } from "./automatic-chart";
 import { IncidentReports } from "./incident-reports";
 import { RegionSwitch, RegionInset } from "./map-regions";
@@ -69,6 +70,8 @@ export type BoardProps = {
   incidentOverview?: { status: boolean; tally: boolean };
   /** Draws the board with the wildfire design. */
   wildfire?: WildfireBoard;
+  /** The general strike board: its own figures, overview and panel widths. */
+  strikeOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
   sidebarSettings?: BoardCardSettings | null;
@@ -327,7 +330,10 @@ export function Board(props: BoardProps) {
       content: <FireLog view={fire} sources={byId} />,
     } : sidebar === undefined && timeline && !cardIncludes(timeline) ? {
       title: "Timeline", ariaLabel: "Incident timeline", defaultOpen: props.defaultTimelineOpen,
-      content: renderWorkspaceWidget(timeline, true),
+      content: props.strikeOverview ? <>
+        <StrikeDayChart timeline={data?.widgets[timeline.widget.id] as TimelineData | undefined} />
+        {renderWorkspaceWidget(timeline, true)}
+      </> : renderWorkspaceWidget(timeline, true),
     } : undefined;
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
@@ -403,7 +409,7 @@ export function Board(props: BoardProps) {
     ) : undefined;
     return (
       <OfficialReleasesContext.Provider value={releases}>
-        <div className={`@container fd-workspace-board${props.wildfire ? " fd-wildfire-workspace" : ""}${outage ? " fd-outage-workspace" : ""}`}>
+        <div className={`@container fd-workspace-board${props.wildfire ? " fd-wildfire-workspace" : ""}${props.strikeOverview ? " fd-strike-workspace" : ""}${outage ? " fd-outage-workspace" : ""}`}>
           {boardHeader}
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={!!props.wildfire}
             main={outageOverview ?? cyberOverview}
@@ -433,7 +439,8 @@ export function Board(props: BoardProps) {
               </div>}
               {activeRegion?.inset && <RegionInset key={activeRegion.label} inset={activeRegion.inset} points={mapData?.points ?? []} />}
             </> : undefined}
-            mapFigures={!props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
+            mapFigures={props.strikeOverview ? <StrikeMapFigures widgets={spec?.widgets ?? []} data={data} />
+              : !props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
             overview={outage ? <OutageSituation {...outageProps} /> : cyber ? (cyberDetails ? <>
               <h3 className="text-sm font-semibold">Incident summary</h3>
@@ -446,7 +453,10 @@ export function Board(props: BoardProps) {
             </> : summary) : fire ? <>
               <WildfireOverview view={fire} header={header} sources={byId} releases={releases} lastChecked={lastChecked || undefined} />
               {status === "error" && !widgets.length ? <EmptyState title="The board could not be built" description={events.find((e) => e.kind === "error")?.message} /> : null}
-            </> : <>
+            </> : props.strikeOverview ? (
+              <StrikeOverview widgets={spec?.widgets ?? []} data={data} sources={byId} summary={summary}
+                status={header?.status ? situationLabel[header.status] ?? header.status : null} />
+            ) : <>
               {summary}
               {overviewChart && <StatusBreakdown entry={overviewChart} data={data} fallback={renderWorkspaceWidget(overviewChart)} />}
               {props.incidentOverview?.status && <IncidentReports kind="incident-status" hideEmpty
