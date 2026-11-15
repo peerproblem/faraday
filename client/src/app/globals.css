@@ -846,3 +846,31 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-compact-trend .sw-trend__xlabel {
   display: none;
 }
+
+.fd-board-map-overlay {
+  position: absolute;
+  inset: var(--sw-space-3) auto auto var(--sw-space-3);
+  z-index: 2;
+  display: grid;
+  justify-items: start;
+  gap: var(--sw-space-2);
+  max-width: min(18rem, calc(100% - 4rem));
+}
+.fd-board-map-overlay > [data-sw="card"] {
+  max-height: min(38dvh, 20rem);
+  overflow: auto;
+}
+.fd-board-map-inset {
+  position: absolute;
+  inset: auto var(--sw-space-3) var(--sw-space-24) auto;
+  z-index: 1;
+  width: min(10rem, 38%);
+  display: grid;
+  gap: var(--sw-space-1);
+}
+.fd-board-map-inset > :first-child {
+  width: fit-content;
+  padding-inline: var(--sw-space-1);
+  background: var(--sw-background);
+  color: var(--sw-foreground);
+}

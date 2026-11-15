@@ -38,6 +38,7 @@ vi.mock("../../repo/boards", () => ({
   savePlan: vi.fn(),
   setSchedule: vi.fn(),
 }));
+vi.mock("../../repo/board-layouts", () => ({ getBoardLayout: vi.fn() }));
 vi.mock("../../repo/facts", () => ({
   listFacts: vi.fn(async () => []),
   metricHistory: vi.fn(async () => []),
@@ -82,6 +83,7 @@ vi.mock("../assemble", () => ({
 const ai = await import("ai");
 const { decide } = await import("../../llm/decide");
 const boards = await import("../../repo/boards");
+const { getBoardLayout } = await import("../../repo/board-layouts");
 const { scrapeMarkdown, searchNews, searchWeb } = await import("../../contextdev");
 const monitors = await import("../../monitors");
 const { buildGraph, updateGraph } = await import("./index");
@@ -215,6 +217,7 @@ function routeLlm() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getBoardLayout).mockResolvedValue({ assignment: null, rev: 0 });
   mergeDiff = { added: [], changed: [], superseded: 0 };
   routeDecide();
   routeLlm();
@@ -238,6 +241,23 @@ describe("updateGraph", () => {
     expect(lastPolledAt).toEqual(expect.any(Number));
     expect(emitted).toContainEqual({ type: "polled", lastPolledAt });
     expect(boards.saveBoardVersion).not.toHaveBeenCalled();
+  });
+
+  it("adds official Context search and reporting tables when the layout selects a tally", async () => {
+    vi.mocked(getBoardLayout).mockResolvedValue({
+      assignment: { templateId: null, settings: {
+        layout: "map", timelineOpen: true, evidenceOpen: true, officialDomains: ["112.fi"],
+        sidebar: { title: "Reports", open: true, contents: [{ kind: "official-tally", chart: "donut" }] },
+      } },
+      rev: 1,
+    });
+    vi.mocked(boards.addSources).mockResolvedValue([]);
+    const { ctx, emitted } = fakeCtx("poll", { reason: "schedule" });
+    await updateGraph(ctx);
+    expect(searchWeb).toHaveBeenCalledWith(expect.stringContaining("site:112.fi"), "last_week", 6, expect.any(AbortSignal), expect.any(Function));
+    expect(emitted).toContainEqual(expect.objectContaining({ type: "spec", spec: expect.objectContaining({
+      widgets: expect.arrayContaining([expect.objectContaining({ bind: "incident-totals" })]),
+    }) }));
   });
 
   it("stops after merge with an empty diff: only triage and extraction ran", async () => {
