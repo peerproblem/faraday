@@ -279,7 +279,10 @@ describe("GET /api/topics", () => {
     expect((await app.request("/api/topics?state=archived")).status).toBe(200);
     expect(boards.listTopics).toHaveBeenLastCalledWith({ state: "archived", crisisType: null, limit: 50 });
     expect((await app.request("/api/topics?state=merged")).status).toBe(400);
-    expect((await app.request("/api/topics?type=volcano")).status).toBe(400);
+    expect((await app.request("/api/topics?type=natural-disasters")).status).toBe(200);
+    expect(boards.listTopics).toHaveBeenLastCalledWith({ state: "active", crisisType: "natural-disasters", limit: 50 });
+    expect((await app.request("/api/topics?type=economy")).status).toBe(200);
+    expect((await app.request("/api/topics?type=unknown-category")).status).toBe(400);
     app.dispose();
   });
 });

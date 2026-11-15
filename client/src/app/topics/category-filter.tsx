@@ -2,14 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { ToggleGroup } from "@/components/ui/toggle";
-import { crisisTypes, type CrisisType } from "@/lib/spec";
+import { topicFilters, type TopicFilter } from "@/lib/spec";
 
 const categories = [
   { value: "all", label: "All" },
-  ...crisisTypes.map((type) => ({ value: type, label: type.charAt(0).toUpperCase() + type.slice(1) })),
+  ...topicFilters.map((type) => ({
+    value: type,
+    label: type === "natural-disasters" ? "Natural disasters" : type.charAt(0).toUpperCase() + type.slice(1),
+  })),
 ];
 
-export function CategoryFilter({ active, past }: { active: CrisisType | null; past: boolean }) {
+export function CategoryFilter({ active, past }: { active: TopicFilter | null; past: boolean }) {
   const router = useRouter();
 
   return (

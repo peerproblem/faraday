@@ -16,10 +16,12 @@ import type {
   Source,
   SourceType,
   SourceVia,
+  TopicCategory,
+  TopicFilter,
   TopicState,
   Visibility,
 } from "../spec";
-import { sourceVias } from "../spec";
+import { naturalDisasterCategories, sourceVias } from "../spec";
 
 export type FoundDoc = {
   url: string;
@@ -64,6 +66,7 @@ export type BoardRow = {
   monitorsSyncedAt: number | null;
   origin: BoardOrigin;
   topicState: TopicState | null;
+  topicCategoryOverride?: TopicCategory | null;
   entities: string[];
   locationName: string | null;
   rankScore: number | null;
@@ -96,6 +99,7 @@ type DbBoard = {
   monitors_synced_at: number | null;
   origin: string;
   topic_state: string | null;
+  topic_category: TopicCategory | null;
   entities: string | null;
   location_name: string | null;
   rank_score: number | null;
@@ -109,7 +113,7 @@ const newId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 12);
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 const BOARD_COLS = `id, slug, owner_id, prompt, title, status, tier, visibility, plan, spec_version, spec, data, version, language,
   last_polled_at, next_poll_at, last_viewed_at, last_changed_at, running_job_id, monitors_synced_at,
-  origin, topic_state, entities, location_name, rank_score, merged_into, discovered_at, created_at, updated_at`;
+  origin, topic_state, topic_category, entities, location_name, rank_score, merged_into, discovered_at, created_at, updated_at`;
 
 const asOrigin = (v: unknown): BoardOrigin => (v === "system" ? "system" : "user");
 const asTopicState = (v: unknown): TopicState | null => (v === "active" || v === "archived" || v === "merged" ? v : null);
@@ -160,6 +164,7 @@ function toRow(r: DbBoard): BoardRow {
     monitorsSyncedAt: num(r.monitors_synced_at),
     origin: asOrigin(r.origin),
     topicState: asTopicState(r.topic_state),
+    topicCategoryOverride: r.topic_category ?? null,
     entities: asEntities(r.entities),
     locationName: r.location_name,
     rankScore: num(r.rank_score),
@@ -245,6 +250,7 @@ export async function getBoardView(id: string): Promise<BoardView | null> {
     language: b.language,
     origin: b.origin,
     topicState: b.topicState,
+    topicCategory: b.topicCategoryOverride ?? (b.spec?.template === "finance" ? "economy" : b.plan?.crisisType ?? b.data?.header.crisisType ?? null),
   };
 }
 
@@ -257,6 +263,8 @@ type DbCard = {
   tier: BoardTier;
   updated_at: number;
   crisis_type: string | null;
+  topic_category?: TopicCategory | null;
+  effective_topic_category?: string | null;
   severity: number | null;
   headline: string | null;
   accent: string | null;
@@ -272,6 +280,8 @@ export const cardCols = (a = "") =>
     .map((c) => `${a}${c}`)
     .join(", ");
 
+export const effectiveTopicCategory = "COALESCE(topic_category, CASE WHEN JSON_VALUE(spec, '$.template') = 'finance' THEN 'economy' END, crisis_type)";
+
 export function toCard(r: DbCard): BoardCard {
   return {
     id: r.id,
@@ -282,6 +292,8 @@ export function toCard(r: DbCard): BoardCard {
     tier: r.tier,
     updatedAt: Number(r.updated_at),
     crisisType: r.crisis_type,
+    topicCategory: r.effective_topic_category,
+    topicCategoryOverride: r.topic_category,
     severity: num(r.severity),
     headline: r.headline,
     accent: r.accent,
@@ -310,17 +322,18 @@ export async function listBoards(opts: { limit: number; ownerId?: string; public
  * Shared topics for the home page and /topics: public system boards in a state (default active), best ranked first.
  * Unscored topics sort after scored ones, newest first. Boards that have not finished their first build are left out.
  */
-export async function listTopics(opts: { state?: TopicState; crisisType?: string | null; limit: number }): Promise<BoardCard[]> {
+export async function listTopics(opts: { state?: TopicState; crisisType?: TopicFilter | null; limit: number }): Promise<BoardCard[]> {
   const where = ["deleted_at IS NULL", "origin = 'system'", "visibility = 'public'", "topic_state = ?", "spec_version = 2", "status <> 'error'"];
   const params: Param[] = [opts.state ?? "active"];
   if ((opts.state ?? "active") === "active") where.push("spec IS NOT NULL");
   if (opts.crisisType) {
-    where.push("crisis_type = ?");
-    params.push(opts.crisisType);
+    const categories = opts.crisisType === "natural-disasters" ? naturalDisasterCategories : [opts.crisisType];
+    where.push(`${effectiveTopicCategory} IN (${categories.map(() => "?").join(", ")})`);
+    params.push(...categories);
   }
   params.push(Math.max(1, Math.min(100, Math.floor(opts.limit))));
   const rows = await all<DbCard>(
-    `SELECT ${cardCols()} FROM boards WHERE ${where.join(" AND ")}
+    `SELECT ${cardCols()}, ${effectiveTopicCategory} AS effective_topic_category FROM boards WHERE ${where.join(" AND ")}
      ORDER BY rank_score IS NULL, rank_score DESC, updated_at DESC LIMIT ?`,
     params,
   );

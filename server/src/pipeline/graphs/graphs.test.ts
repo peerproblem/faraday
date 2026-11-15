@@ -130,6 +130,7 @@ const board = (over: Record<string, unknown> = {}) => ({
   tier: "hot",
   visibility: "public",
   plan,
+  topicCategoryOverride: "other",
   specVersion: 2,
   spec: { version: 2, widgets: [{ id: "w1", type: "narrative", title: "S", span: "full", bind: null, metrics: [] }] },
   data: DATA("old"),
@@ -259,6 +260,23 @@ describe("updateGraph", () => {
       widgets: expect.arrayContaining([expect.objectContaining({ bind: "incident-totals" })]),
     }) }));
   });
+
+  it.each(["flood", "wildfire", "earthquake", "storm", "heatwave", "volcano", "other-natural-disaster"] as const)(
+    "uses the default Context search and reporting tables for %s without an assigned layout",
+    async (crisisType) => {
+      vi.mocked(boards.getBoard).mockResolvedValue(board({ plan: { ...plan, crisisType }, topicCategoryOverride: null }) as never);
+      vi.mocked(boards.addSources).mockResolvedValue([]);
+      const { ctx, emitted } = fakeCtx("poll", { reason: "schedule" });
+      await updateGraph(ctx);
+      expect(searchWeb).toHaveBeenCalledWith(expect.stringContaining("official warnings"), "last_week", 6, expect.any(AbortSignal), expect.any(Function));
+      expect(emitted).toContainEqual(expect.objectContaining({ type: "spec", spec: expect.objectContaining({
+        widgets: expect.arrayContaining([
+          expect.objectContaining({ bind: "operational-incidents" }),
+          expect.objectContaining({ bind: "incident-totals" }),
+        ]),
+      }) }));
+    },
+  );
 
   it("stops after merge with an empty diff: only triage and extraction ran", async () => {
     const fresh = source("s1");

@@ -5,11 +5,46 @@ import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { getFixture } from "../../../e2e/fixtures";
 import { LiveBoard } from "@/components/board/live-board";
-import { incidentTallyTable, resolveBoardPresentation, type BoardMapRegion, type TableData, type Widget } from "@/lib/spec";
+import { incidentStatusTable, incidentTallyTable, resolveBoardPresentation, type BoardMapRegion, type TableData, type Widget } from "@/lib/spec";
 
 const reportingTable: Widget = {
   id: "tally", type: "table", title: "Official incident totals", span: "half", bind: incidentTallyTable, metrics: [],
 };
+
+test("shows verified hazard warnings in Situation regardless of their source wording", () => {
+  const baseline = getFixture("strike")!.board;
+  const status: Widget = {
+    id: "status", type: "table", title: "Official incident status", span: "half", bind: incidentStatusTable, metrics: [],
+  };
+  const warning = {
+    id: "warning", asOf: null, sources: ["authority"], evidence: { source: "authority", quote: "The tsunami warning remains in force." },
+    cells: { region: "Sendai, Japan", incident: "Coastal tsunami warning", status: "Tsunami warning remains in force",
+      "response-state": "active", "status-as-of": "2026-11-15T12:00:00Z" },
+  };
+  const revoked = {
+    ...warning,
+    id: "revoked",
+    cells: { ...warning.cells, status: "All-clear has been issued", "response-state": "inactive", "status-as-of": "2026-11-15T12:30:00Z" },
+  };
+  const rendering = (rows: (typeof warning)[]) => <LiveBoard workspace live={false} initial={{
+    ...baseline,
+    presentation: resolveBoardPresentation(null, false, "other-natural-disaster"),
+    spec: { ...baseline.spec!, widgets: [...baseline.spec!.widgets, status] },
+    data: { ...baseline.data!, widgets: { ...baseline.data!.widgets, status: { columns: [], rows } } },
+    sources: [...baseline.sources, { ...baseline.sources[0], id: "authority", url: "https://agency.example/warning", sourceType: "official" }],
+  }} />;
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-15T13:00:00Z"));
+  try {
+    const view = render(rendering([warning]));
+    expect(screen.getByText("Tsunami warning remains in force")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Latest official tally" })).toBeNull();
+    view.unmount();
+    render(rendering([warning, revoked]));
+    expect(screen.queryByRole("heading", { name: "Action needed now" })).toBeNull();
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
 
 function tally(region: string, count: number, source = "authority"): TableData["rows"][number] {
   return {
