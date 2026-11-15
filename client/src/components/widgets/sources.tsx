@@ -17,7 +17,7 @@ const STEP = 20;
 /** Outlets offered as filters. The rest are still in the list. */
 const OUTLETS = 14;
 
-export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
+export function SourcesWidget({ widget, allSources, wrapSourceTitles }: WidgetProps<"sources">) {
   const releases = useContext(OfficialReleasesContext);
   const knownUrls = new Set(allSources.map((source) => evidenceUrl(source.url)));
   const additionalReleases = releases.filter((release) => {
@@ -38,6 +38,7 @@ export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
   const active = outlet && outlets.some((o) => o.key === outlet) ? outlet : null;
   const matching = active ? allSources.filter((s) => brandOf(s).key === active) : allSources;
   const shown = matching.slice(0, limit);
+  const contextCount = wrapSourceTitles ? allSources.filter((source) => source.via === "contextdev").length : 0;
   const breakdown = Object.entries(byType)
     .map(([k, n]) => `${n} ${k}`)
     .join(", ");
@@ -48,7 +49,8 @@ export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
   return (
     <div className="flex flex-col gap-3">
       <Text size="sm" tone="subtle">
-        {allSources.length} sources from the live web across {outlets.length} {outlets.length === 1 ? "outlet" : "outlets"}, read through Context.dev
+        {allSources.length} sources from the live web across {outlets.length} {outlets.length === 1 ? "outlet" : "outlets"}
+        {wrapSourceTitles ? ` · ${contextCount} via Context.dev` : ", read through Context.dev"}
         {breakdown ? ` (${breakdown})` : null}
       </Text>
       {outlets.length > 1 ? (
@@ -78,7 +80,28 @@ export function SourcesWidget({ widget, allSources }: WidgetProps<"sources">) {
           ))}
         </ul>
       ) : null}
-      {matching.length ? (
+      {matching.length > 0 && wrapSourceTitles && (
+        <ol className="grid gap-2" aria-label={`${widget.title} list`}>
+          {shown.map((source) => (
+            <li key={source.id} className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 border-b border-hairline pb-2">
+              <SourceMark source={source} size="xs" />
+              <div className="grid min-w-0 gap-1">
+                <Caption>
+                  {source.id} · {source.sourceType ?? source.kind}{source.via === "oxylabs" ? " · via Oxylabs" : ""}
+                  {source.publishedAt && <> · <Ago t={source.publishedAt} /></>}
+                </Caption>
+                <Text size="sm" className="[overflow-wrap:anywhere]">
+                  <Link href={source.url} target="_blank" rel="noreferrer">
+                    {source.publisher ? `${source.publisher}: ` : ""}
+                    {source.title ?? source.url}
+                  </Link>
+                </Text>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      {matching.length > 0 && !wrapSourceTitles ? (
         <ScrollArea maxHeight={320} aria-label={`${widget.title} list`}>
           <ol className="grid gap-2">
             {shown.map((s) => (

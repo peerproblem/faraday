@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useId, useRef, useState } from "react";
 import { SourceMark } from "@/components/sources/source-mark";
 import { Link } from "@/components/ui/link";
 import { CitationChip } from "@/components/ui/citation";
@@ -135,12 +135,16 @@ export function SourceChips({
   ids,
   sources,
   evidence,
+  collapseAt,
 }: {
   ids: string[] | undefined;
   sources: Map<string, Source>;
   /** The verified sentence behind this figure. It is shown in the preview of the source it was copied from. */
   evidence?: Evidence;
+  collapseAt?: number;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const groupId = useId();
   const known = (ids ?? []).filter((id, i, all) => all.indexOf(id) === i && sources.has(id) && linkable(sources.get(id)!));
   const releases = useContext(OfficialReleasesContext);
   const seen = new Set(known.map((id) => evidenceUrl(sources.get(id)!.url)));
@@ -151,7 +155,7 @@ export function SourceChips({
     return true;
   });
   if (!known.length) return null;
-  return (
+  const chips = (
     <span className="inline-flex flex-wrap gap-1 align-middle">
       {known.map((id) => (
         <SourceChip key={id} id={id} source={sources.get(id)!} evidence={evidence?.source === id ? evidence : undefined} />
@@ -160,6 +164,21 @@ export function SourceChips({
         <CitationChip key={release.id} reference="Official" title={release.label} href={release.url}
           publisher="Official release referenced by a cited source" excerpt={release.note || undefined} />
       ))}
+    </span>
+  );
+  if (collapseAt === undefined || known.length < collapseAt) return chips;
+
+  const contextCount = known.filter((id) => sources.get(id)?.via === "contextdev").length;
+  return (
+    <span className="fd-deck-citation-group">
+      <Button size="sm" variant="secondary" aria-expanded={expanded} aria-controls={groupId}
+        trailing={<Icon name={expanded ? "chevron-up" : "chevron-down"} />}
+        onClick={() => setExpanded((value) => !value)}>
+        Sources ({known.length}){contextCount > 0 ? ` · ${contextCount} via Context.dev` : ""}
+      </Button>
+      <span id={groupId} className="fd-deck-citation-group-body" hidden={!expanded}>
+        {expanded && chips}
+      </span>
     </span>
   );
 }

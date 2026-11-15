@@ -12,6 +12,7 @@ import { timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceR
 type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
 type WorkspaceProps = {
   workspaceKey?: string;
+  flowingDetails?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
   timeline?: ReactNode;
@@ -23,7 +24,7 @@ type WorkspaceProps = {
   editor?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
   const id = useId();
   const legacy = useLegacyWorkspacePanels(workspaceKey);
   const resize = useWorkspaceSizes(workspaceKey, { timeline: legacy.sidebar?.width, details: legacy.inspector?.width });
@@ -172,6 +173,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
           onOpenChange={(name, value) => setOpen((current) => ({ ...current, [name]: value }))}
           resize={resize}
           detailsWidth={detailsWidth}
+          flowing={flowingDetails}
         />
       </aside>
     </section>

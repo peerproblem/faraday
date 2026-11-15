@@ -727,3 +727,37 @@ body:has(.fd-workspace-shell) .fd-site-header {
     display: inline-flex;
   }
 }
+
+/* The populated source list expands in the existing workspace card. */
+.fd-deck-citation-group {
+  display: block;
+  margin-block: 0.4rem;
+}
+.fd-deck-citation-group-body:not([hidden]) {
+  display: block;
+  margin-top: 0.45rem;
+}
+
+/* Keep the wildfire Details cards in one scroll flow at their natural heights. */
+.fd-wildfire-workspace .fd-workspace-card-stack {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.fd-wildfire-workspace .fd-workspace-detail-card {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.fd-wildfire-workspace .fd-workspace-details :is(.fd-workspace-tabs, .fd-workspace-tab-body) {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.fd-wildfire-workspace .fd-workspace-details .fd-workspace-tab-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding-block: var(--sw-space-3);
+}
+
+/* Compact trends render the report range below the plot; full labels stay in the chart tooltip. */
+.fd-compact-trend .sw-trend__xlabel {
+  display: none;
+}
