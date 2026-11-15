@@ -26,7 +26,11 @@ export function createViewCache(ttlMs = 5_000) {
   };
 }
 
-export const etagFor = (view: Pick<BoardView, "version" | "status" | "tier">) => `"v${view.version}-${view.status}-${view.tier}"`;
+export function etagFor(view: Pick<BoardView, "version" | "status" | "tier" | "presentation">) {
+  const p = view.presentation;
+  const layout = p ? `-${Number(p.workspace)}${Number(!!p.cardsOnMap)}${Number(!!p.timelineOpen)}${Number(!!p.evidenceOpen)}` : "";
+  return `"v${view.version}-${view.status}-${view.tier}${layout}"`;
+}
 
 export function etagMatches(ifNoneMatch: string | undefined, etag: string) {
   if (!ifNoneMatch) return false;

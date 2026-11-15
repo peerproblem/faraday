@@ -11,7 +11,7 @@ export default async function BoardPreview({ params }: PageProps<"/dev/boards/[s
   const board = await getBoardBySlug(slug);
   if (!board) notFound();
 
-  const hasMap = board.spec?.template !== "finance" && board.spec?.widgets.some((widget) => widget.type === "map");
+  const hasMap = board.presentation?.workspace !== false && board.spec?.template !== "finance" && board.spec?.widgets.some((widget) => widget.type === "map");
   return (
     <PersonalBoard
       key={board.id}

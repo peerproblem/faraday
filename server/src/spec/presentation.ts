@@ -1,0 +1,26 @@
+import { z } from "zod";
+
+/** Administrator-editable layout settings. Boards copy these settings when a template is applied. */
+export const boardLayoutSchema = z.object({
+  layout: z.enum(["map", "grid"]),
+  timelineOpen: z.boolean(),
+  evidenceOpen: z.boolean(),
+});
+export type BoardLayout = z.infer<typeof boardLayoutSchema>;
+export type BoardLayoutTemplate = { id: string; name: string; settings: BoardLayout };
+export type BoardLayoutAssignment = { templateId: string | null; settings: BoardLayout };
+
+/** Resolved renderer settings, safe to share with anyone viewing a board. */
+export type BoardPresentation = {
+  workspace: boolean;
+  cardsOnMap?: boolean;
+  timelineOpen?: boolean;
+  evidenceOpen?: boolean;
+};
+
+export function resolveBoardPresentation(settings: BoardLayout | null, legacyGrid = false): BoardPresentation | undefined {
+  if (settings?.layout === "map") {
+    return { workspace: true, cardsOnMap: true, timelineOpen: settings.timelineOpen, evidenceOpen: settings.evidenceOpen };
+  }
+  return settings || legacyGrid ? { workspace: false } : undefined;
+}

@@ -14,6 +14,8 @@ type WorkspaceProps = {
   workspaceKey?: string;
   cardsOnMap?: boolean;
   flowingDetails?: boolean;
+  defaultTimelineOpen?: boolean;
+  defaultEvidenceOpen?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
   timeline?: ReactNode;
@@ -25,7 +27,7 @@ type WorkspaceProps = {
   editor?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultTimelineOpen, defaultEvidenceOpen, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -34,7 +36,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   const detailsSize = resize("details");
   const [timelineOverride, setTimelineOpen] = useState<boolean>();
   const [detailsOverride, setDetailsOpen] = useState<boolean>();
-  const timelineOpen = timelineOverride ?? legacy.sidebar?.open ?? true;
+  const timelineOpen = timelineOverride ?? defaultTimelineOpen ?? legacy.sidebar?.open ?? true;
   const detailsOpen = detailsOverride ?? legacy.inspector?.open ?? true;
   const [wide, setWide] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"timeline" | "details" | null>(null);
@@ -58,7 +60,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   } : undefined;
   const editing = !!editor;
   const [selection, setSelection] = useState({ tab: editing ? "layout" : "overview", editing });
-  const [open, setOpen] = useState({ situation: true, evidence: false });
+  const [open, setOpen] = useState({ situation: true, evidence: defaultEvidenceOpen ?? false });
   const [evidenceTab, setEvidenceTab] = useState<string | null>(null);
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   if (selection.editing !== editing) {

@@ -44,8 +44,7 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
     board.origin === "system" ? (
       <AddToDashboard boardId={board.id} slug={board.slug} version={board.version} signedIn={!!session?.user} added={!!view?.layout} />
     ) : undefined;
-  // Finance boards have no map to centre a workspace on, so they keep the card grid.
-  if (board.spec?.template === "finance") {
+  if (board.presentation?.workspace === false || (!board.presentation && board.spec?.template === "finance")) {
     return (
       <div className="pt-6">
         <LiveBoard initial={board} actions={actions} />

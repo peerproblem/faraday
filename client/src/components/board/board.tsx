@@ -58,6 +58,8 @@ export type BoardProps = {
   tools?: (w: LaidOutWidget) => ReactNode;
   workspace?: boolean;
   cardsOnMap?: boolean;
+  defaultTimelineOpen?: boolean;
+  defaultEvidenceOpen?: boolean;
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
@@ -281,6 +283,8 @@ export function Board(props: BoardProps) {
         <div className={`@container fd-workspace-board${props.wildfireOverview ? " fd-wildfire-workspace" : ""}`}>
           {boardHeader}
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
+            defaultTimelineOpen={props.defaultTimelineOpen}
+            defaultEvidenceOpen={props.defaultEvidenceOpen}
             map={map ? <>
               <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
               {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
