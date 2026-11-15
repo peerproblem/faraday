@@ -5,7 +5,9 @@ import { auth } from "@/auth";
 import { LiveBoard } from "@/components/board/live-board";
 import { AddToDashboard } from "@/components/personal/add-to-dashboard";
 import { WorkspaceNavigation } from "@/components/site-header";
-import { boardSlugFromHost, boardUrl, DOMAIN } from "@/lib/config";
+import { Link } from "@/components/ui/link";
+import { Text } from "@/components/ui/typography";
+import { boardSlugFromHost, boardUrl, DOMAIN, SITE_URL } from "@/lib/config";
 import { getBoardBySlug, getMyView } from "@/lib/engine";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +37,18 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
     board.origin === "system" ? (
       <AddToDashboard boardId={board.id} slug={board.slug} version={board.version} signedIn={!!session?.user} added={!!view?.layout} />
     ) : undefined;
+  // Finance boards have no map to centre a workspace on, so they keep the card grid.
+  if (board.spec?.template === "finance") {
+    return (
+      <div className="pt-6">
+        <LiveBoard initial={board} actions={actions} />
+        <Text size="sm" tone="muted" className="mt-8 text-center">
+          A shared Faraday board, kept current from the live web. Every figure links to its source.{" "}
+          <Link href={`${SITE_URL}/topics`}>More topics</Link>
+        </Text>
+      </div>
+    );
+  }
   return (
     <div className="fd-workspace-shell">
       <LiveBoard initial={board} actions={actions} workspace workspaceNavigation={<WorkspaceNavigation />} />
