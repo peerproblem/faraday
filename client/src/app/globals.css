@@ -126,6 +126,114 @@
     background: #fff;
   }
 
+  /* A timeline told as a story (widget display "story"): a scrolling panel inside the card. The stage sticks above
+     the steps on a narrow card and beside them on a wide one. The step at the reading line is active; the others
+     stay readable, only quieter. Durations come from the motion tokens, which are 0 under reduced motion. */
+  .fd-story {
+    --fd-story-h: clamp(22rem, 65vh, 34rem);
+    position: relative;
+    height: var(--fd-story-h);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    container-type: inline-size;
+    border: 1px solid var(--sw-hairline);
+    border-radius: var(--sw-radius-md);
+  }
+  .fd-story__stage {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 16px;
+    background: var(--sw-background);
+    border-block-end: 1px solid var(--sw-hairline);
+  }
+  .fd-story__axis {
+    display: block;
+    overflow: visible;
+  }
+  .fd-story__axis line {
+    stroke: var(--sw-hairline);
+    stroke-width: 2;
+  }
+  .fd-story__axis circle {
+    fill: var(--sw-muted-foreground);
+    opacity: 0.45;
+    cursor: pointer;
+  }
+  .fd-story__axis circle[data-high] {
+    fill: var(--sw-foreground);
+    opacity: 0.75;
+  }
+  .fd-story__axis circle[data-active] {
+    fill: var(--sw-accent);
+    opacity: 1;
+    stroke: var(--sw-background);
+    stroke-width: 2;
+  }
+  .fd-story__lead {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    animation: fd-widget-enter var(--fd-motion-enter) var(--fd-motion-ease) both;
+  }
+  .fd-story__portrait {
+    display: inline-flex;
+    flex-shrink: 0;
+    border-radius: 30%;
+    box-shadow:
+      0 0 0 2px var(--sw-background),
+      0 0 0 4px var(--sw-accent);
+  }
+  .fd-story__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    /* Room for the last step to reach the reading line. */
+    padding: 12px 12px calc(var(--fd-story-h) * 0.3);
+    list-style: none;
+  }
+  .fd-story__step {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border-inline-start: 3px solid transparent;
+    border-radius: var(--sw-radius-sm);
+    opacity: 0.6;
+    transition:
+      opacity var(--fd-motion-move) var(--fd-motion-ease),
+      background-color var(--fd-motion-move) var(--fd-motion-ease),
+      border-color var(--fd-motion-move) var(--fd-motion-ease);
+  }
+  .fd-story__step[data-active],
+  .fd-story__step:focus-within {
+    opacity: 1;
+    background-color: color-mix(in srgb, var(--sw-accent) 7%, transparent);
+    border-inline-start-color: var(--sw-accent);
+  }
+  .fd-story__flag {
+    color: var(--sw-accent);
+  }
+  @container (min-width: 40rem) {
+    .fd-story__body {
+      display: grid;
+      grid-template-columns: minmax(13rem, 2fr) 3fr;
+    }
+    .fd-story__stage {
+      height: calc(var(--fd-story-h) - 2px);
+      justify-content: center;
+      gap: 14px;
+      padding: 20px;
+      border-block-end: 0;
+      border-inline-end: 1px solid var(--sw-hairline);
+    }
+  }
+
   /* A source that arrived while the board was open: it settles in and its tint fades. */
   .fd-source-enter {
     animation: fd-source-enter var(--fd-motion-highlight) var(--fd-motion-ease) both;

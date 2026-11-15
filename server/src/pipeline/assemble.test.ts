@@ -68,6 +68,13 @@ describe("specFromPlan", () => {
     const s = specFromPlan({ ...plan, statusGroups: [{ key: "m365", title: "Microsoft 365" }], widgets: [] });
     expect(s.widgets.find((w) => w.type === "status-grid")).toMatchObject({ bind: "m365", title: "Microsoft 365" });
   });
+  it("keeps each widget's display from the previous spec, matched by key", () => {
+    const prev = { ...spec, widgets: spec.widgets.map((w, i) => (w.type === "timeline" ? { ...w, id: `w${i + 9}`, display: "story" as const } : w)) };
+    const s = specFromPlan({ ...plan, widgets: [] }, prev);
+    expect(s.widgets.find((w) => w.type === "timeline")?.display).toBe("story");
+    expect(s.widgets.filter((w) => w.display)).toHaveLength(1);
+    expect(specFromPlan(plan).widgets.some((w) => "display" in w)).toBe(false);
+  });
 });
 
 let id = 1;

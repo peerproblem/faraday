@@ -19,6 +19,14 @@ export const widgetTypes = [
 export type WidgetType = (typeof widgetTypes)[number];
 
 /**
+ * How a widget lays out its data. Only the timeline reads it today: "story" walks through the events one at a time
+ * in a scrolling panel, oldest first, with the lead source's mark beside each step; "list" (the default) is the plain
+ * list. Set on a stored spec; plan edits keep it (see specFromPlan).
+ */
+export const widgetDisplays = ["list", "story"] as const;
+export type WidgetDisplay = (typeof widgetDisplays)[number];
+
+/**
  * One widget on a board. Flat on purpose (structured output handles flat objects best).
  * - stat-grid: `metrics` lists metric keys from the plan.
  * - trend: `bind` is one metric key.
@@ -38,6 +46,7 @@ export const widgetSchema = z.object({
   span: z.enum(["full", "half"]),
   bind: z.string().nullable(),
   metrics: z.array(z.string()),
+  display: z.enum(widgetDisplays).optional(),
 });
 export type Widget = z.infer<typeof widgetSchema>;
 

@@ -152,7 +152,7 @@ export const buildGraph: GraphFn = async (ctx) => {
   let t = Date.now();
   const plan = await ctx.step("plan", { program }, (i, use, signal) => makePlan(i.program, use, signal), { timeoutMs: 45_000, retries: 1 });
   await savePlan(ctx.boardId, plan);
-  const spec = specFromPlan(plan);
+  const spec = specFromPlan(plan, board.spec);
   ctx.emit({
     type: "partial",
     stage: "plan",
