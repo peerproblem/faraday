@@ -93,25 +93,50 @@ export function hostOf(u: string): string | null {
   }
 }
 
-export async function searchNews(query: string, sinceMs: number, limit = 10, signal?: AbortSignal): Promise<FoundDoc[]> {
+export type SearchPageSink = (docs: FoundDoc[], pageIndex?: number) => Promise<void>;
+
+export async function searchNews(
+  query: string, sinceMs: number, limit = 10, signal?: AbortSignal, savePage?: SearchPageSink,
+): Promise<FoundDoc[]> {
   // Round the window to the hour so recorded cassettes match on replay within the same hour bucket.
   const from = Math.floor(sinceMs / 3_600_000) * 3_600_000;
   const docs = await taped("news.search", [query, cassetteMode() === "off" ? sinceMs : from, limit], async () => {
-    const res = await ctx().news.search(
-      { searchBy: { type: "natural_language", query }, filterBy: { date: { from: cassetteMode() === "off" ? sinceMs : from } }, limit },
-      { signal },
-    );
-    return (res.data ?? []).map((a) => ({
-      url: a.url,
-      title: a.title ?? null,
-      publisher: a.source?.name ?? a.source?.domain ?? null,
-      publishedAt: a.published_at ?? null,
-      snippet: clip(a.description, 1200),
-      kind: "news" as const,
-    }));
+    const results: FoundDoc[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+    let pageIndex = 0;
+    do {
+      const res = await ctx().news.search(
+        {
+          searchBy: { type: "natural_language", query },
+          filterBy: { date: { from: cassetteMode() === "off" ? sinceMs : from } },
+          limit,
+          ...(cursor ? { cursor } : {}),
+        },
+        { signal },
+      );
+      const page: FoundDoc[] = (res.data ?? []).map((a) => ({
+        url: a.url,
+        title: a.title ?? null,
+        publisher: a.source?.name ?? a.source?.domain ?? null,
+        publishedAt: a.published_at ?? null,
+        snippet: clip(a.description, 1200),
+        kind: "news",
+        via: "contextdev",
+      }));
+      await savePage?.(page, pageIndex++);
+      results.push(...page);
+      if (!savePage || !res.has_more) break;
+      if (!res.next_cursor || seenCursors.has(res.next_cursor)) throw new Error("Context.dev news pagination did not advance");
+      cursor = res.next_cursor;
+      seenCursors.add(cursor);
+    } while (cursor);
+    return results;
   });
-  // Tagged outside the tape so cassettes recorded before provenance still get it.
-  return docs.map((d) => ({ ...d, via: "contextdev" as const }));
+  const tagged = docs.map((d) => ({ ...d, via: "contextdev" as const }));
+  if (cassetteMode() === "replay") await savePage?.(tagged);
+  // Additional result pages are evidence. Keep the normal board input at its existing limit.
+  return savePage ? tagged.slice(0, limit) : tagged;
 }
 
 export async function searchWeb(
@@ -119,6 +144,7 @@ export async function searchWeb(
   freshness: "last_24_hours" | "last_week" | "last_month" | "last_year",
   numResults = 6,
   signal?: AbortSignal,
+  savePage?: SearchPageSink,
 ): Promise<FoundDoc[]> {
   const docs = await taped("web.search", [query, freshness, numResults], async () => {
     const res = await ctx().web.search(
@@ -144,7 +170,9 @@ export async function searchWeb(
       };
     });
   });
-  return docs.map((d) => ({ ...d, via: "contextdev" as const }));
+  const tagged = docs.map((d) => ({ ...d, via: "contextdev" as const }));
+  await savePage?.(tagged);
+  return tagged;
 }
 
 /**
@@ -188,6 +216,12 @@ export type MonitorChange = {
   summary: string | null;
   url: string;
   importance: "low" | "medium" | "high" | null;
+  matchedUrls?: string[];
+  addedUrls?: string[];
+  removedUrls?: string[];
+  beforeExcerpt?: string | null;
+  diff?: string;
+  snapshots?: { url: string | null; before: string; after: string }[];
   afterExcerpt: string | null;
   /** `url` is absent for whole-target diffs: the evidence is then about the change's own url. */
   evidence: { url: string | null; after: string }[];

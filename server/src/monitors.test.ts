@@ -210,6 +210,25 @@ describe("monitors", () => {
     expect((await collectMonitorChanges("b1")).changes).toEqual([]);
   });
 
+  it("archives every monitor page, including changes already merged into the board", async () => {
+    rows.push(row({ id: "m1" }));
+    seen.add("c0");
+    const c = client();
+    for (let i = 0; i < 12; i++) {
+      c.monitors.listChanges.mockResolvedValueOnce({
+        data: [change(`c${i}`, "2026-11-14T10:00:00Z")],
+        has_more: i < 11,
+        next_cursor: i < 11 ? `cursor-${i}` : null,
+      });
+    }
+    __setContextClientForTest(c);
+    const save = vi.fn();
+    const result = await collectMonitorChanges("b1", undefined, save);
+    expect(save).toHaveBeenCalledTimes(12);
+    expect(save.mock.calls[0][0][0].id).toBe("c0");
+    expect(result.changes).toHaveLength(11);
+  });
+
   it("without a checkpoint reads from the monitor's creation", async () => {
     rows.push(row({ id: "m1" }));
     const c = client();

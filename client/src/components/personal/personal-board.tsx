@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Board, isBuilding, visibleWidgets } from "@/components/board/board";
 import { BoardHeaderButton } from "@/components/board/header-button";
-import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
+import { BoardToasts } from "@/components/board/live-board";
+import { useBoard } from "@/lib/client/use-board";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,7 +90,7 @@ export function PersonalBoard({
   workspaceNavigation?: ReactNode;
 }) {
   const router = useRouter();
-  const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
+  const { board, partial, spec, data, connected, updatedAt } = useBoard(initial, { live });
   const { layout, saving, change, replace, saveNow } = useLayout(board.id, initialView, localPreview);
   const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -418,6 +419,7 @@ export function PersonalBoard({
   return (
     <div className={workspace ? "fd-workspace-shell" : "flex flex-col gap-4 pb-40"}>
       <Board
+        boardId={live && !localPreview ? board.id : undefined}
         spec={spec}
         data={data}
         specVersion={board.specVersion}
@@ -430,7 +432,6 @@ export function PersonalBoard({
         stage={partial?.stage}
         connected={connected}
         lastPolledAt={board.lastPolledAt}
-        onRefresh={localPreview ? undefined : refresh}
         layout={current}
         version={board.version}
         animate

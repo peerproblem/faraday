@@ -1,4 +1,5 @@
 import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
+import { recordContextSearch } from "../../repo/context-evidence";
 import { gatherX } from "../../social/x";
 import { oxylabsEnabled, oxySearch } from "../../oxylabs";
 import type { Usage } from "../../graph/runner";
@@ -42,15 +43,20 @@ export async function gather(
   const sinceMs = opts.sinceMs ?? Date.now() - q.lookbackDays * 86_400_000;
   const freshness = freshnessFor(q.lookbackDays);
   const failures: string[] = [];
+  const boardId = opts.boardId;
+  const archive = boardId ? async (docs: FoundDoc[], pageIndex = 0) => {
+    if (pageIndex > 0) use.context(1);
+    await recordContextSearch(boardId, docs);
+  } : undefined;
   const jobs: Promise<FoundDoc[]>[] = [
     ...q.newsQueries.slice(0, 5).map((query) =>
-      searchNews(query, sinceMs, opts.newsLimit ?? 10, signal).catch((e) => {
+      searchNews(query, sinceMs, opts.newsLimit ?? 10, signal, archive).catch((e) => {
         failures.push(`news "${query}": ${(e as Error).message}`);
         return [];
       }),
     ),
     ...q.webQueries.slice(0, 4).map((query) =>
-      searchWeb(query, freshness, opts.webResults ?? 6, signal).catch((e) => {
+      searchWeb(query, freshness, opts.webResults ?? 6, signal, archive).catch((e) => {
         failures.push(`web "${query}": ${(e as Error).message}`);
         return [];
       }),

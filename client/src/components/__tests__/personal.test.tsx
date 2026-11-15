@@ -30,6 +30,37 @@ const keyOf = (b: BoardView, id: string) => widgetKeyOf(b.spec!.widgets.find((w)
 const posts = (part: string) => (fetchMock.mock.calls as Call[]).filter(([u, i]) => u.includes(part) && i?.method === "POST");
 
 describe("personal dashboard", () => {
+  test("refreshes Context.dev evidence after an automatic check on both map board routes", async () => {
+    const user = userEvent.setup();
+    const b = { ...board(), presentation: { workspace: true, cardsOnMap: true } };
+    let stream: EventTarget;
+    vi.stubGlobal("EventSource", class extends EventTarget {
+      constructor() { super(); stream = this; }
+      close() {}
+    });
+    for (const personal of [true, false]) {
+      const titles = personal ? ["Personal first", "Personal new"] : ["Public first", "Public new"];
+      fetchMock.mockReset().mockImplementation(async () => json({
+        items: [{ id: 1, kind: "news", title: titles.shift(), url: "https://example.test/notice", collectedAt: 1000 }],
+        nextBefore: null,
+      }));
+      const { unmount } = render(personal
+        ? <PersonalBoard initial={b} initialView={null} />
+        : <LiveBoard initial={b} workspace />);
+
+      expect(screen.queryByRole("button", { name: "Check the web now" })).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Evidence" }));
+      await user.click(screen.getByRole("tab", { name: "Context.dev" }));
+      await screen.findByRole("link", { name: personal ? "Personal first" : "Public first" });
+      act(() => stream.dispatchEvent(new MessageEvent("polled", {
+        data: JSON.stringify({ type: "polled", lastPolledAt: (b.lastPolledAt ?? 0) + 60_000 }),
+      })));
+      await screen.findByRole("link", { name: personal ? "Personal new" : "Public new" });
+      expect(fetchMock.mock.calls.every(([url]) => url.includes("/evidence?group=search"))).toBe(true);
+      unmount();
+    }
+  });
+
   test("draws the baseline with the person's layout: hidden, pinned and resized widgets", () => {
     const b = board();
     const [first, second, third] = b.spec!.widgets;

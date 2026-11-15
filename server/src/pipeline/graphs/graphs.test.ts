@@ -46,6 +46,7 @@ vi.mock("../../repo/facts", () => ({
   updatePlaceCoords: vi.fn(),
 }));
 vi.mock("../../repo/geocode", () => ({ getCachedGeocode: vi.fn(async () => ({ lat: 1, lon: 2, displayName: "x" })), putCachedGeocode: vi.fn() }));
+vi.mock("../../repo/context-evidence", () => ({ recordContextSearch: vi.fn(), recordContextChanges: vi.fn() }));
 vi.mock("../../contextdev", () => ({ searchNews: vi.fn(), searchWeb: vi.fn(), scrapeMarkdown: vi.fn(async () => null) }));
 // The root .env may hold an Oxylabs key; these suites must never reach the network.
 vi.mock("../../oxylabs", () => ({ oxylabsEnabled: () => false, oxySearch: vi.fn(async () => []), oxyScrape: vi.fn(async () => null) }));
