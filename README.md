@@ -103,13 +103,32 @@ cd client && npm install && npm run dev   # http://localhost:3000
 
 X is optional. Set `X_API_BEARER_TOKEN` in the same root `.env` to enable it for newly planned boards. Existing plans without `socialQueries` continue without X. Background X polling runs only for hot boards.
 
-`X_BOARD_DAILY_READ_LIMIT` defaults to 20 and `X_GLOBAL_DAILY_READ_LIMIT` defaults to 100. Each request reserves 10 reads before calling X, including on errors or empty results; counters reset at midnight UTC. Set either limit to 0 to stop live X reads. Invalid limits also stop reads. Reservations and per-board/query `since_id` cursors persist in MySQL (migration 006). Queries combine up to two local keyword/hashtag searches, exclude retweets, and request one page of 10 posts without retries or pagination. A cursor advances after source ingestion succeeds; this deliberately samples the newest posts rather than backfilling a busy search.
+`X_BOARD_DAILY_READ_LIMIT` defaults to 20 and `X_GLOBAL_DAILY_READ_LIMIT` defaults to 100. Each request reserves 10 reads before calling X, including on errors or empty results; counters reset at midnight UTC. Set either limit to 0 to stop live X reads. Invalid limits also stop reads. Reservations and per-board/query `since_id` cursors persist in MySQL (migration 006). Queries combine up to two local keyword/hashtag searches, exclude retweets and replies, and request one page of 10 posts without retries or pagination. A cursor advances after source ingestion succeeds; this deliberately samples the newest posts rather than backfilling a busy search.
 
-Social quotes pass the same quote/number checks as other facts, but appear only in **On the ground (unverified)**. Official/news confirmation must be extracted and verified independently before the information enters figures, tables, timelines, maps, status, advisories or summaries. Social reports cannot overwrite trusted facts or supply numbers to the change log. See [implementation and validation](docs/x-social-source.md).
+Social quotes pass the same quote/number checks as other facts, but appear only in **On the ground (unverified)**. Official/news confirmation must be extracted and verified independently before the information enters figures, tables, timelines, maps, status, advisories or summaries. Social reports cannot overwrite trusted facts or supply numbers to the change log. Each post is shown with its author's display name and @handle, linked to the post on X. See [the X source](server/src/social/x.ts).
 
 Leave `FARADAY_DOMAIN` empty locally and boards are served at `/b/<slug>`.
 
 Deploy with `scripts/deploy.sh` (engine and boards) and `scripts/deploy-site.sh` (main site).
+
+## Sharing boards on X and Discord
+
+Boards reach people where they already are. When a shared topic goes live, or a board makes a material change, the worker posts it to Faraday's X account and to the Discord channels that follow the topic. No model writes these posts: they reuse the board's own title, headline and change note, and the link card shows the board's top figures ([share image](client/src/app/api/og/%5Bslug%5D/route.tsx)).
+
+| Event | X | Discord, channel follows the topic | Discord, channel follows all topics |
+| :- | :- | :- | :- |
+| Topic goes live | yes | | yes |
+| High-importance change | yes | yes | yes |
+| Medium-importance change | | yes | |
+| Low or silent change | | | |
+
+Limits: at most `X_POST_DAILY_LIMIT` (10) X posts per 24 hours, at least `X_POST_BOARD_GAP_MIN` (180) minutes between X posts about one topic, and `DISCORD_POST_GAP_MIN` (10) minutes per topic per channel. Events older than `DISTRIBUTE_MAX_AGE_MIN` (120) are skipped. Every post is claimed in `outbound_posts` before it is sent, so it never goes out twice. The first run starts after the newest event, so turning distribution on never posts the backlog.
+
+Setup, all in the root `.env`:
+
+- `DISTRIBUTE_ENABLED=1` turns the worker loop on. Add `DISTRIBUTE_DRY_RUN=1` to record what would be posted (`GET /api/admin/distribution`) without sending anything.
+- X: `X_API_CONSUMER_KEY`, `X_API_SECRET_KEY`, `X_API_ACCESS_TOKEN` and `X_API_ACCESS_SECRET` of the posting account (OAuth 1.0a user context with read and write permission). The bearer token can only search.
+- Discord: create an application, then set `DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY` and `DISCORD_BOT_TOKEN`. Set the application's Interactions Endpoint URL to `https://api.<domain>/api/webhooks/discord` and run `npm run discord:commands` in `server/` once. Server admins add the bot from `https://api.<domain>/api/discord/install` and use `/follow` in a channel (`/follow` alone follows all topics). Anyone can use `/following` and `/topics`.
 
 ## Database
 
