@@ -1,15 +1,14 @@
 import { Ago } from "@/components/ago";
 import { BoardBadges } from "@/components/board-grid";
 import { SeverityMeter } from "@/components/severity-meter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/skeleton";
 import { Caption, Heading, Text } from "@/components/ui/typography";
 import { boardUrl } from "@/lib/config";
 import { TopicSourceLine } from "@/components/sources/source-mark";
 import type { TopicSources } from "@/lib/source-brand";
-import { crisisTypes, type BoardCard, type PersonalViewCard } from "@/lib/spec";
+import { crisisTypes, type BoardCard } from "@/lib/spec";
 
 
 /** The top ranked topic, drawn large on the home page. The page's Display is its h1, so this title is a Heading. */
@@ -73,57 +72,6 @@ export function TypeFilter({ base, active }: { base: string; active: string | nu
         {crisisTypes.map((t) => item(t, typeLabel(t)))}
       </ul>
     </nav>
-  );
-}
-
-/** The person's dashboards, as a compact row on the home page or a grid on /me. */
-export function MyDashboards({ views, compact = false }: { views: PersonalViewCard[]; compact?: boolean }) {
-  if (!views.length) {
-    return (
-      <Card variant="muted" padding={compact ? "md" : "lg"}>
-        <EmptyState
-          headingLevel={compact ? 3 : 2}
-          title="No dashboards yet"
-          description="Open a topic and choose Add to my dashboard to shape it your way."
-          action={
-            <Button href="/topics" variant="outline" size="sm">
-              Browse topics
-            </Button>
-          }
-        />
-      </Card>
-    );
-  }
-  return (
-    <ul className={compact ? "flex gap-3 overflow-x-auto pb-1" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
-      {views.map((v) => {
-        const title = v.title ?? "Untitled topic";
-        return (
-          <li key={v.id} className={compact ? "w-72 max-w-[80vw] shrink-0" : "min-w-0"}>
-            <Card href={`/me/${v.slug}`} aria-label={title} padding="md" className="h-full gap-2">
-              <div className="flex items-center gap-2">
-                {v.changedSinceVisit ? (
-                  <Badge variant="accent">New updates</Badge>
-                ) : (
-                  <Text as="span" size="sm" tone="muted">
-                    No news since your last visit
-                  </Text>
-                )}
-                <Text as="span" size="sm" tone="muted" className="ml-auto">
-                  <Ago t={v.updatedAt} />
-                </Text>
-              </div>
-              <CardTitle as="h3">{title}</CardTitle>
-              {!compact && v.headline ? (
-                <Text size="sm" tone="muted" className="line-clamp-2">
-                  {v.headline}
-                </Text>
-              ) : null}
-            </Card>
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 

@@ -1,5 +1,5 @@
 import "server-only";
-import type { AdminSettings, BoardCard, BoardView, MeView, PersonalViewCard, PersonalViewState, RunView, TopicState } from "./spec";
+import type { AdminSettings, BoardCard, BoardView, RunView, TopicState } from "./spec";
 import { API_URL } from "./config";
 import { summarizeSources, type TopicSources } from "./source-brand";
 
@@ -40,40 +40,13 @@ export async function listTopics(opts: { state?: TopicState; type?: string | nul
   }
 }
 
-/** Calls that need the signed-in person: the browser's cookie is forwarded. Null when signed out or not found. */
+/** Calls that need the admin session: the browser's cookie is forwarded. Null without one or when not found. */
 async function getAs<T>(path: string, cookie: string | null): Promise<T | null> {
   if (!cookie) return null;
   const res = await fetch(`${ENGINE}${path}`, { cache: "no-store", headers: { cookie } });
   if (res.status === 401 || res.status === 403 || res.status === 404) return null;
   if (!res.ok) throw new Error(`Engine ${path} answered ${res.status}`);
   return (await res.json()) as T;
-}
-
-export async function getMe(cookie: string | null): Promise<MeView | null> {
-  try {
-    return await getAs<MeView>("/api/me", cookie);
-  } catch (e) {
-    console.error("getMe failed", e);
-    return null;
-  }
-}
-
-export async function listMyViews(cookie: string | null): Promise<PersonalViewCard[]> {
-  try {
-    return (await getAs<{ views: PersonalViewCard[] }>("/api/me/views", cookie))?.views ?? [];
-  } catch (e) {
-    console.error("listMyViews failed", e);
-    return [];
-  }
-}
-
-export async function getMyView(boardId: string, cookie: string | null): Promise<PersonalViewState | null> {
-  try {
-    return await getAs<PersonalViewState>(`/api/me/views/${encodeURIComponent(boardId)}`, cookie);
-  } catch (e) {
-    console.error("getMyView failed", e);
-    return null;
-  }
 }
 
 /** True when the browser's cookies carry an admin session (the admin login or an admin Google account). */
@@ -132,15 +105,4 @@ export async function getLatestRun(id: string, cookie?: string | null): Promise<
   } catch {
     return null;
   }
-}
-
-export async function registerUser(u: { email: string; name: string | null; image: string | null }): Promise<string> {
-  const res = await fetch(`${ENGINE}/api/internal/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.INTERNAL_API_KEY ?? ""}` },
-    body: JSON.stringify(u),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Could not register the user (${res.status})`);
-  return ((await res.json()) as { id: string }).id;
 }

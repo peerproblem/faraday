@@ -6,7 +6,7 @@
   --sw-font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-/* Faraday motion. Layout changes on a personal dashboard glide (View Transitions); data updates only highlight. */
+/* Faraday motion. Data updates only highlight. */
 :root {
   --fd-motion-move: 320ms;
   --fd-motion-enter: 220ms;

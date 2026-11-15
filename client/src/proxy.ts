@@ -9,7 +9,7 @@ export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   // "/" is rewritten to /b/<slug> in next.config.ts. Server actions on the board page post to "/".
   // Source logos are images on the board page itself, so they are served on the board host.
-  if (pathname === "/" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/source-logo/")) return;
+  if (pathname === "/" || pathname.startsWith("/api/source-logo/")) return;
   return NextResponse.redirect(new URL(pathname + search, SITE_URL));
 }
 

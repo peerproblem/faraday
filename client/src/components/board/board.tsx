@@ -20,11 +20,10 @@ import { Caption, Display, Heading, Text } from "@/components/ui/typography";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { OfficialReleases, OfficialReleasesContext, SourceChips } from "@/components/widgets/source-chips";
 import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
-import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
-import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
-import type { AlertListData, StatusGridData, TimelineData, TrendData, BoardCardContent, BoardCardSettings, BoardData, BoardEvent, BoardLayoutCard, BoardMapRegion, BoardSpecV2, BoardStatus, BoardTier, LinkListData, MapData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
+import { widgetKeyOf, type AlertListData, type StatusGridData, type TimelineData, type TrendData, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardMapRegion, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type MapData, type NarrativeData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
+import type { BoardEntry } from "./entry";
 import { CyberIncidentOverview } from "./cyber-incident-overview";
 import { BoardHeaderButton } from "./header-button";
 import { ContextEvidence } from "./context-evidence";
@@ -50,18 +49,10 @@ export type BoardProps = {
   connected: boolean;
   lastPolledAt: number | null;
   onRefresh?: () => Promise<unknown>;
-  /** A personal dashboard's layout over this baseline. Null or absent draws the baseline as it is. */
-  layout?: PersonalLayout | null;
-  /** Baseline version on screen, for the New badge of a personal layout. */
-  version?: number;
-  /** Give every widget a view-transition-name, so layout changes animate (personal dashboards only). */
-  animate?: boolean;
   /** When the stream last changed each widget's data, by widget id. */
   updatedAt?: Record<string, number>;
-  /** Extra controls in the header (for example "Add to my dashboard"). */
+  /** Extra controls in the header. */
   actions?: ReactNode;
-  /** Edit-mode controls for one widget. */
-  tools?: (w: LaidOutWidget) => ReactNode;
   workspace?: boolean;
   cardsOnMap?: boolean;
   defaultTimelineOpen?: boolean;
@@ -69,7 +60,6 @@ export type BoardProps = {
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
-  workspaceEditor?: ReactNode;
   sidebarSettings?: BoardCardSettings | null;
   configuredCards?: BoardLayoutCard[];
   mapCard?: BoardCardSettings;
@@ -122,9 +112,8 @@ export function Board(props: BoardProps) {
     const configuredMap = spec?.widgets.find((widget) => widget.type === "map");
     if (configuredMap) visible.push(configuredMap);
   }
-  const laid = applyLayout({ version: 2, widgets: visible }, data, props.layout ?? null, { version: props.version });
-  const widgets = laid.widgets;
-  const cyber = props.workspace && header?.crisisType === "cyberattack" && !props.layout;
+  const widgets: BoardEntry[] = visible.map((widget) => ({ key: widgetKeyOf(widget), widget }));
+  const cyber = props.workspace && header?.crisisType === "cyberattack";
   const mapEntry = widgets.find(({ widget }) => widget.type === "map");
   const map = cyber ? undefined : mapEntry;
   const timeline = map || props.workspace ? widgets.find(({ widget }) => widget.type === "timeline") : undefined;
@@ -139,7 +128,6 @@ export function Board(props: BoardProps) {
     const links = data?.widgets[entry.widget.id] as LinkListData | undefined;
     return !!links?.items?.some((item) => item && item.kind !== "official" && /^https?:\/\//.test(item.url));
   });
-  const compact = laid.compactHeader;
   const newestSource = useMemo(() => newest(sources.map((s) => s.publishedAt)), [sources]);
   const outlets = useMemo(() => outletsOf(sources), [sources]);
   const wire = useMemo(() => wireItems(sources), [sources]);
@@ -203,15 +191,14 @@ export function Board(props: BoardProps) {
     }
   }
 
-  function renderContent(entry: LaidOutWidget, compact: boolean, fillMap = false) {
+  function renderContent(entry: BoardEntry, compact: boolean, fillMap = false) {
     const Comp = widgetComponent(entry.widget.type)!;
     return (
       <Comp
         widget={props.wildfireOverview && entry.widget.type === "timeline"
           ? { ...entry.widget, display: "story" }
           : entry.widget}
-        data={(entry.data ?? data?.widgets[entry.widget.id]) as never}
-        filter={entry.filter as never}
+        data={data?.widgets[entry.widget.id] as never}
         sources={byId}
         allSources={sources}
         events={events}
@@ -228,18 +215,16 @@ export function Board(props: BoardProps) {
     );
   }
 
-  function renderWorkspaceWidget(entry: LaidOutWidget, hideTitle = false) {
+  function renderWorkspaceWidget(entry: BoardEntry, hideTitle = false) {
     const widget = entry.widget;
-    const tools = props.tools?.(entry);
     return (
       <section key={entry.key} aria-label={widget.title} data-widget={widget.id} className="@container fd-workspace-widget">
-        {(!hideTitle || tools) && (
+        {!hideTitle && (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {!hideTitle && <h3 className="min-w-0 flex-1 text-sm font-semibold">{widget.title}</h3>}
-            {tools && <div className="ml-auto flex flex-wrap items-center gap-1">{tools}</div>}
+            <h3 className="min-w-0 flex-1 text-sm font-semibold">{widget.title}</h3>
           </div>
         )}
-        <WidgetBoundary resetKey={entry.data ?? data?.widgets[widget.id]}>{renderContent(entry, true)}</WidgetBoundary>
+        <WidgetBoundary resetKey={data?.widgets[widget.id]}>{renderContent(entry, true)}</WidgetBoundary>
       </section>
     );
   }
@@ -249,8 +234,8 @@ export function Board(props: BoardProps) {
     <span>Last checked <time dateTime={lastCheckedAt}>{when(lastCheckedAt)}</time></span>
   );
   const conciseSummary = props.workspace && !!map;
-  const headline = compact ? undefined : header?.headline;
-  const summaryText = compact ? undefined : headline?.text || header?.subtitle;
+  const headline = header?.headline;
+  const summaryText = headline?.text || header?.subtitle;
   const summary = (
     <div className={conciseSummary ? "grid min-w-0 gap-2" : "grid min-w-0 gap-3"}>
       {headline?.text ? (
@@ -278,7 +263,7 @@ export function Board(props: BoardProps) {
     return widgets.find((entry) => {
       if (entry.widget.type !== type || (content.key && content.key !== entry.key)) return false;
       if (content.kind === "widget") return true;
-      const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+      const table = data?.widgets[entry.widget.id] as TableData | undefined;
       return table?.columns?.some((column) => column.kind === "status");
     });
   }
@@ -304,7 +289,7 @@ export function Board(props: BoardProps) {
     );
   }
   const configuredCards = props.configuredCards?.map((card) => ({ ...card, content: renderCardContents(card.contents) }));
-  const cardIncludes = (entry: LaidOutWidget) =>
+  const cardIncludes = (entry: BoardEntry) =>
     [...(props.configuredCards ?? []), ...(props.sidebarSettings ? [props.sidebarSettings] : []), ...(props.mapCard ? [props.mapCard] : [])]
       .some(({ contents }) => contents.some((content) => content.kind !== "summary" && cardEntry(content) === entry));
 
@@ -318,31 +303,27 @@ export function Board(props: BoardProps) {
     } : undefined;
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
-    const chart = props.layout?.overviewChart;
-    const chartEntry = chart?.type === "donut" ? sections.find((entry) => entry.key === chart.widget) : undefined;
     const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid" && !cardIncludes(entry)) : [];
     const figureItems = figureSections.flatMap((entry) => {
-      const figures = (entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined;
-      const metrics = entry.filter?.kind === "stat-grid" ? entry.filter.metrics : undefined;
-      return getStatItems(figures, metrics);
+      const figures = data?.widgets[entry.widget.id] as StatGridData | undefined;
+      return getStatItems(figures);
     });
     const hasDatedFigures = figureItems.some((item) => item.asOf || item.history?.length);
     const restrictionFigure = figureSections.length > 0 && !hasDatedFigures && latestRestrictionFigure(
       sections.flatMap((entry) => {
-        const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+        const table = data?.widgets[entry.widget.id] as TableData | undefined;
         return entry.widget.type === "table" && table?.columns?.length && table.rows?.length ? [table] : [];
       }),
       byId,
     );
     const mapFigures = restrictionFigure ? [restrictionFigure] : selectMapFigures(figureItems, summaryText ?? undefined);
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
-    const mapTools = map && props.tools?.(map);
-    const mapData = (map && (map.data ?? data?.widgets[map.widget.id])) as MapData | undefined;
+    const mapData = (map && data?.widgets[map.widget.id]) as MapData | undefined;
     const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
-    const narrativeData = (narrative && (narrative.data ?? data?.widgets[narrative.widget.id])) as NarrativeData | undefined;
+    const narrativeData = (narrative && data?.widgets[narrative.widget.id]) as NarrativeData | undefined;
     const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
     const housing = props.wildfireOverview ? figureItems.filter((item) => /homes-(?:destroyed|damaged)$/.test(item.key)) : [];
-    const cyberMap = cyber && mapEntry ? (mapEntry.data ?? data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
+    const cyberMap = cyber && mapEntry ? (data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
     const dataSections = cyber
       ? [...mainWidgets, ...(mapEntry && cyberMap?.points?.length ? [mapEntry] : [])]
       : [...sections, ...figureSections];
@@ -351,26 +332,26 @@ export function Board(props: BoardProps) {
       <CyberIncidentOverview
         headline={header?.headline}
         metrics={featured.flatMap((entry) => entry.widget.type === "stat-grid"
-          ? getStatItems((entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined, undefined)
+          ? getStatItems((data?.widgets[entry.widget.id]) as StatGridData | undefined)
           : [])}
         services={featured.flatMap((entry) => entry.widget.type === "status-grid"
-          ? ((entry.data ?? data?.widgets[entry.widget.id]) as StatusGridData | undefined)?.items ?? []
+          ? ((data?.widgets[entry.widget.id]) as StatusGridData | undefined)?.items ?? []
           : [])}
         advisories={sections.flatMap((entry) => entry.widget.type === "alert-list"
-          ? ((entry.data ?? data?.widgets[entry.widget.id]) as AlertListData | undefined)?.items ?? []
+          ? ((data?.widgets[entry.widget.id]) as AlertListData | undefined)?.items ?? []
           : [])}
         tables={sections.flatMap(entry => {
           if (entry.widget.type !== "table") return [];
-          const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+          const table = (data?.widgets[entry.widget.id]) as TableData | undefined;
           return table ? [table] : [];
         })}
         trends={sections.flatMap(entry => {
           if (entry.widget.type !== "trend") return [];
-          const trend = (entry.data ?? data?.widgets[entry.widget.id]) as TrendData | undefined;
+          const trend = (data?.widgets[entry.widget.id]) as TrendData | undefined;
           return trend ? [trend] : [];
         })}
         resources={releases}
-        timeline={timeline ? (timeline.data ?? data?.widgets[timeline.widget.id]) as TimelineData | undefined : undefined}
+        timeline={timeline ? (data?.widgets[timeline.widget.id]) as TimelineData | undefined : undefined}
         sources={byId}
         lastChecked={lastCheckedAt}
       />
@@ -400,7 +381,6 @@ export function Board(props: BoardProps) {
                 {activeRegion && regions.length > 1 && <RegionSwitch regions={regions} selected={activeRegion.label} onChange={setRegionLabel} />}
               </div>}
               {activeRegion?.inset && <RegionInset key={activeRegion.label} inset={activeRegion.inset} points={mapData?.points ?? []} />}
-              {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
             </> : undefined}
             mapFigures={!props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
@@ -433,7 +413,6 @@ export function Board(props: BoardProps) {
                 </section>
               )}
               {summary}
-              {chartEntry && <StatusBreakdown entry={chartEntry} data={data} />}
               {overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
               {props.wildfireOverview && releases.length > 0 && (
                 <details className="border-t border-hairline pt-3">
@@ -457,7 +436,6 @@ export function Board(props: BoardProps) {
             sourceCount={sources.length}
             changes={changelog ? renderWorkspaceWidget(changelog, true) : undefined}
             contextEvidence={props.boardId ? <ContextEvidence boardId={props.boardId} checkedAt={lastPolledAt} /> : undefined}
-            editor={props.workspaceEditor}
           />
         </div>
       </OfficialReleasesContext.Provider>
@@ -491,9 +469,9 @@ export function Board(props: BoardProps) {
               <Skeleton inline width="12ch" />
             </Display>
           )}
-          {header?.subtitle && !compact ? <Text tone="muted">{header.subtitle}</Text> : null}
+          {header?.subtitle ? <Text tone="muted">{header.subtitle}</Text> : null}
 
-          {compact ? null : header?.headline?.text ? (
+          {header?.headline?.text ? (
             <Text size="lg" tone="subtle" className="max-w-4xl">
               {header.headline.text} <SourceChips ids={header.headline.sources} sources={byId} />
             </Text>
@@ -562,7 +540,7 @@ export function Board(props: BoardProps) {
           </Card>
         </header>
 
-        {compact ? null : <SourceWire items={wire} />}
+        <SourceWire items={wire} />
 
         {configuredCards ? (
           <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
@@ -576,7 +554,7 @@ export function Board(props: BoardProps) {
           <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
             {widgets.map((lw) => {
               const w = lw.widget;
-              const d = lw.data ?? data?.widgets[w.id];
+              const d = data?.widgets[w.id];
               // Keyed by the stable widget key, so a moved map or chart is not remounted.
               return (
                 <WidgetFrame
@@ -585,10 +563,7 @@ export function Board(props: BoardProps) {
                   title={w.title}
                   span={w.span}
                   resetKey={d}
-                  transitionName={props.animate ? transitionName(lw.key) : undefined}
-                  updatedAt={lw.extra ? undefined : props.updatedAt?.[w.id]}
-                  isNew={lw.isNew}
-                  tools={props.tools?.(lw)}
+                  updatedAt={props.updatedAt?.[w.id]}
                 >
                   {renderContent(lw, false)}
                 </WidgetFrame>

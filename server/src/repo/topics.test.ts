@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { allowanceAt, candidateScore, fingerprint, topicRank, TYPE_BOOST } from "./topics";
+import { describe, expect, it, vi } from "vitest";
+import { allowanceAt, allowanceFor, candidateScore, fingerprint, topicRank, TYPE_BOOST } from "./topics";
 import { mayBeSameEvent, topicPrompt } from "../pipeline/discover/judge";
 import { normalizeClusters } from "../pipeline/discover/cluster";
 import { crisisTypes } from "../spec";
@@ -34,6 +34,20 @@ describe("topic scoring", () => {
     expect(allowanceAt(5, l)).toEqual({ search: true, page: false });
     expect(allowanceAt(10, l)).toEqual({ search: false, page: false });
     expect(allowanceAt(-1, l)).toEqual({ search: false, page: false });
+  });
+
+  it("keeps search monitoring for a priority topic outside the ranked allocation", () => {
+    vi.stubEnv("FARADAY_PRIORITY_SEARCH_MONITOR_BOARD_IDS", "other-board, finland-board");
+    vi.stubEnv("MONITORED_TOPICS", "5");
+    vi.stubEnv("PAGE_MONITORED_TOPICS", "2");
+    try {
+      expect(allowanceFor("finland-board", 8)).toEqual({ search: true, page: false });
+      expect(allowanceFor("finland-board", -1)).toEqual({ search: false, page: false });
+      expect(allowanceFor("normal-board", 8)).toEqual({ search: false, page: false });
+      expect(allowanceFor("normal-board", 0)).toEqual({ search: true, page: true });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("fingerprints by crisis type and place, ignoring case, accents and punctuation", () => {
