@@ -7,6 +7,8 @@ import { Cited, Row } from "./market-chart";
 
 /** One price series: hourly closes, drawn as the change since the window opens. */
 export type PriceLine = { key: string; label: string; color: string; points: [number, number][]; dash?: string };
+/** A level drawn in its own pane under the prices: the VIX, or a figure the board reported (a yield, a spread). */
+export type Pane = PriceLine & { sub: string; unit: string | null; reported?: boolean };
 
 /**
  * Line colors. The indices get ink, blue and orange; stocks cyan, green and grey, dashed once those run out.
@@ -35,6 +37,8 @@ const etTime = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "shor
 const etDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
 const utcDay = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const level = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: v >= 1000 ? 0 : 2 });
+const UNIT: Record<string, string> = { "%": "%", percent: "%", "basis points": " bp", bp: " bp", bps: " bp" };
+const withUnit = (v: number, unit: string | null) => `${level(v)}${unit ? (UNIT[unit.toLowerCase()] ?? ` ${unit}`) : ""}`;
 export const pct = (v: number, digits = 2) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}%`;
 
 /**
@@ -83,15 +87,15 @@ type Hover = { kind: "bar"; i: number } | { kind: "pin"; pin: Pin };
  * little room), with the board's dated actions and key events pinned onto the lines where they happened.
  * Hovering an hour reads every line; hovering a pin shows what happened and how prices moved in the next session.
  */
-export function PriceChart({ bars, from, to, lines, vix, lanes, sources, label }: {
+export function PriceChart({ bars, from, to, lines, pane: vix, lanes, sources, label }: {
   /** Every bar time on the board's market data, so the axis stays put when lines are toggled. */
   bars: number[];
   from: number;
   to: number;
   /** The lines to draw. The first carries the pins. */
   lines: PriceLine[];
-  /** The volatility index, drawn as a level in its own pane. */
-  vix: PriceLine | null;
+  /** A level in its own pane: the volatility index, or a reported figure. */
+  pane: Pane | null;
   lanes: Lane[];
   sources: Map<string, Source>;
   label: string;
@@ -269,8 +273,8 @@ export function PriceChart({ bars, from, to, lines, vix, lanes, sources, label }
           {vAxis ? (
             <g>
               <rect className="pane" x={M.left} y={vixTop} width={innerW} height={VIX_H} />
-              <Gutter y={vixTop} lines={[vix?.label ?? "VIX"]} sub="fear gauge, level" />
-              <text className="gutter-value" x={0} y={vixTop + 48}>{level(vixPts[vixPts.length - 1][1])}</text>
+              <Gutter y={vixTop} lines={wrap(vix?.label ?? "VIX", 18)} sub={vix?.sub ?? ""} />
+              <text className="gutter-value" x={0} y={vixTop + 48 + (wrap(vix?.label ?? "VIX", 18).length - 1) * 13}>{withUnit(vixPts[vixPts.length - 1][1], vix?.unit ?? null)}</text>
               {vAxis.list.map((v) => (
                 <g key={v}>
                   <line className="grid" x1={M.left} x2={width - M.right} y1={vy(v)} y2={vy(v)} />
@@ -279,6 +283,7 @@ export function PriceChart({ bars, from, to, lines, vix, lanes, sources, label }
               ))}
               <path className="vix-area" d={`${vixPts.map(([t, v], i) => `${i ? "L" : "M"}${x(t).toFixed(1)},${vy(v).toFixed(1)}`).join("")}L${x(vixPts[vixPts.length - 1][0]).toFixed(1)},${vixTop + VIX_H}L${x(vixPts[0][0]).toFixed(1)},${vixTop + VIX_H}Z`} />
               <path d={vixPts.map(([t, v], i) => `${i ? "L" : "M"}${x(t).toFixed(1)},${vy(v).toFixed(1)}`).join("")} fill="none" stroke={vix?.color} strokeWidth={1.5} />
+              {vix?.reported ? vixPts.map(([t, v]) => <circle key={t} cx={x(t)} cy={vy(v)} r={2.5} fill={vix.color} />) : null}
             </g>
           ) : null}
           {dayLabels.map((t) => <text key={t} x={x(t)} y={height - 6} textAnchor="start">{etDay.format(t)}</text>)}
@@ -340,7 +345,7 @@ export function PriceChart({ bars, from, to, lines, vix, lanes, sources, label }
             })}
             {vAxis ? (() => {
               const i = at(vixPts, hoverBar);
-              return i < 0 ? null : <Row label={<><i className="fd-fin-swatch" style={{ background: vix?.color }} />{vix?.label}</>}>{level(vixPts[i][1])}</Row>;
+              return i < 0 ? null : <Row label={<><i className="fd-fin-swatch" style={{ background: vix?.color }} />{vix?.label}</>}>{withUnit(vixPts[i][1], vix?.unit ?? null)}</Row>;
             })() : null}
           </dl>
           <SameDay pins={pins} day={nyDay(hoverBar)} />

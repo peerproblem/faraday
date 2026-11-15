@@ -14,10 +14,11 @@ export const VIX = "^VIX";
  * them: the currencies and the index behind the other finance topics (Egypt, Paraguay, France).
  */
 export const ASSETS = [
-  { symbol: "EGP=X", name: "USD/EGP", match: /\begypt(ian)?\b|\begp\b/i },
-  { symbol: "PYG=X", name: "USD/PYG", match: /\bparaguay(an)?\b|\bguaran[ií]\b|\bpyg\b/i },
-  { symbol: "^FCHI", name: "CAC 40", match: /\bfrench\b|\bfrance\b|\bcac\b/i },
-  { symbol: "EURUSD=X", name: "EUR/USD", match: /\bfrench\b|\bfrance\b|\beuro\b|\beurozone\b/i },
+  { symbol: "EGP=X", name: "USD/EGP", kind: "currency", match: /\begypt(ian)?\b|\begp\b/i },
+  { symbol: "PYG=X", name: "USD/PYG", kind: "currency", match: /\bparaguay(an)?\b|\bguaran[ií]\b|\bpyg\b/i },
+  { symbol: "^FCHI", name: "CAC 40", kind: "index", match: /\bfrench\b|\bfrance\b|\bcac\b/i },
+  { symbol: "^STOXX50E", name: "Euro Stoxx 50", kind: "index", match: /\bfrench\b|\bfrance\b|\beurozone\b|\bstoxx\b/i },
+  { symbol: "EURUSD=X", name: "EUR/USD", kind: "currency", match: /\bfrench\b|\bfrance\b|\beuro\b|\beurozone\b/i },
 ] as const;
 
 /** The assets a piece of text names, in list order. */
@@ -33,11 +34,28 @@ const KNOWN: Record<string, string> = {
   "super micro": "SMCI", supermicro: "SMCI", qualcomm: "QCOM", salesforce: "CRM", netflix: "NFLX",
 };
 
-/** A company's ticker: the one the table gives, else a known name. */
+/**
+ * Big European names, with the exchange suffix the price feed needs. A table often gives just "BNP" or "GLE",
+ * which on their own are other, US-listed tickers, so these names win over a bare ticker.
+ */
+const KNOWN_EUROPE: Record<string, string> = {
+  "bnp paribas": "BNP.PA", "societe generale": "GLE.PA", "credit agricole": "ACA.PA", axa: "CS.PA", lvmh: "MC.PA",
+  totalenergies: "TTE.PA", airbus: "AIR.PA", "schneider electric": "SU.PA", sanofi: "SAN.PA", "l'oreal": "OR.PA",
+  engie: "ENGI.PA", "electricite de france": "EDF.PA", renault: "RNO.PA", stellantis: "STLAP.PA", kering: "KER.PA",
+  hermes: "RMS.PA", "deutsche bank": "DBK.DE", commerzbank: "CBK.DE", unicredit: "UCG.MI", "intesa sanpaolo": "ISP.MI",
+  santander: "SAN.MC", bbva: "BBVA.MC", ing: "INGA.AS",
+};
+
+const plain = (name: string) => name.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+const named = (map: Record<string, string>, n: string) => Object.keys(map).find((k) => new RegExp(`(^|[^a-z])${k}([^a-z]|$)`).test(n));
+
+/** A company's ticker: a known European name, else the one the table gives, else a known US name. */
 export function tickerOf(name: string, ticker: string | null): string | null {
+  const n = plain(name);
+  const europe = named(KNOWN_EUROPE, n);
+  if (europe) return KNOWN_EUROPE[europe];
   if (ticker && SYMBOL.test(ticker)) return ticker;
-  const n = name.toLowerCase();
-  const hit = Object.keys(KNOWN).find((k) => new RegExp(`\\b${k}\\b`).test(n));
+  const hit = named(KNOWN, n);
   return hit ? KNOWN[hit] : null;
 }
 

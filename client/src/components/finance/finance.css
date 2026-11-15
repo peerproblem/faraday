@@ -190,6 +190,12 @@
 .fd-fin__panel--full {
   grid-column: 1 / -1;
 }
+.fd-fin__panel--lead {
+  border-right: 1px solid var(--fin-rule);
+}
+.fd-fin__panel--wide {
+  grid-column: span 8;
+}
 .fd-fin__head {
   display: flex;
   flex-wrap: wrap;
@@ -214,7 +220,8 @@
     border-left: 0;
   }
   .fd-fin__panel--main,
-  .fd-fin__panel--side {
+  .fd-fin__panel--side,
+  .fd-fin__panel--wide {
     grid-column: 1 / -1;
     border-right: 0;
   }
