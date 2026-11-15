@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
-import { Listbox } from "@/components/ui/listbox";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -121,6 +120,7 @@ export function PersonalBoard({
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
   const crisisType = data?.header?.crisisType;
   const finance = spec?.template === "finance";
+  const standardLabel = finance ? "Finance dashboard" : "Standard dashboard";
   const recommendMonitor = hasMap && !finance && !!crisisType && monitorCategories.has(crisisType);
   const mapDesign = !finance && (current.design === "map-focus" || current.design === "map-overlay");
   const workspace = hasMap && mapDesign && available.some((w) =>
@@ -133,6 +133,12 @@ export function PersonalBoard({
     return table?.columns.some((column) => column.kind === "status");
   });
   const chartWidget = chartTables.find((widget) => widgetKeyOf(widget) === current.overviewChart?.widget);
+  const editAction = (
+    <Button size="xs" variant={editing ? "primary" : "outline"} className="shrink-0"
+      onClick={() => setEditing((value) => !value)}>
+      {editing ? "Done editing" : "Edit layout"}
+    </Button>
+  );
 
   async function sendEdit() {
     const text = instruction.trim();
@@ -261,28 +267,10 @@ export function PersonalBoard({
           <div className="grid min-w-0 gap-3">
             <PopoverTitle>Board settings</PopoverTitle>
             {(hasMap || finance) && (
-              <Listbox
+              <Select
                 aria-label="Dashboard preset"
-                activation="manual"
-                framed={false}
+                size="sm"
                 value={mapDesign && hasMap ? "map-overlay" : "standard"}
-                items={[
-                  { type: "group", label: finance ? "Finance" : "General", items: [{
-                    value: "standard",
-                    label: finance ? "Finance dashboard" : "Standard dashboard",
-                    description: finance ? "Market data and research in a grid" : "Widgets in a grid",
-                    meta: !recommendMonitor ? "Recommended" : undefined,
-                  }] },
-                  ...(hasMap && !finance ? [{
-                    type: "group" as const, label: "Natural hazards", items: [{
-                      value: "map-overlay",
-                      label: "Natural disaster monitor",
-                      description: "Map with a timeline and floating cards",
-                      meta: recommendMonitor ? "Recommended" : undefined,
-                    }],
-                  }] : []),
-                ]}
-                onKeyDown={(event) => { if (event.key === " ") event.preventDefault(); }}
                 onValueChange={(value) => {
                   if (value !== "standard" && value !== "map-overlay") return;
                   commit({
@@ -294,7 +282,29 @@ export function PersonalBoard({
                   });
                   setSettingsOpen(false);
                 }}
-              />
+              >
+                <SelectTrigger className="w-full min-w-0" onKeyDownCapture={(event) => {
+                  if (event.metaKey || event.ctrlKey || event.altKey) return;
+                  const expanded = event.currentTarget.getAttribute("aria-expanded") === "true";
+                  // Enter commits the preset. Typing into a closed selector must not change it.
+                  if ((expanded && event.key === " ") || (!expanded && event.key !== " " && event.key.length === 1)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                }} />
+                <SelectContent>
+                  <SelectItem value="standard" label={standardLabel}>
+                    {standardLabel}
+                    {!recommendMonitor && <span className="ml-2 text-xs text-muted-foreground">Recommended</span>}
+                  </SelectItem>
+                  {hasMap && !finance && (
+                    <SelectItem value="map-overlay" label="Natural disaster monitor">
+                      Natural disaster monitor
+                      {recommendMonitor && <span className="ml-2 text-xs text-muted-foreground">Recommended</span>}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             )}
             {workspace && chartTables.length > 0 && (
               <fieldset className="min-w-0 border-t border-hairline pt-2">
@@ -333,15 +343,10 @@ export function PersonalBoard({
                 </div>
               </fieldset>
             )}
-            <Button variant="ghost" size="sm" className="justify-start" onClick={() => {
-              setEditing(!editing);
-              setSettingsOpen(false);
-            }}>
-              {editing ? "Done editing" : "Edit layout"}
-            </Button>
           </div>
         </PopoverContent>
       </Popover>
+      {!workspace && editAction}
       <Menu>
         <MenuTrigger asChild>
           <BoardHeaderButton icon="more" aria-label="Board actions" />
@@ -480,6 +485,7 @@ export function PersonalBoard({
         cardsOnMap={workspace}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
+        workspaceEditAction={workspace ? editAction : undefined}
         workspaceEditor={workspace && editing ? <>{!localPreview && editForm}{hiddenSections}</> : undefined}
       />
 

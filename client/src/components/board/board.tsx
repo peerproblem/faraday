@@ -61,6 +61,7 @@ export type BoardProps = {
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
+  workspaceEditAction?: ReactNode;
   workspaceEditor?: ReactNode;
 };
 
@@ -325,12 +326,13 @@ export function Board(props: BoardProps) {
               content: renderWorkspaceWidget(entry, true),
             }))}
             sources={sourcesWidget || releases.length ? <>
-              {!props.wildfireOverview && <SourceWire items={wire} label="On the wire" />}
+              {!props.wildfireOverview && <SourceWire items={wire} />}
               {sourcesWidget && renderWorkspaceWidget(sourcesWidget, true)}
               {!sourcesWidget && <OfficialReleases releases={releases} />}
             </> : undefined}
             sourceCount={sources.length}
             changes={changelog ? renderWorkspaceWidget(changelog, true) : undefined}
+            editAction={props.workspaceEditAction}
             editor={props.workspaceEditor}
           />
         </div>
@@ -436,7 +438,7 @@ export function Board(props: BoardProps) {
           </Card>
         </header>
 
-        {compact ? null : <SourceWire items={wire} label="On the wire" />}
+        {compact ? null : <SourceWire items={wire} />}
 
         {widgets.length ? (
           <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>

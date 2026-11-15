@@ -476,6 +476,23 @@ body:has(.fd-workspace-shell) .fd-site-header {
   scrollbar-width: thin;
   padding-inline: var(--sw-space-3);
 }
+.fd-workspace-situation-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-inline-size: 0;
+}
+.fd-workspace-situation-bar:has(> button) {
+  border-block-end: 1px solid var(--sw-hairline);
+  padding-inline-end: var(--sw-space-2);
+}
+.fd-workspace-situation-bar > .fd-workspace-tab-list {
+  flex: 1;
+  min-inline-size: 0;
+}
+.fd-workspace-situation-bar:has(> button) > .fd-workspace-tab-list {
+  margin-block-end: -1px;
+}
 .fd-workspace-tab-body {
   display: flex;
   flex-direction: column;

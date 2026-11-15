@@ -69,6 +69,7 @@ describe("personal dashboard", () => {
     fetchMock.mockImplementation(async (_url, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 4 }));
     const { unmount } = render(<PersonalBoard initial={b} initialView={{ layout, rev: 3 }} live={false} />);
     await user.click(screen.getByRole("button", { name: "Board settings" }));
+    await user.click(screen.getByRole("combobox", { name: "Dashboard preset" }));
     await user.click(screen.getByRole("option", { name: /Natural disaster monitor/ }));
     expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
     await waitFor(() => expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1));
@@ -114,11 +115,12 @@ describe("personal dashboard", () => {
     const { unmount } = render(<PersonalBoard initial={conflictBoard} initialView={{ layout, rev: 3 }} live={false} />);
 
     await user.click(screen.getByRole("button", { name: "Board settings" }));
+    const choices = screen.getByRole("combobox", { name: "Dashboard preset" });
+    await user.click(choices);
     expect(screen.getByText("Recommended").closest('[role="option"]')?.textContent).toContain("Natural disaster monitor");
     expect(screen.queryByRole("region", { name: "Situation map" })).toBeNull();
     expect(posts(path)).toHaveLength(0);
 
-    const choices = screen.getByRole("listbox", { name: "Dashboard preset" });
     fireEvent.keyDown(choices, { key: "End" });
     expect(choices.getAttribute("aria-activedescendant")).toBe(screen.getByRole("option", { name: /Natural disaster monitor/ }).id);
     fireEvent.keyDown(choices, { key: " " });
@@ -167,7 +169,6 @@ describe("personal dashboard", () => {
     const b = board();
     const timeline = b.spec!.widgets.find((w) => w.type === "timeline")!;
     const { container } = render(<PersonalBoard initial={b} initialView={{ layout: emptyLayout(b.version), rev: 3 }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Board settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit layout" }));
     fireEvent.click(screen.getByRole("button", { name: `Hide ${timeline.title}` }));
     expect(order(container)).not.toContain(timeline.id);
@@ -192,7 +193,6 @@ describe("personal dashboard", () => {
     fetchMock.mockImplementation(async () => json({ error: "Changed elsewhere", layout: other, rev: 9 }, 409));
     const narrative = b.spec!.widgets.find((w) => w.type === "narrative")!;
     const { container } = render(<PersonalBoard initial={b} initialView={{ layout: null, rev: 0 }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Board settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit layout" }));
     fireEvent.click(screen.getAllByRole("button", { name: /^Move .* down$/ })[0]);
     await act(async () => {
