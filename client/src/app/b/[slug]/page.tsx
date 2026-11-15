@@ -47,8 +47,7 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
     board.origin === "system" ? (
       <AddToDashboard boardId={board.id} slug={board.slug} version={board.version} signedIn={!!session?.user} added={!!view?.layout} />
     ) : undefined;
-  // Finance boards have no map to centre a workspace on; they get their own market-desk page.
-  if (board.spec?.template === "finance") {
+  if (board.presentation?.marketPrices || (!board.presentation && board.spec?.template === "finance")) {
     // Prices for the indices and whatever the board is about, read here so the chart has more than the reports.
     const market = await getMarket(boardSymbols(placedWidgets(board.spec, board.data), board.data?.header ?? null, board.title));
     return (
@@ -59,6 +58,17 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
           <Link href={`${SITE_URL}/topics`}>More topics</Link>
         </Text>
       </>
+    );
+  }
+  if (board.presentation?.workspace === false) {
+    return (
+      <div className="pt-6">
+        <LiveBoard initial={board} actions={actions} />
+        <Text size="sm" tone="muted" className="mt-8 text-center">
+          A shared Faraday board, kept current from the live web. Every figure links to its source.{" "}
+          <Link href={`${SITE_URL}/topics`}>More topics</Link>
+        </Text>
+      </div>
     );
   }
   return (

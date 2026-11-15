@@ -1,5 +1,6 @@
 import type { BoardEvent, BoardStatus, BoardTier, Source, Visibility } from "./common";
 import type { Plan } from "./plan";
+import type { BoardPresentation } from "./presentation";
 import type { BoardData, BoardSpecV2, HeaderData, WidgetData } from "./widgets";
 
 export type BoardMessage = { role: "user" | "assistant"; content: string; ts: number };
@@ -20,6 +21,7 @@ export type BoardView = {
   /** 1 means an old board that is waiting to be rebuilt; spec and data are null then. */
   specVersion: number;
   spec: BoardSpecV2 | null;
+  presentation?: BoardPresentation;
   data: BoardData | null;
   version: number;
   sources: Source[];

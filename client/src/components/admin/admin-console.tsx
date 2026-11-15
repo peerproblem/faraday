@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
 import { boardBadge } from "@/components/board-grid";
+import { AdminLayouts } from "@/components/admin/admin-layouts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -212,11 +213,15 @@ export function AdminDashboard({ initialSettings, initialTopics }: { initialSett
         <Tabs defaultValue="topics" size="sm">
           <TabsList aria-label="Admin panels">
             <Tab value="topics">Topics</Tab>
+            <Tab value="layouts">Layouts</Tab>
             <Tab value="discovery">Discovery results</Tab>
             <Tab value="requests">Requests</Tab>
           </TabsList>
           <TabsPanel value="topics">
             <TopicList topics={topics} onChanged={reload} onRemoved={(id) => setTopics((prev) => prev.filter((t) => t.id !== id))} />
+          </TabsPanel>
+          <TabsPanel value="layouts">
+            <AdminLayouts />
           </TabsPanel>
           <TabsPanel value="discovery">
             <DiscoveryPanel />

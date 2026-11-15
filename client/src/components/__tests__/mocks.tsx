@@ -24,6 +24,7 @@ vi.mock("@/components/ui/point-map", () => ({
 // TrendChart is plain SVG and renders for real.
 vi.mock("@/components/ui/charts", async (importOriginal) => ({
   TrendChart: (await importOriginal<typeof import("@/components/ui/charts")>()).TrendChart,
+  BarList: (await importOriginal<typeof import("@/components/ui/charts")>()).BarList,
   DonutChart: (props: { "aria-label"?: string }) => <div role="img" aria-label={props["aria-label"]} />,
   LineChart: (props: { "aria-label"?: string }) => <div role="img" aria-label={props["aria-label"]} data-testid="line-chart" />,
   Sparkline: () => <svg aria-hidden="true" data-testid="sparkline" />,

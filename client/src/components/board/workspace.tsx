@@ -6,38 +6,40 @@ import { Icon } from "@/components/ui/icon";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 
-import { BoardCardStack } from "./card-stack";
-import { timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
+import { BoardCardStack, type WorkspaceCard } from "./card-stack";
+import { useLegacyWorkspacePanels, useWorkspaceSizes, type CornerWidth } from "./workspace-resize";
+import { WorkspaceSidebar, type WorkspaceSidebarContent } from "./workspace-sidebar";
 
 type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
 type WorkspaceProps = {
   workspaceKey?: string;
   cardsOnMap?: boolean;
   flowingDetails?: boolean;
+  defaultEvidenceOpen?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
-  timeline?: ReactNode;
+  sidebar?: WorkspaceSidebarContent;
   overview: ReactNode;
   sections: Panel[];
   sources?: ReactNode;
   sourceCount: number;
   changes?: ReactNode;
   editor?: ReactNode;
+  configuredCards?: WorkspaceCard[];
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, editor, configuredCards }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
   const resize = useWorkspaceSizes(workspaceKey, { timeline: legacy.sidebar?.width, details: legacy.inspector?.width });
-  const timelineSize = resize("timeline");
+  // Keep the saved width under its original browser storage key.
+  const sidebarSize = resize("timeline");
   const detailsSize = resize("details");
-  const [timelineOverride, setTimelineOpen] = useState<boolean>();
   const [detailsOverride, setDetailsOpen] = useState<boolean>();
-  const timelineOpen = timelineOverride ?? legacy.sidebar?.open ?? true;
   const detailsOpen = detailsOverride ?? legacy.inspector?.open ?? true;
   const [wide, setWide] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState<"timeline" | "details" | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<"sidebar" | "details" | null>(null);
   const detailsWidth: CornerWidth | undefined = map ? {
     measure: () => {
       const details = document.getElementById(`${id}-details`);
@@ -58,7 +60,8 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   } : undefined;
   const editing = !!editor;
   const [selection, setSelection] = useState({ tab: editing ? "layout" : "overview", editing });
-  const [open, setOpen] = useState({ situation: true, evidence: false });
+  const [open, setOpen] = useState({ situation: true, evidence: defaultEvidenceOpen ?? false });
+  const [customOpen, setCustomOpen] = useState<Record<string, boolean>>({});
   const [evidenceTab, setEvidenceTab] = useState<string | null>(null);
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   if (selection.editing !== editing) {
@@ -74,7 +77,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   const situationTab = ((selection.tab === "layout" && editor) || (selection.tab === "data" && activeSection))
     ? selection.tab
     : "overview";
-  const figuresOpen = (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
+  const figuresOpen = !configuredCards && (overlay || detailsOpen) && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
   const visibleEvidenceTab = evidenceTab === "changes" && changes ? "changes" : sources ? "sources" : "changes";
   const situation = (
     <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab, editing })} size="sm" className="fd-workspace-tabs">
@@ -110,13 +113,23 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
     </Tabs>
   );
 
-  const cards = (
+  const stackCards = configuredCards?.map((card) => ({ ...card, open: customOpen[card.id] ?? card.open }));
+  if (stackCards && editor) stackCards.unshift({
+    id: "card:layout-editor", label: "Edit layout", open: customOpen["card:layout-editor"] ?? true,
+    content: <div className="fd-configured-card-content">{editor}</div>,
+  });
+  const cards = stackCards?.length === 0 ? null : (
     <BoardCardStack
+      key={stackCards?.filter((card) => card.id !== "card:layout-editor").map((card) => card.id).join(",")}
       id={`${id}-detail-cards`}
-      situation={situation}
-      evidence={sources || changes ? evidence : undefined}
-      open={open}
-      onOpenChange={(name, value) => setOpen((current) => ({ ...current, [name]: value }))}
+      cards={stackCards ?? [
+        { id: "situation", label: "Situation", content: situation, open: open.situation },
+        ...(sources || changes ? [{ id: "evidence" as const, label: "Evidence", content: evidence, open: open.evidence }] : []),
+      ]}
+      onOpenChange={(name, value) => {
+        if (name === "situation" || name === "evidence") setOpen((current) => ({ ...current, [name]: value }));
+        else setCustomOpen((current) => ({ ...current, [name]: value }));
+      }}
       resize={resize}
       detailsWidth={detailsWidth}
       flowing={flowingDetails && !overlay}
@@ -125,43 +138,23 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   const detailsStyle = detailsSize.value
     ? { "--fd-workspace-details-width": `${detailsSize.value}px` } as CSSProperties
     : undefined;
+  const visibleMobilePanel = (overlay && mobilePanel === "details") || (!sidebar && mobilePanel === "sidebar") ? null : mobilePanel;
 
   return (
     <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined}
-      data-mobile-panel={overlay && mobilePanel === "details" ? undefined : mobilePanel ?? undefined} onKeyDown={(event) => {
+      data-mobile-panel={visibleMobilePanel ?? undefined} onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented) setMobilePanel(null);
       }}>
-      {timeline && (
-        <div className="fd-workspace-mobile-tools">
-          <Button variant="secondary" size="sm" aria-controls={`${id}-timeline`} aria-expanded={mobilePanel === "timeline"} onClick={() => setMobilePanel("timeline")}>Timeline</Button>
-        </div>
-      )}
-
-      {timeline && (
-        <aside id={`${id}-timeline`} className="fd-workspace-timeline" aria-label="Incident timeline" data-open={timelineOpen ? "" : undefined}
-          style={timelineSize.value ? { "--fd-workspace-timeline-width": `${timelineSize.value}px` } as CSSProperties : undefined}>
-          <div className="fd-workspace-panel-header">
-            <h2 className="text-sm font-semibold">Timeline</h2>
-            <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
-              aria-label={timelineOpen ? "Collapse timeline" : "Expand timeline"} aria-expanded={timelineOpen} aria-controls={`${id}-timeline-content`}
-              leading={<Icon name={timelineOpen ? "chevron-left" : "chevron-right"} width={16} height={16} />}
-              onClick={() => setTimelineOpen(!timelineOpen)} />
-            <Button className="fd-workspace-close" size="sm" variant="ghost" iconOnly aria-label="Close timeline"
-              leading={<Icon name="close" width={16} height={16} />} onClick={() => setMobilePanel(null)} />
-          </div>
-          <div id={`${id}-timeline-content`} className="fd-workspace-timeline-content">
-            {timeline}
-          </div>
-          {timelineOpen && <WorkspaceResizeHandle {...timelineSize} target={`${id}-timeline`} label="Resize timeline width"
-            axis="width" getBounds={timelineBounds} />}
-        </aside>
-      )}
+      {sidebar && <WorkspaceSidebar id={`${id}-sidebar`} size={sidebarSize}
+        sidebar={{ ...sidebar, defaultOpen: sidebar.defaultOpen ?? legacy.sidebar?.open }}
+        mobileOpen={visibleMobilePanel === "sidebar"}
+        onMobileOpenChange={(open) => setMobilePanel(open ? "sidebar" : null)} />}
 
       {map && <div className="fd-workspace-map" aria-label="Situation map" role="region"
-        data-cards-on-map={overlay ? "" : undefined} style={overlay ? detailsStyle : undefined}>
+        data-cards-on-map={overlay && cards ? "" : undefined} style={overlay ? detailsStyle : undefined}>
         {map}
         {!figuresOpen && mapFigures}
-        {overlay && (
+        {overlay && cards && (
           <div id={`${id}-details`} className="fd-workspace-map-cards" role="group" aria-label="Map cards">
             {cards}
           </div>

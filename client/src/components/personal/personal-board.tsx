@@ -34,9 +34,8 @@ import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/cl
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import { emptyLayout, widgetKeyOf, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type TableData, type WidgetFilter } from "@/lib/spec";
+import { emptyLayout, widgetKeyOf, type BoardView, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type TableData, type WidgetFilter } from "@/lib/spec";
 
-const monitorCategories = new Set<CrisisType>(["flood", "wildfire", "earthquake", "storm", "heatwave", "conflict"]);
 
 const MIN_INSTRUCTION = 3;
 const MAX_INSTRUCTION = 500;
@@ -118,11 +117,8 @@ export function PersonalBoard({
 
   const available = visibleWidgets(spec, data, isBuilding(board.status));
   const hasMap = board.specVersion >= 2 && available.some((w) => w.type === "map");
-  const crisisType = data?.header?.crisisType;
-  const finance = spec?.template === "finance";
-  const standardLabel = finance ? "Finance dashboard" : "Standard dashboard";
-  const recommendMonitor = hasMap && !finance && !!crisisType && monitorCategories.has(crisisType);
-  const mapDesign = !finance && (current.design === "map-focus" || current.design === "map-overlay");
+  const mapDesign = board.presentation?.workspace
+    ?? (spec?.template !== "finance" && (current.design === "map-focus" || current.design === "map-overlay"));
   const workspace = hasMap && mapDesign && available.some((w) =>
     w.type === "map" && !current.hidden.includes(widgetKeyOf(w)),
   );
@@ -267,47 +263,7 @@ export function PersonalBoard({
         <PopoverContent align="end" className="fd-board-settings">
           <div className="grid min-w-0 gap-3">
             <PopoverTitle>Board settings</PopoverTitle>
-            {(hasMap || finance) && (
-              <Select
-                aria-label="Dashboard preset"
-                size="sm"
-                value={mapDesign && hasMap ? "map-overlay" : "standard"}
-                onValueChange={(value) => {
-                  if (value !== "standard" && value !== "map-overlay") return;
-                  commit({
-                    ...current,
-                    design: value,
-                    hidden: value === "map-overlay"
-                      ? current.hidden.filter((key) => !available.some((widget) => widget.type === "map" && widgetKeyOf(widget) === key))
-                      : current.hidden,
-                  });
-                  setSettingsOpen(false);
-                }}
-              >
-                <SelectTrigger className="w-full min-w-0" onKeyDownCapture={(event) => {
-                  if (event.metaKey || event.ctrlKey || event.altKey) return;
-                  const expanded = event.currentTarget.getAttribute("aria-expanded") === "true";
-                  // Enter commits the preset. Typing into a closed selector must not change it.
-                  if ((expanded && event.key === " ") || (!expanded && event.key !== " " && event.key.length === 1)) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }
-                }} />
-                <SelectContent>
-                  <SelectItem value="standard" label={standardLabel}>
-                    {standardLabel}
-                    {!recommendMonitor && <span className="ml-2 text-xs text-muted-foreground">Recommended</span>}
-                  </SelectItem>
-                  {hasMap && !finance && (
-                    <SelectItem value="map-overlay" label="Natural disaster monitor">
-                      Natural disaster monitor
-                      {recommendMonitor && <span className="ml-2 text-xs text-muted-foreground">Recommended</span>}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-            {workspace && chartTables.length > 0 && (
+            {workspace && board.presentation?.cards === undefined && chartTables.length > 0 && (
               <fieldset className="min-w-0 border-t border-hairline pt-2">
                 <legend className="px-1 text-sm">Overview chart</legend>
                 <Select aria-label="Overview chart" size="sm" value={chartWidget ? widgetKeyOf(chartWidget) : "none"}
@@ -482,7 +438,11 @@ export function PersonalBoard({
         actions={actions}
         tools={tools}
         workspace={workspace}
-        cardsOnMap={workspace}
+        cardsOnMap={workspace && (board.presentation?.cardsOnMap ?? true)}
+        defaultTimelineOpen={board.presentation?.timelineOpen}
+        defaultEvidenceOpen={board.presentation?.evidenceOpen}
+        sidebarSettings={board.presentation?.sidebar}
+        configuredCards={board.presentation?.cards}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
         workspaceEditor={workspace && editing ? <>{!localPreview && editForm}{hiddenSections}</> : undefined}

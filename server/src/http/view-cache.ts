@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { BoardView } from "../spec";
 
 /** Short-lived cache of board views. Entries are dropped when the board publishes anything. */
@@ -26,7 +27,11 @@ export function createViewCache(ttlMs = 5_000) {
   };
 }
 
-export const etagFor = (view: Pick<BoardView, "version" | "status" | "tier">) => `"v${view.version}-${view.status}-${view.tier}"`;
+export function etagFor(view: Pick<BoardView, "version" | "status" | "tier" | "presentation">) {
+  const p = view.presentation;
+  const layout = p ? `-${createHash("sha256").update(JSON.stringify(p)).digest("hex").slice(0, 16)}` : "";
+  return `"v${view.version}-${view.status}-${view.tier}${layout}"`;
+}
 
 export function etagMatches(ifNoneMatch: string | undefined, etag: string) {
   if (!ifNoneMatch) return false;

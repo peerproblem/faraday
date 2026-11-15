@@ -45,8 +45,17 @@ const settings = vi.hoisted(() => ({
   setDistributeLive: vi.fn(async () => {}),
 }));
 const topicsRepo = vi.hoisted(() => ({ listAdminTopics: vi.fn(async () => []), setTopicState: vi.fn(async () => true) }));
+const layouts = vi.hoisted(() => ({
+  getBoardLayout: vi.fn(),
+  getBoardLayoutTemplate: vi.fn(),
+  listBoardLayoutTemplates: vi.fn(async () => []),
+  createBoardLayoutTemplate: vi.fn(),
+  updateBoardLayoutTemplate: vi.fn(),
+  setBoardLayout: vi.fn(),
+}));
 
 vi.mock("../repo/boards", () => boards);
+vi.mock("../repo/board-layouts", () => layouts);
 vi.mock("../repo/jobs", () => jobs);
 vi.mock("../repo/runs", () => runs);
 vi.mock("../monitors", () => monitors);
@@ -82,6 +91,8 @@ const ev = (id: number): BoardEvent => ({ id, ts: id, kind: "info", message: `e$
 
 beforeEach(() => {
   vi.clearAllMocks();
+  layouts.getBoardLayout.mockResolvedValue({ rev: 0, assignment: null });
+  layouts.setBoardLayout.mockImplementation(async (_id, assignment, rev) => ({ ok: true, value: { assignment, rev: rev + 1 } }));
   process.env.ADMIN_EMAILS = "Admin@Example.com, other@example.com";
   users.getUser.mockImplementation(async (id: string) =>
     id === "admin" ? { id, email: "admin@example.com", name: "A", image: null } : { id, email: `${id}@example.com`, name: null, image: null },
@@ -100,6 +111,59 @@ beforeEach(() => {
 });
 
 describe("board views", () => {
+  it("keeps the finance market desk and strips its template from the public response", async () => {
+    const app = createApp();
+    boards.getBoardView.mockResolvedValue(view({ spec: { version: 2, widgets: [], template: "finance" } }));
+    const body = await (await app.request("/api/boards/b1")).json() as BoardView;
+    expect(body.presentation).toEqual({ workspace: false, marketPrices: true });
+    expect(body.spec).toEqual({ version: 2, widgets: [] });
+    app.dispose();
+  });
+
+  it("serves only renderer flags for a saved layout and changes the view ETag on assignment", async () => {
+    const app = createApp();
+    const settings = { layout: "map", timelineOpen: false, evidenceOpen: true };
+    boards.getBoardView.mockResolvedValue(view());
+    const first = await app.request("/api/boards/b1");
+    layouts.getBoardLayout.mockResolvedValue({ rev: 1, assignment: { templateId: "internal-id", settings } });
+    publish("b1", { type: "status", status: "live", tier: "hot" });
+    const next = await app.request("/api/boards/b1", { headers: { "If-None-Match": first.headers.get("etag")! } });
+    expect(next.status).toBe(200);
+    const body = await next.text();
+    expect(body).not.toContain("internal-id");
+    expect(JSON.parse(body).presentation).toEqual({ workspace: true, cardsOnMap: true, timelineOpen: false, evidenceOpen: true });
+    const cards = [{ id: "access", title: "Access", placement: "right", open: true, contents: [{ kind: "summary" }] }];
+    const sidebar = { title: "Sources", open: false, contents: [{ kind: "widget", type: "sources" }] };
+    layouts.getBoardLayout.mockResolvedValue({ rev: 2, assignment: { templateId: "internal-id", settings: { ...settings, cards, sidebar } } });
+    publish("b1", { type: "status", status: "live", tier: "hot" });
+    const composed = await app.request("/api/boards/b1", { headers: { "If-None-Match": next.headers.get("etag")! } });
+    expect(composed.status).toBe(200);
+    expect((await composed.json() as BoardView).presentation).toMatchObject({ cards, sidebar });
+    app.dispose();
+  });
+
+  it("requires an admin to assign a template and saves settings only for the selected board", async () => {
+    const app = createApp();
+    const settings = { layout: "grid", timelineOpen: true, evidenceOpen: false };
+    const path = "/api/admin/boards/b1/layout";
+    const request = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: "t1", rev: 0 }) };
+    expect((await app.request(path, request)).status).toBe(401);
+    session.sessionUserId.mockResolvedValue("u1");
+    expect((await app.request(path, request)).status).toBe(403);
+    expect(layouts.setBoardLayout).not.toHaveBeenCalled();
+    session.sessionUserId.mockResolvedValue("admin");
+    boards.getBoard.mockResolvedValue(row());
+    layouts.getBoardLayoutTemplate.mockResolvedValue({ id: "t1", name: "Grid", settings });
+    expect((await app.request(path, request)).status).toBe(200);
+    expect(layouts.setBoardLayout).toHaveBeenCalledExactlyOnceWith("b1", { templateId: "t1", settings }, 0);
+    const current = { assignment: { templateId: "t1", settings }, rev: 1 };
+    layouts.setBoardLayout.mockResolvedValueOnce({ ok: false, current });
+    const conflict = await app.request(path, { ...request, method: "DELETE", body: JSON.stringify({ rev: 0 }) });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ current });
+    app.dispose();
+  });
+
   it("sends an ETag and answers 304 when it matches", async () => {
     const app = createApp({ domain: "faraday.watch" });
     boards.getBoardView.mockResolvedValue(view());
@@ -789,6 +853,7 @@ describe("SSE stream", () => {
     setTimeout(() => {
       publish("b1", { type: "event", event: ev(12) });
       publish("b1", { type: "polled", lastPolledAt: 2000 });
+      publish("b1", { type: "spec", version: 3, spec: { version: 2, widgets: [], template: "finance" } });
       publish("b1", { type: "event", event: ev(13) });
     }, 50);
     const text = await readUntil(res, (t) => t.includes('"e13"'));
@@ -801,6 +866,8 @@ describe("SSE stream", () => {
     }));
     expect(parsed[0].msg).toEqual({ type: "hello", version: 3, lastPolledAt: 1000 });
     expect(parsed.find((frame) => frame.event === "polled")?.msg).toEqual({ type: "polled", lastPolledAt: 2000 });
+    expect(parsed.find((frame) => frame.msg.type === "spec")?.msg)
+      .toEqual({ type: "spec", version: 3, spec: { version: 2, widgets: [] } });
     const events = parsed.filter((p) => p.msg.type === "event");
     // 11 and 12 replayed in order, the live duplicate of 12 is skipped, 13 arrives live.
     expect(events.map((e) => [e.id, e.msg.event!.message])).toEqual([

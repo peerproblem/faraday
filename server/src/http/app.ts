@@ -29,6 +29,7 @@ import {
   type BoardRow,
 } from "../repo/boards";
 import { enqueue, hasPendingJob, queueStats } from "../repo/jobs";
+import { createBoardLayoutTemplate, getBoardLayout, getBoardLayoutTemplate, listBoardLayoutTemplates, setBoardLayout, updateBoardLayoutTemplate } from "../repo/board-layouts";
 import { discordConfig, handleInteraction, installUrl, verifyDiscord, type Interaction } from "../distribute/discord";
 import { distributeEnabled } from "../distribute/run";
 import { xCreds } from "../distribute/x-post";
@@ -48,7 +49,7 @@ import { latestRunView, latestWorkerHeartbeat, nodeStats } from "../repo/runs";
 import { discoverEnabled, distributeLive, setDiscoverEnabled, setDistributeLive } from "../repo/settings";
 import { listAdminTopics, setTopicState } from "../repo/topics";
 import { sessionUserId } from "../session";
-import { crisisTypes, emptyLayout, type BoardEvent, type BoardView, type MeView, type StreamMsg, type ViewEditResult, type ViewSaveResult } from "../spec";
+import { boardLayoutSchema, crisisTypes, emptyLayout, resolveBoardPresentation, widgetKeyOf, type BoardEvent, type BoardSpecV2, type BoardView, type MeView, type StreamMsg, type TableData, type ViewEditResult, type ViewSaveResult } from "../spec";
 import { getUser, isAdminEmail, upsertUser } from "../users";
 import { defaultLayoutModel, editLayout, type LayoutModel } from "../views/edit-layout";
 import { layoutInputSchema, sanitizeLayout } from "../views/sanitize";
@@ -78,6 +79,10 @@ export type AppOptions = {
 export const sseState = { connections: 0, touchedAt: new Map<string, number>() };
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+
+function publicSpec(spec: BoardSpecV2): BoardSpecV2 {
+  return { version: spec.version, widgets: spec.widgets };
+}
 
 export function createApp(opts: AppOptions = {}) {
   const DOMAIN = opts.domain ?? process.env.FARADAY_DOMAIN ?? "";
@@ -190,9 +195,12 @@ export function createApp(opts: AppOptions = {}) {
     const cached = cache.get(id);
     if (cached) return cached;
     const stored = await getBoardView(id);
+    if (!stored) return null;
+    const { assignment } = await getBoardLayout(id);
+    const presentation = resolveBoardPresentation(assignment?.settings ?? null, stored.spec?.template === "finance");
     // English only: non-English source titles and snippets never leave the server.
-    const v = stored ? { ...stored, sources: publicSources(stored.sources) } : null;
-    if (v) cache.set(id, v);
+    const v: BoardView = { ...stored, presentation, sources: publicSources(stored.sources) };
+    cache.set(id, v);
     return v;
   }
 
@@ -205,7 +213,7 @@ export function createApp(opts: AppOptions = {}) {
     c.header("Vary", "Cookie");
     if (etagMatches(c.req.header("if-none-match"), etag)) return c.body(null, 304);
     if (await isAdmin(c)) return c.json(v);
-    const out: BoardView = { ...v, ownerId: null, plan: null, messages: [] };
+    const out: BoardView = { ...v, spec: v.spec ? publicSpec(v.spec) : null, ownerId: null, plan: null, messages: [] };
     return c.json(out);
   }
 
@@ -377,7 +385,11 @@ export function createApp(opts: AppOptions = {}) {
         if (closed) return;
         if (msg.type === "event" && msg.event.id <= replayedUpTo) return;
         const id = msg.type === "event" ? String(msg.event.id) : undefined;
-        const out: StreamMsg = msg.type === "sources" ? { ...msg, added: publicSources(msg.added) } : msg;
+        let out = msg;
+        if (msg.type === "sources") out = { ...msg, added: publicSources(msg.added) };
+        if ((msg.type === "spec" || msg.type === "partial") && msg.spec) {
+          out = { ...msg, spec: publicSpec(msg.spec) };
+        }
         // A named event lets tabs running an older client ignore poll metadata.
         const event = msg.type === "polled" ? "polled" : undefined;
         chain = chain.then(() => stream.writeSSE({ data: JSON.stringify(out), id, event })).catch(() => {});
@@ -603,6 +615,84 @@ export function createApp(opts: AppOptions = {}) {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
     return c.json({ topics: await listAdminTopics() });
+  });
+
+  app.get("/api/admin/layout-templates", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const [templates, boards] = await Promise.all([listBoardLayoutTemplates(), listBoards({ limit: 200 })]);
+    return c.json({ templates, boards: boards.map(({ id, title, slug }) => ({ id, title, slug })) });
+  });
+
+  const templateBody = z.object({ name: z.string().trim().min(1).max(100), settings: boardLayoutSchema });
+  const revisionBody = z.object({ rev: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER - 1) });
+  app.post("/api/admin/layout-templates", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = templateBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Enter a name and select a layout" }, 400);
+    return c.json(await createBoardLayoutTemplate(parsed.data.name, parsed.data.settings), 201);
+  });
+
+  app.post("/api/admin/layout-templates/:id", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = templateBody.extend(revisionBody.shape).safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Enter a name and select a layout" }, 400);
+    const result = await updateBoardLayoutTemplate(c.req.param("id"), parsed.data.name, parsed.data.settings, parsed.data.rev);
+    if (result.ok) return c.json(result.value);
+    return result.current
+      ? c.json({ error: "Another admin saved this template while you were editing.", current: result.current }, 409)
+      : c.json({ error: "Template not found" }, 404);
+  });
+
+  app.get("/api/admin/boards/:id/layout", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const board = await getBoard(c.req.param("id"));
+    if (!board) return c.json({ error: "Board not found" }, 404);
+    const widgets = (board.spec?.widgets ?? []).map((widget) => ({
+      key: widgetKeyOf(widget), type: widget.type, title: widget.title,
+      ...(widget.type === "table" && {
+        hasStatus: (board.data?.widgets[widget.id] as TableData | undefined)?.columns?.some((column) => column.kind === "status"),
+      }),
+    }));
+    return c.json({ ...await getBoardLayout(board.id), widgets, canUseMap: widgets.some((w) => w.type === "map") });
+  });
+
+  const assignmentBody = revisionBody.extend({ templateId: z.string().min(1).max(32).nullable(), settings: boardLayoutSchema.optional() });
+  app.post("/api/admin/boards/:id/layout", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = assignmentBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Select a valid layout" }, 400);
+    const board = await getBoard(c.req.param("id"));
+    if (!board) return c.json({ error: "Board not found" }, 404);
+    const { templateId } = parsed.data;
+    const template = templateId ? await getBoardLayoutTemplate(templateId) : null;
+    if (templateId && !template) return c.json({ error: "Template not found" }, 404);
+    const settings = parsed.data.settings ?? template?.settings;
+    if (!settings) return c.json({ error: "Select a valid layout" }, 400);
+    if (settings.layout === "map" && !board.spec?.widgets.some((w) => w.type === "map")) {
+      return c.json({ error: "This board has no map widget" }, 400);
+    }
+    const result = await setBoardLayout(board.id, { templateId, settings }, parsed.data.rev);
+    if (!result.ok) return c.json({ error: "Another admin saved this board layout while you were editing.", current: result.current }, 409);
+    cache.invalidate(board.id);
+    return c.json(result.value);
+  });
+
+  app.delete("/api/admin/boards/:id/layout", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    const parsed = revisionBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "A layout revision is required" }, 400);
+    const id = c.req.param("id");
+    if (!(await getBoard(id))) return c.json({ error: "Board not found" }, 404);
+    const result = await setBoardLayout(id, null, parsed.data.rev);
+    if (!result.ok) return c.json({ error: "Another admin saved this board layout while you were editing.", current: result.current }, 409);
+    cache.invalidate(id);
+    return c.json(result.value);
   });
 
   const topicStateBody = z.object({ state: z.enum(["active", "archived"]) });
