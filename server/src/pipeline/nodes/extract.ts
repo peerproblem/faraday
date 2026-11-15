@@ -180,7 +180,10 @@ export function toExtracted(f: RawFact, plan: Plan): ExtractedFact | null {
       }
       const first = cells[table.columns[0]?.key ?? ""];
       if (!first) return null;
-      return { ...base, kind, key: `${table.key}:${slugify(first)}`, payload: { table: table.key, cells } };
+      const responseTime = table.key === "incident-totals" ? cells["reporting-window-end"]
+        : table.key === "operational-incidents" ? cells["status-as-of"] : undefined;
+      const identity = table.key === "operational-incidents" ? cells["incident-id"] || `${cells.region ?? ""} ${first}` : first;
+      return { ...base, asOf: responseTime || base.asOf, kind, key: `${table.key}:${slugify(identity)}`, payload: { table: table.key, cells } };
     }
     case "status": {
       const group = plan.statusGroups.find((g) => g.key === str(f.group));

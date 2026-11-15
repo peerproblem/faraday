@@ -1,3 +1,4 @@
+import { officialBreakdown, officialCount, reportingTime } from "../spec/incident";
 // OWNER: F-PIPE-CORE. Code-only verification (guide P3-6). No model calls.
 import type { ExtractedFact, FactKind, Source, StagedFact } from "../spec";
 
@@ -292,6 +293,31 @@ export function verifyFacts(input: VerifyInput): VerifyResult {
         continue;
       }
       payload = { ...p, valueNum };
+    } else if (fact.kind === "row") {
+      const row = fact.payload as { table: string; cells: Record<string, string> };
+      if (row.table === "operational-incidents" || row.table === "incident-totals") {
+        if (source.sourceType !== "official") {
+          reject(fact, "response rows require an official source");
+          continue;
+        }
+        if (row.table === "operational-incidents" && reportingTime(row.cells["status-as-of"]) === null) {
+          reject(fact, "official response status requires an observation time");
+          continue;
+        }
+        if (row.table === "incident-totals") {
+          const count = officialCount(row.cells["total-incidents"]);
+          const numbers = extractNumbers(quote);
+          if (count === null || !numbers.includes(count) || reportingTime(row.cells["reporting-window-end"]) === null) {
+            reject(fact, "official incident count or reporting cutoff unverified");
+            continue;
+          }
+          const slices = officialBreakdown(row.cells.breakdown, count);
+          if (row.cells.breakdown && (!slices || slices.some(({ value }) => !numbers.includes(value)))) {
+            const { breakdown: _breakdown, ...cells } = row.cells;
+            payload = { ...row, cells };
+          }
+        }
+      }
     } else if (fact.kind === "resource") {
       const p = fact.payload as { url: string };
       if (!hostKnown(p.url)) {

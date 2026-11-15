@@ -52,3 +52,34 @@ test("saves a template and applies a customized copy to the selected board", asy
   }));
   expect(saveLayoutTemplate).toHaveBeenCalledTimes(1);
 });
+
+test("assigns a reusable map region and official tally to a selected board", async () => {
+  const user = userEvent.setup();
+  vi.mocked(getLayoutLibrary).mockResolvedValue({
+    templates: [], boards: [{ id: "b1", title: "Regional board", slug: "regional" }],
+  });
+  vi.mocked(getAdminBoardLayout).mockResolvedValue({ assignment: null, canUseMap: true, widgets: [], rev: 0 });
+  vi.mocked(saveAdminBoardLayout).mockImplementation(async (_id, { rev, ...assignment }) => ({ assignment, rev: rev + 1 }));
+  render(<AdminLayouts />);
+  await user.click(await screen.findByRole("button", { name: "Board to edit" }));
+  await user.click(await screen.findByRole("option", { name: "Regional board" }));
+  const save = await screen.findByRole("button", { name: "Save for this board" });
+  const editor = within(save.closest("form")!);
+  await user.click(editor.getByRole("button", { name: "Add map region" }));
+  const name = editor.getByRole("textbox", { name: "Region name" });
+  await user.clear(name);
+  await user.type(name, "Helsinki");
+  await user.type(editor.getByRole("textbox", { name: "Reporting areas" }), "Helsinki, Uusimaa");
+  await user.click(editor.getByRole("button", { name: "Compose cards" }));
+  await user.click(editor.getByRole("combobox", { name: "Content 1" }));
+  await user.click(await screen.findByRole("option", { name: "Latest official tally with donut" }));
+  await user.type(editor.getByRole("textbox", { name: "Official source domains" }), "112.fi");
+  await user.click(save);
+  await waitFor(() => expect(saveAdminBoardLayout).toHaveBeenLastCalledWith("b1", expect.objectContaining({
+    settings: expect.objectContaining({
+      officialDomains: ["112.fi"],
+      mapRegions: [expect.objectContaining({ label: "Helsinki", areas: ["Helsinki", "Uusimaa"] })],
+      cards: [expect.objectContaining({ contents: [{ kind: "official-tally", chart: "donut" }] })],
+    }),
+  })));
+});

@@ -29,6 +29,9 @@ import { ContextEvidence } from "./context-evidence";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
+import { IncidentReports } from "./incident-reports";
+import { RegionSwitch, RegionInset } from "./map-regions";
+import { MapWidget } from "@/components/widgets/map";
 
 export type BoardProps = {
   boardId?: string;
@@ -58,6 +61,8 @@ export type BoardProps = {
   workspaceKey?: string;
   sidebarSettings?: BoardCardSettings | null;
   configuredCards?: BoardLayoutCard[];
+  mapCard?: BoardCardSettings;
+  mapRegions?: BoardMapRegion[];
 };
 
 const stageText: Record<string, string> = {
@@ -96,6 +101,9 @@ export function Board(props: BoardProps) {
   const { spec, data, sources, events, status, tier, connected, lastPolledAt, onRefresh } = props;
   const byId = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const [refreshing, setRefreshing] = useState(false);
+  const [regionLabel, setRegionLabel] = useState<string>();
+  const regions = props.workspace ? props.mapRegions ?? [] : [];
+  const activeRegion = regions.find((region) => region.label === regionLabel) ?? regions[0];
   const building = isBuilding(status);
   const header = data?.header ?? null;
   const visible = visibleWidgets(spec, data, building);
@@ -241,7 +249,8 @@ export function Board(props: BoardProps) {
     </div>
   );
 
-  function cardEntry(content: Exclude<BoardCardContent, { kind: "summary" }>) {
+  function cardEntry(content: BoardCardContent) {
+    if (content.kind !== "widget" && content.kind !== "status-chart") return;
     const type = content.kind === "widget" ? content.type : "table";
     return widgets.find((entry) => {
       if (entry.widget.type !== type || (content.key && content.key !== entry.key)) return false;
@@ -254,6 +263,10 @@ export function Board(props: BoardProps) {
   function renderCardContents(contents: BoardCardContent[]) {
     const sections = contents.flatMap((content) => {
       if (content.kind === "summary") return [summary];
+      if (content.kind === "incident-status" || content.kind === "official-tally") return [
+        <IncidentReports kind={content.kind} chart={content.kind === "official-tally" ? content.chart : undefined}
+          widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />,
+      ];
       const entry = cardEntry(content);
       if (!entry || (props.workspace && entry === map)) return [];
       return [content.kind === "status-chart"
@@ -313,7 +326,7 @@ export function Board(props: BoardProps) {
             map={map ? <>
               <WidgetBoundary resetKey={data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
             </> : undefined}
-            mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
+            mapFigures={!props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
             overview={<>
               {evacuation && (

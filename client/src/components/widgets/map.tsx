@@ -37,7 +37,7 @@ export function MapWidget({ data, sources, tier, building, fillMap }: WidgetProp
   if (fillMap) {
     return (
       <div className="fd-map-workspace">
-        <PointMap points={markers} center={center} fill onLoad={(map) => { mapRef.current = map; }} />
+        <PointMap points={markers} center={center} fill fixedCamera={fixedCamera} onLoad={(map) => { mapRef.current = map; }} />
         {points.length > 0 && (
           <div className="fd-map-places">
             <Popover open={placesOpen} onOpenChange={setPlacesOpen}>
