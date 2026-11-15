@@ -261,16 +261,25 @@ export function allowanceAt(index: number, limits = { monitored: TOPIC_LIMITS.mo
   return { search: index < limits.monitored, page: index < limits.page };
 }
 
+/** A priority topic can keep a search monitor outside the ranked allocation. */
+export function allowanceFor(boardId: string, index: number): MonitorAllowance {
+  const ranked = allowanceAt(index);
+  if (index < 0 || ranked.search) return ranked;
+  const priority = process.env.FARADAY_PRIORITY_SEARCH_MONITOR_BOARD_IDS?.split(",")
+    .some((id) => id.trim() === boardId);
+  return { ...ranked, search: priority === true };
+}
+
 /**
  * Which monitors a board may hold. Legacy user boards keep the old rule (no limit here). A system topic gets a search
- * monitor only in the top MONITORED_TOPICS by rank and page monitors only in the top PAGE_MONITORED_TOPICS; archived
- * or merged topics get none.
+ * monitor in the top MONITORED_TOPICS or when configured as a priority. Page monitoring follows
+ * PAGE_MONITORED_TOPICS. Archived and merged topics get neither.
  */
 export async function monitorAllowance(boardId: string): Promise<MonitorAllowance> {
   const b = await one<{ origin: string; topic_state: string | null }>(`SELECT origin, topic_state FROM boards WHERE id = ?`, [boardId]);
   if (!b || b.origin !== "system") return { search: true, page: true };
   if (b.topic_state !== "active") return { search: false, page: false };
-  return allowanceAt((await rankedTopicIds()).indexOf(boardId));
+  return allowanceFor(boardId, (await rankedTopicIds()).indexOf(boardId));
 }
 
 // ---------- admin ----------

@@ -36,7 +36,7 @@ import {
 import { distributeOnce } from "./distribute/run";
 import { discoverEnabled } from "./repo/settings";
 import { pruneStepOutputs, writeWorkerHeartbeat, type GraphName } from "./repo/runs";
-import { allowanceAt, archivePausedTopics, rankedTopicIds, recomputeRanks } from "./repo/topics";
+import { allowanceFor, archivePausedTopics, rankedTopicIds, recomputeRanks } from "./repo/topics";
 import type { BoardStatus, BoardTier } from "./spec";
 
 const MIN = 60_000;
@@ -189,9 +189,8 @@ export async function maybeEnqueueDiscover(now = Date.now()) {
 }
 
 /**
- * Shared topic upkeep: paused system topics become archived, active ones are ranked again, and topics that fell out
- * of the monitored top lose their monitors (search and pages below MONITORED_TOPICS, pages below
- * PAGE_MONITORED_TOPICS). Monitors are created by the graphs, which ask monitorAllowance first.
+ * Archive paused topics, refresh ranks, and remove monitors that fall outside the current allowance.
+ * The graphs use the same allowance when creating monitors.
  */
 export async function topicUpkeepOnce(now = Date.now()) {
   const archived = await archivePausedTopics();
@@ -206,7 +205,7 @@ export async function topicUpkeepOnce(now = Date.now()) {
   }
   let released = 0;
   for (const [boardId, kinds] of byBoard) {
-    const allow = allowanceAt(position.get(boardId)!);
+    const allow = allowanceFor(boardId, position.get(boardId)!);
     if (!allow.search) released += await removeBoardMonitors(boardId);
     else if (!allow.page && kinds.has("page")) released += await removeBoardMonitors(boardId, { kind: "page" });
   }
