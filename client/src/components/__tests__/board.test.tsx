@@ -8,7 +8,7 @@ import { LiveBoard } from "@/components/board/live-board";
 import { TransportSituation } from "@/components/board/transport-overview";
 import { transportSections } from "@/components/board/transport-model";
 import { sortRows } from "@/components/widgets/table";
-import type { BoardView, TableData } from "@/lib/spec";
+import { crisisTypes, type BoardView, type TableData } from "@/lib/spec";
 
 const NOW = Date.parse("2026-11-14T12:00:00Z");
 
@@ -46,6 +46,26 @@ describe("board v2", () => {
     render(<LiveBoard initial={original} workspace live={false} />);
     expect(screen.queryByRole("heading", { name: "Travel recovery & service status" })).toBeNull();
     expect(section("Situation map")).toBeTruthy();
+  });
+
+  test.each(crisisTypes.filter(type => type !== "transport"))("keeps transport UI out of %s workspaces", crisisType => {
+    const initial = board(crisisType === "cyberattack" ? "cyber" : crisisType === "outage" ? "outage" : "flood");
+    initial.data!.header.crisisType = crisisType;
+    const { container } = render(<LiveBoard initial={initial} workspace live={false} />);
+    expect(container.querySelector(".fd-transport-workspace")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Travel recovery & service status" })).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Transport report category" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Evidence" })).toBeTruthy();
+    if (crisisType !== "cyberattack" && crisisType !== "outage") expect(section("Situation map")).toBeTruthy();
+  });
+
+  test("transport retains the original layout outside workspace mode", () => {
+    const initial = board("flood");
+    initial.data!.header.crisisType = "transport";
+    const { container } = render(<LiveBoard initial={initial} live={false} />);
+    expect(container.querySelector(".fd-transport-workspace")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Travel recovery & service status" })).toBeNull();
+    expect(screen.getAllByRole("table").length).toBeGreaterThan(0);
   });
 
   test("transport Situation searches generic operators without losing undated report history", async () => {
