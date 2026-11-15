@@ -58,7 +58,7 @@ export default async function PublicBoard({ params }: PageProps<"/b/[slug]">) {
   }
   return (
     <div className="fd-workspace-shell">
-      <LiveBoard initial={board} actions={actions} workspace workspaceNavigation={<WorkspaceNavigation />} />
+      <LiveBoard initial={board} actions={actions} workspace wildfireOverview={board.id === "1egbu07xcl61"} workspaceNavigation={<WorkspaceNavigation />} />
     </div>
   );
 }

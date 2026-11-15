@@ -13,6 +13,9 @@ export type WidgetProps<T extends WidgetType = WidgetType> = {
   building: boolean;
   mapFocus?: boolean;
   fillMap?: boolean;
+  wrapSourceTitles?: boolean;
+  collapseSourceGroups?: boolean;
+  compactTrendAxis?: boolean;
   /** A personal dashboard's display filter for this widget. Only narrows what is shown; the data is unchanged. */
   filter?: Extract<WidgetFilter, { kind: T }>;
 };

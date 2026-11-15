@@ -8,7 +8,7 @@ import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
 import { Empty } from "./widget-frame";
 
-export function TrendWidget({ data, sources, building, mapFocus }: WidgetProps<"trend">) {
+export function TrendWidget({ data, sources, building, mapFocus, compactTrendAxis }: WidgetProps<"trend">) {
   const points = data?.points ?? [];
   const pts = cleanPoints(points);
   if (pts.length < 2 || !data) return <Empty building={building} title="Not enough reports for a trend" description="A trend needs at least two reports of the figure." />;
@@ -16,15 +16,26 @@ export function TrendWidget({ data, sources, building, mapFocus }: WidgetProps<"
   const last = data.points[data.points.length - 1];
   return (
     <figure className="m-0 flex min-w-0 flex-col gap-3">
-      <TrendChart
-        aria-label={summary}
-        values={pts.map((p) => p.v)}
-        labels={pts.map((p) => shortTime(p.x))}
-        seriesLabels={[data.unit ? `${data.label} (${data.unit})` : data.label, "Previous"]}
-        format={(n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 })}
-        variant={mapFocus && pts.length <= 12 ? "bars" : undefined}
-        height={mapFocus ? 186 : 220}
-      />
+      <div className="min-w-0">
+        <TrendChart
+          aria-label={summary}
+          className={compactTrendAxis ? "fd-compact-trend" : undefined}
+          values={pts.map((p) => p.v)}
+          labels={pts.map((p) => `${shortTime(p.x)}${compactTrendAxis ? " UTC" : ""}`)}
+          seriesLabels={[data.unit ? `${data.label} (${data.unit})` : data.label, "Previous"]}
+          format={(n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+          variant={mapFocus && pts.length <= 12 ? "bars" : undefined}
+          height={mapFocus ? 186 : 220}
+        />
+        {compactTrendAxis && (
+          <div className="pointer-events-none -mt-5 grid grid-cols-2 gap-x-2 text-xs tabular-nums text-muted-foreground" aria-hidden="true">
+            <time data-trend-endpoint dateTime={pts[0].t}>{shortTime(pts[0].x)} UTC</time>
+            <time data-trend-endpoint dateTime={pts[pts.length - 1].t} className="text-right">
+              {shortTime(pts[pts.length - 1].x)} UTC
+            </time>
+          </div>
+        )}
+      </div>
       <figcaption className="flex flex-wrap items-center gap-2">
         <Text as="span" size="sm" tone="muted">
           {summary}
