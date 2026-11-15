@@ -13,7 +13,7 @@ import {
 import { searchNews, searchWeb, type FoundDoc } from "../../contextdev";
 import { geocodeBoard, placeCountry, type GeocodeResult } from "../nodes/geocode";
 import { oxylabsEnabled, oxySearch } from "../../oxylabs";
-import { listMonitors, listSources, markChanged, markMonitorsSynced, markPolled, saveBoardVersion } from "../../repo/boards";
+import { listMonitors, listSources, markChanged, markMonitorsSynced, saveBoardVersion } from "../../repo/boards";
 import { listFacts } from "../../repo/facts";
 import type { FactDiff } from "../../spec";
 import { diffData, type HeaderOverrides } from "../assemble";
@@ -33,6 +33,7 @@ import {
   mergeRound,
   officialUrls,
   readRound,
+  recordBoardCheck,
   refreshRound,
   triageRound,
 } from "./common";
@@ -124,7 +125,7 @@ export const updateGraph: GraphFn = async (ctx) => {
   const refreshed = await refreshRound(ctx, collected.docs);
   const added = await ingest(ctx, collected.docs);
   const finish = async (message: string | null) => {
-    await markPolled(ctx.boardId);
+    await recordBoardCheck(ctx);
     await ackChanges(collected.changes);
     if (message && reason !== "schedule") await ctx.event("info", message);
     await maintainMonitors();
@@ -238,7 +239,7 @@ export const updateGraph: GraphFn = async (ctx) => {
     ...(changed.hidden ? { hidden: data.hidden } : {}),
   });
   await markChanged(ctx.boardId);
-  await markPolled(ctx.boardId);
+  await recordBoardCheck(ctx);
   await ackChanges(collected.changes);
   await ctx.event("update", note, {
     importance: mat.importance,

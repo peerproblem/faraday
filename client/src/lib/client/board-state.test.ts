@@ -21,6 +21,19 @@ describe("applyMessage", () => {
     expect(applyMessage(s, { type: "hello", version: s.board.version + 1 }).refetch).toBe(true);
   });
 
+  test("poll completion and reconnect advance the check time without replacing widget data", () => {
+    const s = start();
+    const first = (s.board.lastPolledAt ?? 0) + 1_000;
+    const live = applyMessage(s, { type: "polled", lastPolledAt: first });
+    expect(live.refetch).toBe(false);
+    expect(live.state.board.lastPolledAt).toBe(first);
+    expect(live.state.board.data).toBe(s.board.data);
+    expect(applyMessage(live.state, { type: "polled", lastPolledAt: first - 1 }).state).toBe(live.state);
+    const reconnect = applyMessage(live.state, { type: "hello", version: s.board.version, lastPolledAt: first + 1 });
+    expect(reconnect.state.board.lastPolledAt).toBe(first + 1);
+    expect(reconnect.refetch).toBe(false);
+  });
+
   test("data for the next version merges only the widgets it carries", () => {
     const s = start();
     const v = s.board.version;

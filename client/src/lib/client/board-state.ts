@@ -21,7 +21,13 @@ export function applyMessage(s: BoardState, msg: StreamMsg): Applied {
   const b = s.board;
   switch (msg.type) {
     case "hello":
-      return { state: s, refetch: msg.version !== b.version };
+    case "polled": {
+      const lastPolledAt = msg.lastPolledAt;
+      const state = lastPolledAt != null && (b.lastPolledAt == null || lastPolledAt > b.lastPolledAt)
+        ? { ...s, board: { ...b, lastPolledAt } }
+        : s;
+      return { state, refetch: msg.type === "hello" && msg.version !== b.version };
+    }
     case "status": {
       const done = msg.status === "live" || msg.status === "error";
       return { state: { board: { ...b, status: msg.status, tier: msg.tier }, partial: done ? null : s.partial }, refetch: false };

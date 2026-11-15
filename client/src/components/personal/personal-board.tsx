@@ -261,6 +261,7 @@ export function PersonalBoard({
 
   const actions = (
     <>
+      {editAction}
       <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
         <PopoverTrigger render={<BoardHeaderButton icon="settings" aria-label="Board settings" title="Board settings" />} />
         <PopoverContent align="end" className="fd-board-settings">
@@ -346,7 +347,6 @@ export function PersonalBoard({
           </div>
         </PopoverContent>
       </Popover>
-      {!workspace && editAction}
       <Menu>
         <MenuTrigger asChild>
           <BoardHeaderButton icon="more" aria-label="Board actions" />
@@ -485,7 +485,6 @@ export function PersonalBoard({
         cardsOnMap={workspace}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
-        workspaceEditAction={workspace ? editAction : undefined}
         workspaceEditor={workspace && editing ? <>{!localPreview && editForm}{hiddenSections}</> : undefined}
       />
 

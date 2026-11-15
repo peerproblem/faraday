@@ -61,7 +61,6 @@ export type BoardProps = {
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
-  workspaceEditAction?: ReactNode;
   workspaceEditor?: ReactNode;
 };
 
@@ -332,7 +331,6 @@ export function Board(props: BoardProps) {
             </> : undefined}
             sourceCount={sources.length}
             changes={changelog ? renderWorkspaceWidget(changelog, true) : undefined}
-            editAction={props.workspaceEditAction}
             editor={props.workspaceEditor}
           />
         </div>
