@@ -102,10 +102,10 @@ export function dedupeDocs(docs: FoundDoc[]): FoundDoc[] {
 }
 
 /**
- * Which news queries a poll uses. Rotates through all of them, 3 at a time, without stored state:
+ * Which news queries a poll uses. Rotates through all of them, 2 at a time, without stored state:
  * the slot advances every `periodMs`, so every query is used over a few polls (guide P1-2).
  */
-export function rotateQueries(queries: string[], now: number, periodMs = 2 * 60_000, perPoll = 3): string[] {
+export function rotateQueries(queries: string[], now: number, periodMs = 10 * 60_000, perPoll = 2): string[] {
   if (queries.length <= perPoll) return queries;
   const slots = Math.ceil(queries.length / perPoll);
   const slot = Math.floor(now / periodMs) % slots;

@@ -53,7 +53,9 @@ export const updateGraph: GraphFn = async (ctx) => {
   // A follow-up (queued by the build for questions it could not answer) searches its own queries over the plan's window.
   const followup = reason === "followup";
   const since = followup ? now - plan.lookbackDays * 86_400_000 : (board.lastPolledAt ?? now - 86_400_000) - 60 * 60_000;
-  const queries = followup ? (payload.newsQueries ?? []).slice(0, 3) : rotateQueries(plan.newsQueries, now, POLL_INTERVAL_MS.hot);
+  // The rotation advances once per poll interval of the board's tier, so a slower tier still cycles through every query.
+  const period = POLL_INTERVAL_MS[board.tier === "paused" ? "hot" : board.tier];
+  const queries = followup ? (payload.newsQueries ?? []).slice(0, 3) : rotateQueries(plan.newsQueries, now, period);
   const webQueries = followup ? (payload.webQueries ?? []).slice(0, 3) : [];
   const freshness = plan.lookbackDays <= 1 ? "last_24_hours" : plan.lookbackDays <= 7 ? "last_week" : "last_month";
   // One Oxylabs local search per scheduled poll, rotating through the local-language and first web query.
@@ -62,7 +64,7 @@ export const updateGraph: GraphFn = async (ctx) => {
   // Reads of local pages are routed through the country on every poll; the local search runs on scheduled polls only.
   const readCountry = placeName && oxylabsEnabled() ? await placeCountry(placeName).catch(() => null) : null;
   const country = followup ? null : readCountry;
-  const localQuery = country ? (rotateQueries(localSearchQueries(plan), now, POLL_INTERVAL_MS.hot, 1)[0] ?? null) : null;
+  const localQuery = country ? (rotateQueries(localSearchQueries(plan), now, period, 1)[0] ?? null) : null;
 
   const collected = await ctx.step(
     "collect",

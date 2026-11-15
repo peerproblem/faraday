@@ -3,6 +3,7 @@ import { cassetteMode, taped } from "../contextdev";
 import type { FoundDoc } from "../repo/boards";
 import { getSocialCursor, reserveSocialReads } from "../repo/social";
 import type { BoardTier } from "../spec";
+import { hasNonLatinScript } from "../pipeline/public-source";
 
 export const X_BATCH_SIZE = 10;
 export type XResponse = {
@@ -18,7 +19,7 @@ const WEB_ONLY_OPERATOR = /(?<![\w:])-?(?:filter|include|min_faves|min_retweets|
 
 export function xQuery(queries: string[]): string | null {
   const clean = (q: string) => {
-    let s = q.replace(WEB_ONLY_OPERATOR, "").replace(/(?<![\w:])-?is:retweet\b/gi, "").replace(/\s+/g, " ").trim();
+    let s = q.replace(WEB_ONLY_OPERATOR, "").replace(/(?<![\w:])-?is:(?:retweet|reply)\b/gi, "").replace(/\s+/g, " ").trim();
     // A removed operator can leave an OR with nothing on one side, or an empty group: both fail the request.
     for (let prev = ""; prev !== s; ) {
       prev = s;
@@ -29,8 +30,17 @@ export function xQuery(queries: string[]): string | null {
   };
   const parts = queries.map(clean).filter(Boolean).slice(0, 2);
   if (!parts.length) return null;
-  const q = `(${parts.map((p) => `(${p})`).join(" OR ")}) -is:retweet`;
+  // Replies are left out: they answer someone else's post and rarely read as a report on their own.
+  const q = `(${parts.map((p) => `(${p})`).join(" OR ")}) -is:retweet -is:reply`;
   return q.length <= 512 ? q : null;
+}
+
+/** The author's display name, shown beside the @handle as X's display rules ask. Only a Latin-script name is kept:
+ * the product is English only, and a non-Latin publisher would hide the post's own words (see publicSource). */
+export function displayName(name: string | undefined): string | null {
+  const n = name?.replace(/[\p{Cc}\p{Cf}]/gu, "").replace(/\s+/g, " ").trim();
+  if (!n || n.length > 50 || hasNonLatinScript(n)) return null;
+  return n;
 }
 
 /** One request, no retries or pagination. Tape the response, never the bearer/header. */
@@ -66,7 +76,7 @@ export async function searchX(query: string, opts: { sinceId?: string; signal?: 
     const text = post.note_tweet?.text ?? post.note_post?.text ?? post.text;
     if (!text?.trim()) return [];
     return [{ url: `https://x.com/${user.username}/status/${post.id}`, title: `@${user.username}`,
-      publisher: `@${user.username}`, publishedAt: post.created_at ?? null, snippet: text, kind: "social", via: "x" }];
+      publisher: displayName(user.name) ?? `@${user.username}`, publishedAt: post.created_at ?? null, snippet: text, kind: "social", via: "x" }];
   });
 }
 

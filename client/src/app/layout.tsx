@@ -3,12 +3,15 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { SwProvider } from "@/components/ui/provider";
+import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  // Relative share-image and canonical URLs resolve against the main site.
+  metadataBase: new URL(SITE_URL || "http://localhost:3000"),
   title: "Faraday: live boards for the crises unfolding now",
   description:
     "Faraday finds the crises unfolding now, reads the live web through Context.dev and keeps one shared situation board per topic up to date. Shape your own view of any topic.",

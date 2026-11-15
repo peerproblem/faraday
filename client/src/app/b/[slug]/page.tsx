@@ -9,6 +9,7 @@ import { Link } from "@/components/ui/link";
 import { Text } from "@/components/ui/typography";
 import { boardSlugFromHost, boardUrl, DOMAIN, SITE_URL } from "@/lib/config";
 import { getBoardBySlug, getMyView } from "@/lib/engine";
+import { OG_SIZE, ogImagePath } from "@/lib/og";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,16 @@ export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Prom
   const board = await getBoardBySlug(slug).catch(() => null);
   const header = board?.data?.header;
   if (!header) return { title: board?.title ? `${board.title} | live board` : "Faraday board" };
+  const title = `${header.title} | live board`;
+  const description = header.headline?.text ?? header.subtitle ?? undefined;
+  // The link card X, Discord and chat apps show. The image URL changes with each version, so their caches refresh.
+  const image = { url: `${SITE_URL}${ogImagePath(slug, board.version)}`, width: OG_SIZE.width, height: OG_SIZE.height, alt: header.title };
   return {
-    title: `${header.title} | live board`,
-    description: header.headline?.text ?? header.subtitle ?? undefined,
+    title,
+    description,
     robots: board?.visibility === "unlisted" ? { index: false } : undefined,
+    openGraph: { type: "website", siteName: "Faraday", title, description, url: boardUrl(slug), images: [image] },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
   };
 }
 

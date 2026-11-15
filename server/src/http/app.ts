@@ -29,6 +29,10 @@ import {
   type BoardRow,
 } from "../repo/boards";
 import { enqueue, hasPendingJob, queueStats } from "../repo/jobs";
+import { discordConfig, handleInteraction, installUrl, verifyDiscord, type Interaction } from "../distribute/discord";
+import { distributeEnabled } from "../distribute/run";
+import { xCreds } from "../distribute/x-post";
+import { recentPosts } from "../repo/distribution";
 import {
   addTopicRequests,
   countViews,
@@ -615,6 +619,19 @@ export function createApp(opts: AppOptions = {}) {
     return c.json({ id, slug });
   });
 
+  // What the distributor posted (or would post, in a dry run), and which accounts are connected.
+  app.get("/api/admin/distribution", async (c) => {
+    const admin = await adminOnly(c);
+    if (admin instanceof Response) return admin;
+    return c.json({
+      enabled: distributeEnabled(),
+      dryRun: process.env.DISTRIBUTE_DRY_RUN === "1",
+      x: xCreds() !== null,
+      discord: discordConfig() !== null,
+      posts: await recentPosts(limitOf(c, 50)),
+    });
+  });
+
   app.get("/api/admin/candidates", async (c) => {
     const admin = await adminOnly(c);
     if (admin instanceof Response) return admin;
@@ -772,6 +789,30 @@ export function createApp(opts: AppOptions = {}) {
     }
     log("info", "webhook queued a poll", { boardId: monitor.boardId, monitorId, eventId });
     return c.json({ ok: true });
+  });
+
+  // Discord slash commands (/follow, /unfollow, /following, /topics). Discord signs every request with Ed25519 and
+  // checks on setup that an unsigned one is refused.
+  app.post("/api/webhooks/discord", async (c) => {
+    const cfg = discordConfig();
+    if (!cfg) return c.json({ error: "Discord is not configured" }, 404);
+    const raw = await c.req.text();
+    if (!verifyDiscord(raw, c.req.header("x-signature-ed25519"), c.req.header("x-signature-timestamp"), cfg.publicKey)) {
+      return c.json({ error: "bad signature" }, 401);
+    }
+    let interaction: Interaction;
+    try {
+      interaction = JSON.parse(raw) as Interaction;
+    } catch {
+      return c.json({ error: "bad json" }, 400);
+    }
+    return c.json(await handleInteraction(interaction, DOMAIN));
+  });
+
+  // A short link to add the Faraday bot to a Discord server.
+  app.get("/api/discord/install", (c) => {
+    const cfg = discordConfig();
+    return cfg ? c.redirect(installUrl(cfg.applicationId)) : c.json({ error: "Discord is not configured" }, 404);
   });
 
   app.notFound((c) => c.json({ error: "Not found" }, 404));
