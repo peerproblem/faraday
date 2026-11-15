@@ -16,17 +16,18 @@ export function boardBadge(b: Pick<BoardCard, "status" | "tier">): { text: strin
   return { text: "Live", tone: "success", live: true };
 }
 
-/** The badges at the top of a topic tile: its state and its crisis type. */
-export function BoardBadges({ board }: { board: Pick<BoardCard, "status" | "tier" | "crisisType"> }) {
+/** The badges at the top of a topic tile: its state and its effective topic category. */
+export function BoardBadges({ board }: { board: Pick<BoardCard, "status" | "tier" | "crisisType" | "topicCategory"> }) {
   const s = boardBadge(board);
+  const category = board.topicCategory ?? board.crisisType;
   return (
     <>
       <Badge variant={s.tone} pulse={s.live}>
         {s.text}
       </Badge>
-      {board.crisisType ? (
+      {category ? (
         <Badge variant="outline" mono>
-          {board.crisisType}
+          {category}
         </Badge>
       ) : null}
     </>
