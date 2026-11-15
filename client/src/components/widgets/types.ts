@@ -11,6 +11,7 @@ export type WidgetProps<T extends WidgetType = WidgetType> = {
   status: BoardStatus;
   tier: BoardTier;
   building: boolean;
+  mapFocus?: boolean;
   /** A personal dashboard's display filter for this widget. Only narrows what is shown; the data is unchanged. */
   filter?: Extract<WidgetFilter, { kind: T }>;
 };

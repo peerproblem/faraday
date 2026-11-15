@@ -1,6 +1,7 @@
 // Validation and cleanup of personal layouts. Imports only spec/ so the api can use it.
 import { z } from "zod";
 import {
+  boardDesigns,
   LAYOUT_LIMITS,
   sourceTypes,
   widgetKeyOf,
@@ -17,6 +18,7 @@ import {
 
 export const MAP_POINT_KINDS: readonly MapPointKind[] = ["impact", "incident", "shelter", "closure", "resource", "origin"];
 
+const boardDesign = z.enum(boardDesigns);
 const keyList = z.array(z.string().max(200)).max(200);
 
 /** Shape check for a layout from a request. Loose on purpose: sanitizeLayout does the real cleanup. */
@@ -30,6 +32,7 @@ export const layoutInputSchema = z.object({
     .array(z.object({ key: z.string().max(200).optional(), type: z.string().max(16), metric: z.string().max(200), title: z.string().max(500).optional() }))
     .max(50)
     .default([]),
+  design: z.unknown().optional().transform((value) => boardDesign.safeParse(value).data),
   header: z.object({ compact: z.boolean().default(false) }).default({ compact: false }),
   baseVersion: z.number().int().min(0).max(1e9).default(0),
 });
@@ -133,5 +136,5 @@ export function sanitizeLayout(input: LayoutInput | PersonalLayout, spec: BoardS
     if (clean) filters[k] = clean;
   }
 
-  return { order, hidden, size, pinned, filters, extras, header: { compact: raw.header.compact }, baseVersion: raw.baseVersion };
+  return { order, hidden, size, pinned, filters, extras, header: { compact: raw.header.compact }, ...(raw.design !== undefined ? { design: raw.design } : {}), baseVersion: raw.baseVersion };
 }

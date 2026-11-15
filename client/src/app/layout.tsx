@@ -20,7 +20,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="sw-root sw-body flex min-h-full flex-col">
         <SwProvider theme="system">
           <SiteHeader />
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-10">{children}</main>
+          <main className="fd-site-main mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-10">{children}</main>
           <SiteFooter />
         </SwProvider>
       </body>

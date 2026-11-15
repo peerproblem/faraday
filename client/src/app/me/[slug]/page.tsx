@@ -21,7 +21,7 @@ export default async function MyDashboardPage({ params }: PageProps<"/me/[slug]"
   if (!board) notFound();
   const view = await getMyView(board.id, (await headers()).get("cookie"));
   return (
-    <div className="pt-6">
+    <div className="fd-personal-route pt-6">
       <PersonalBoard initial={board} initialView={view} />
     </div>
   );
