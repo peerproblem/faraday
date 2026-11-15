@@ -37,7 +37,7 @@
 .fd-houthi-timeline-body {
   min-height: 0;
   max-height: var(--fd-houthi-timeline-body-height, 22rem);
-  overflow: auto;
+  overflow: hidden auto;
   overscroll-behavior: contain;
 }
 
