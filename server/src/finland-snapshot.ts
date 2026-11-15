@@ -46,7 +46,7 @@ export function finlandOfficialSnapshot(view: BoardView): BoardView {
         break;
       case "stat-grid":
         widgets[id] = { items: [{
-          key: "suspected-entry-duration", label: "Estimated time in Finnish airspace", valueText: "About 5 min",
+          key: "suspected-entry-duration", label: "Estimated time in Finnish airspace", valueText: "About 5",
           valueNum: 5, unit: "min", delta: null, deltaNum: null, tone: "info", conflict: null, history: [],
           ...governmentCitation,
         }] };

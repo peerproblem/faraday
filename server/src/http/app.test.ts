@@ -182,7 +182,7 @@ describe("board views", () => {
     boards.getBoardVersion.mockResolvedValue({ version: 2, capturedAt: 100, spec, data });
 
     const response = await app.request(`/api/boards/${id}`);
-    expect(response.headers.get("etag")).toMatch(/-sources-2"$/);
+    expect(response.headers.get("etag")).toMatch(/-sources-3"$/);
     const board = await response.json() as BoardView;
     expect(board.sources.map(({ url }) => url)).toEqual([government, ministry]);
     expect(JSON.stringify(board)).not.toMatch(/s43|yle\.fi|07:20|Old Yle-derived claim/);
@@ -190,7 +190,7 @@ describe("board views", () => {
     expect(board.data?.header).toMatchObject({ status: null, headline: { sources: ["s11", "s36"] } });
     expect(board.data?.widgets).toMatchObject({
       w1: { sentences: [{ sources: ["s11"] }, { sources: ["s36"] }, { sources: ["s11"] }] },
-      w3: { items: [{ valueText: "About 5 min", sources: ["s11"] }] },
+      w3: { items: [{ valueText: "About 5", unit: "min", sources: ["s11"] }] },
       w4: { rows: [{ sources: ["s36"], cells: { "lifted-at": "Unspecified" } }, { sources: ["s36"] }] },
       w5: { items: [{ url: government, sources: ["s11"] }, { url: ministry, sources: ["s36"] }] },
     });

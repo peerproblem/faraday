@@ -4,7 +4,7 @@ import { finlandOfficialSnapshot, finlandSnapshotCopy } from "./finland-snapshot
 const boards: Record<string, { version: number; presentation: BoardPresentation; sourceRevision?: number; projectSnapshot?: (view: BoardView) => BoardView; cardCopy?: { headline: string; prompt: string } }> = {
   oznxapju2rna: {
     version: 2,
-    sourceRevision: 2,
+    sourceRevision: 3,
     projectSnapshot: finlandOfficialSnapshot,
     cardCopy: finlandSnapshotCopy,
     presentation: {
