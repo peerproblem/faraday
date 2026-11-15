@@ -1,6 +1,6 @@
 // Browser calls for personal dashboards. The engine reads the session cookie (credentials: "include").
 import { api } from "@/lib/config";
-import type { BoardCard, PersonalLayout, TopicCandidateView, TopicRequestView, TopicState, ViewEditResult, ViewSaveResult } from "@/lib/spec";
+import type { AdminSettings, BoardCard, PersonalLayout, TopicCandidateView, TopicRequestView, TopicState, ViewEditResult, ViewSaveResult } from "@/lib/spec";
 
 export class ApiError extends Error {
   constructor(
@@ -61,10 +61,10 @@ export const adminLogout = () => call<{ ok: true }>("/api/admin/logout", { metho
 
 export const adminSession = () => call<{ admin: boolean }>("/api/admin/session");
 
-export const getAdminSettings = () => call<{ discoverEnabled: boolean }>("/api/admin/settings");
+export const getAdminSettings = () => call<AdminSettings>("/api/admin/settings");
 
-export const setAdminSettings = (discoverEnabled: boolean) =>
-  call<{ discoverEnabled: boolean }>("/api/admin/settings", { method: "POST", body: { discoverEnabled } });
+export const setAdminSettings = (patch: Partial<Pick<AdminSettings, "discoverEnabled" | "distributeLive">>) =>
+  call<AdminSettings>("/api/admin/settings", { method: "POST", body: patch });
 
 export const listAdminTopics = () => call<{ topics: BoardCard[] }>("/api/admin/topics");
 

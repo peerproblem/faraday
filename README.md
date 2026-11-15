@@ -126,7 +126,7 @@ Limits: at most `X_POST_DAILY_LIMIT` (10) X posts per 24 hours, at least `X_POST
 
 Setup, all in the root `.env`:
 
-- `DISTRIBUTE_ENABLED=1` turns the worker loop on. Add `DISTRIBUTE_DRY_RUN=1` to record what would be posted (`GET /api/admin/distribution`) without sending anything.
+- `DISTRIBUTE_ENABLED=1` turns the worker loop on. Posts really go out only while **Post to X and Discord** is on in `/admin` (Sharing). It starts off: until an admin turns it on, the worker only records what it would post (`GET /api/admin/distribution`) and sends nothing, so turning it on never posts the backlog.
 - X: `X_API_CONSUMER_KEY`, `X_API_SECRET_KEY`, `X_API_ACCESS_TOKEN` and `X_API_ACCESS_SECRET` of the posting account (OAuth 1.0a user context with read and write permission). The bearer token can only search.
 - Discord: create an application, then set `DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY` and `DISCORD_BOT_TOKEN`. Set the application's Interactions Endpoint URL to `https://api.<domain>/api/webhooks/discord` and run `npm run discord:commands` in `server/` once. Server admins add the bot from `https://api.<domain>/api/discord/install` and use `/follow` in a channel (`/follow` alone follows all topics). Anyone can use `/following` and `/topics`.
 

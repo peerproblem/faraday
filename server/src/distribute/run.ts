@@ -1,10 +1,12 @@
 // The distributor: reads new board events, decides which are worth a post, and sends them to X and to the Discord
 // channels that follow the topic. The worker runs it once a minute.
 //
-// Off unless DISTRIBUTE_ENABLED=1. With DISTRIBUTE_DRY_RUN=1 it records what it would post (status "dry") and sends
-// nothing, so the rules can be watched on real events before any account is connected.
+// Off unless DISTRIBUTE_ENABLED=1. It really posts only while the "Post to X and Discord" switch on /admin is on
+// (app_settings distribute_live). While the switch is off it records what it would post (status "dry") and sends
+// nothing, so the rules can be watched on real events and the cursor keeps up.
 import { errMessage, log } from "../http/log";
 import { getBoard } from "../repo/boards";
+import { distributeLive } from "../repo/settings";
 import {
   claimPost,
   countPostsSince,
@@ -24,7 +26,6 @@ import { postToX, xCreds } from "./x-post";
 const DAY = 86_400_000;
 
 export const distributeEnabled = () => process.env.DISTRIBUTE_ENABLED === "1";
-const dryRun = () => process.env.DISTRIBUTE_DRY_RUN === "1";
 
 export type Senders = {
   x: ((text: string) => Promise<string>) | null;
@@ -73,7 +74,7 @@ async function deliver(
 export async function distributeOnce(now = Date.now(), senders: Senders = liveSenders()): Promise<DistributeResult> {
   const r: DistributeResult = { events: 0, sent: 0, dry: 0, failed: 0, skipped: 0 };
   if (!distributeEnabled()) return r;
-  const dry = dryRun();
+  const dry = !(await distributeLive(now));
   // Nothing to send to and not rehearsing: leave the cursor alone so turning an account on later starts from here.
   if (!dry && !senders.x && !senders.discord) return r;
   const cursor = await distributeCursor();

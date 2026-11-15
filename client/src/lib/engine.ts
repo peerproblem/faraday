@@ -1,5 +1,5 @@
 import "server-only";
-import type { BoardCard, BoardView, MeView, PersonalViewCard, PersonalViewState, RunView, TopicState } from "./spec";
+import type { AdminSettings, BoardCard, BoardView, MeView, PersonalViewCard, PersonalViewState, RunView, TopicState } from "./spec";
 import { API_URL } from "./config";
 import { summarizeSources, type TopicSources } from "./source-brand";
 
@@ -87,14 +87,14 @@ export async function getAdminSession(cookie: string | null): Promise<boolean> {
 }
 
 /** Admin reads for the first render of /admin. Null when the session is not admin or the engine failed. */
-export async function getAdminOverview(cookie: string | null): Promise<{ discoverEnabled: boolean; topics: BoardCard[] } | null> {
+export async function getAdminOverview(cookie: string | null): Promise<{ settings: AdminSettings; topics: BoardCard[] } | null> {
   try {
     const [settings, topics] = await Promise.all([
-      getAs<{ discoverEnabled: boolean }>("/api/admin/settings", cookie),
+      getAs<AdminSettings>("/api/admin/settings", cookie),
       getAs<{ topics: BoardCard[] }>("/api/admin/topics", cookie),
     ]);
     if (!settings || !topics) return null;
-    return { discoverEnabled: settings.discoverEnabled, topics: topics.topics };
+    return { settings, topics: topics.topics };
   } catch (e) {
     console.error("getAdminOverview failed", e);
     return null;

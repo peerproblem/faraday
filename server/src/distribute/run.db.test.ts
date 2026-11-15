@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { all, run } from "../db/pool";
 import { addEvent, createBoard, saveBoardVersion, setVisibility } from "../repo/boards";
 import { addFollow, ALL_TOPICS, distributeCursor, followersOf } from "../repo/distribution";
+import { setDistributeLive } from "../repo/settings";
 import { useTestDb } from "../test/db";
 import type { BoardData, BoardSpecV2 } from "../spec";
 import { distributeOnce, type Senders } from "./run";
@@ -36,6 +37,7 @@ describe.skipIf(!enabled)("distribution to X and Discord", () => {
     await run("DELETE FROM discord_follows");
     await run("DELETE FROM events");
     await run("DELETE FROM app_settings WHERE name = 'distribute_cursor'");
+    await setDistributeLive(true);
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -99,7 +101,7 @@ describe.skipIf(!enabled)("distribution to X and Discord", () => {
     expect(x).toHaveBeenCalledTimes(4);
   });
 
-  it("skips legacy, unlisted and stale boards, and records a dry run without sending", async () => {
+  it("skips legacy, unlisted and stale boards, and records a dry run without sending while the admin switch is off", async () => {
     const { senders, x } = fakes();
     await distributeOnce(Date.now(), senders);
     const legacy = await topic("Legacy board", "user");
@@ -112,13 +114,21 @@ describe.skipIf(!enabled)("distribution to X and Discord", () => {
     await distributeOnce(Date.now() + 3 * 3_600_000, senders);
     expect(x).not.toHaveBeenCalled();
 
-    vi.stubEnv("DISTRIBUTE_DRY_RUN", "1");
+    await setDistributeLive(false);
     const live = await topic("Dry topic");
     await update(live, "high");
     const r = await distributeOnce(Date.now(), senders);
     expect(r).toMatchObject({ dry: 1, sent: 0 });
     expect(x).not.toHaveBeenCalled();
     expect(await all("SELECT target, status FROM outbound_posts")).toEqual([{ target: "dry:x", status: "dry" }]);
+
+    // Turning the switch on posts only what comes next: the dry run kept the cursor up.
+    await setDistributeLive(true);
+    const later = await topic("Live topic");
+    await update(later, "high");
+    expect(await distributeOnce(Date.now(), senders)).toMatchObject({ sent: 1, dry: 0 });
+    expect(x).toHaveBeenCalledTimes(1);
+    expect(x.mock.calls[0][0]).toContain("Live topic");
   });
 
   it("removes the follows of a deleted Discord channel and keeps going", async () => {

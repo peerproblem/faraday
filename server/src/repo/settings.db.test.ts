@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { run } from "../db/pool";
 import { useTestDb } from "../test/db";
 import { createBoard, getBoard, listTopics, setSchedule } from "./boards";
-import { clearSettingsCache, discoverEnabled, getSetting, setDiscoverEnabled } from "./settings";
+import { clearSettingsCache, discoverEnabled, distributeLive, getSetting, setDiscoverEnabled, setDistributeLive } from "./settings";
 import { archivePausedTopics, listAdminTopics, setTopicState } from "./topics";
 
 process.env.FARADAY_MONITORS = "off";
@@ -36,6 +36,17 @@ describe.skipIf(!t.enabled)("repo/settings and admin topic state", () => {
     expect(await discoverEnabled(now + 1_000)).toBe(false);
     expect(await discoverEnabled(now + 11_000)).toBe(true);
     await setDiscoverEnabled(false);
+  });
+
+  it("keeps real posting to X and Discord off until an admin turns it on", async () => {
+    await run(`DELETE FROM app_settings WHERE name = 'distribute_live'`);
+    clearSettingsCache();
+    expect(await distributeLive()).toBe(false);
+    await setDistributeLive(true);
+    expect(await distributeLive()).toBe(true);
+    expect(await getSetting("distribute_live")).toBe("1");
+    await setDistributeLive(false);
+    expect(await distributeLive()).toBe(false);
   });
 
   it("a paused topic that upkeep archived is active again after it is restored", async () => {
