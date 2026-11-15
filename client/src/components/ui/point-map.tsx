@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import type { JumpToOptions, Map } from "maplibre-gl";
 import { MapView, type MapArea, type MapMarker } from "@sw3/ui/map";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
@@ -13,7 +13,7 @@ const workerUrl = new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta
 
 const basemaps = {
   streets: { label: "Streets", style: "bright" },
-  theme: { label: "Auto Light/Dark", style: "auto" },
+  theme: { label: "Auto Light/Dark" },
   satellite: { label: "Satellite", style: "/maps/sentinel-2.json" },
 } as const;
 
@@ -22,6 +22,26 @@ const mapStyles: MapStyle[] = ["streets", "theme"];
 // Public 2025 imagery is licensed for non-commercial use. Expose it in the local preview.
 if (process.env.NODE_ENV === "development") mapStyles.push("satellite");
 const styleOptions = mapStyles.map((value) => ({ value, label: basemaps[value].label }));
+const darkScheme = "(prefers-color-scheme: dark)";
+
+function readMapTheme() {
+  const theme = document.documentElement.dataset.theme;
+  return (theme ? theme === "dark" : window.matchMedia(darkScheme).matches) ? "dark" : "light";
+}
+
+function subscribeMapTheme(onChange: () => void) {
+  const media = window.matchMedia(darkScheme);
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  media.addEventListener("change", onChange);
+  return () => {
+    observer.disconnect();
+    media.removeEventListener("change", onChange);
+  };
+}
+
+const serverMapTheme = () => "light" as const;
+const ignoreMapTheme = () => () => {};
 
 export type MapPointKind = NonNullable<MapMarker["kind"]>;
 export type { MapArea };
@@ -60,6 +80,13 @@ export default function PointMap({
 }) {
   const [style, setStyle] = useState<MapStyle>(initialStyle);
   const [styleOpen, setStyleOpen] = useState(false);
+  // Resolve the scheme before SW3 constructs MapLibre. Its automatic style starts on light
+  // and switches in an effect, which creates an extra map on a dark page.
+  const theme = useSyncExternalStore(
+    style === "theme" ? subscribeMapTheme : ignoreMapTheme,
+    style === "theme" ? readMapTheme : serverMapTheme,
+    serverMapTheme,
+  );
   const mapRef = useRef<Map | null>(null);
   const pendingCamera = useRef<JumpToOptions | null>(null);
   const first = points[0];
@@ -103,7 +130,7 @@ export default function PointMap({
       radius={fill ? 0 : undefined}
       bordered={!fill}
       onLoad={handleMapLoad}
-      basemap={basemaps[style].style}
+      basemap={style === "theme" ? theme : basemaps[style].style}
       interactive={interactive}
       controls={interactive ? (
         <Popover open={styleOpen} onOpenChange={setStyleOpen}>
