@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { crisisTypes } from "./common";
 import { widgetTypes } from "./widgets";
+import { cyberMetricRoles, cyberColumnRoles } from "./cyber";
 
 const key = z.string().describe("kebab-case key, unique in its list, e.g. deaths, homes-without-power, road-closures");
 
@@ -10,13 +11,15 @@ export const metricSpecSchema = z.object({
   label: z.string().describe("Short label in English"),
   unit: z.string().nullable(),
   why: z.string().describe("Why this figure matters for this crisis"),
+  cyberRole: z.enum(cyberMetricRoles).nullable().optional().describe("For cyberattack: impact = harm or affected count; response = containment or mitigation; recovery = restored service or returned assets; context = supporting figure. Null for other crises. Classify meaning, not key spelling."),
 });
 
 export const tableSpecSchema = z.object({
   key,
   title: z.string(),
+  cyberRole: z.enum(["affected-scope", "context"]).nullable().optional().describe("For cyberattack: affected-scope lists affected products, versions, services, customer groups or asset/network pairs; context is any other table. Null otherwise."),
   columns: z
-    .array(z.object({ key, label: z.string(), kind: z.enum(["text", "number", "time", "status", "link"]) }))
+    .array(z.object({ key, label: z.string(), kind: z.enum(["text", "number", "time", "status", "link"]), cyberRole: z.enum(cyberColumnRoles).nullable().optional().describe("For a cyber table: subject identifies affected scope (multiple subject columns form a tuple); status is the reported state; note gives qualifications; context is other data. Null otherwise.") }))
     .describe("2 to 5 columns. The first column identifies the row."),
 });
 

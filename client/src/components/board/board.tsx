@@ -23,8 +23,9 @@ import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
 import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
 import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
-import type { BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
+import type { AlertListData, BoardData, BoardEvent, BoardSpecV2, BoardStatus, BoardTier, LinkListData, MapData, PersonalLayout, NarrativeData, Source, StatGridData, StatusGridData, TableData, TimelineData, TrendData, Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
+import { CyberIncidentOverview } from "./cyber-incident-overview";
 import { BoardHeaderButton } from "./header-button";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
@@ -105,7 +106,9 @@ export function Board(props: BoardProps) {
   const visible = visibleWidgets(spec, data, building);
   const laid = applyLayout({ version: 2, widgets: visible }, data, props.layout ?? null, { version: props.version });
   const widgets = laid.widgets;
-  const map = widgets.find(({ widget }) => widget.type === "map");
+  const cyber = props.workspace && header?.crisisType === "cyberattack" && !props.layout;
+  const mapEntry = widgets.find(({ widget }) => widget.type === "map");
+  const map = cyber ? undefined : mapEntry;
   const timeline = map || props.workspace ? widgets.find(({ widget }) => widget.type === "timeline") : undefined;
   const changelog = widgets.find(({ widget }) => widget.type === "changelog");
   const sourcesWidget = widgets.find(({ widget }) => widget.type === "sources");
@@ -113,7 +116,7 @@ export function Board(props: BoardProps) {
   const linkData = linkList ? (data?.widgets[linkList.id] as LinkListData | undefined) : undefined;
   const releases = (linkData?.items ?? []).filter((item) => item?.kind === "official" && /^https?:\/\//.test(item.url));
   const mainWidgets = widgets.filter((entry) => {
-    if (entry === map || entry === timeline || entry === changelog || entry === sourcesWidget) return false;
+    if (entry === mapEntry || entry === timeline || entry === changelog || entry === sourcesWidget) return false;
     if (entry.widget.type !== "link-list" || building) return true;
     const links = data?.widgets[entry.widget.id] as LinkListData | undefined;
     return !!links?.items?.some((item) => item && item.kind !== "official" && /^https?:\/\//.test(item.url));
@@ -200,8 +203,9 @@ export function Board(props: BoardProps) {
         mapFocus={compact}
         fillMap={fillMap}
         wrapSourceTitles={props.wildfireOverview}
-        collapseSourceGroups={props.wildfireOverview}
+        collapseSourceGroups={props.wildfireOverview || cyber}
         compactTrendAxis={props.wildfireOverview && compact}
+        cyberPresentation={cyber}
       />
     );
   }
@@ -276,18 +280,60 @@ export function Board(props: BoardProps) {
     const narrativeData = (narrative && (narrative.data ?? data?.widgets[narrative.widget.id])) as NarrativeData | undefined;
     const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
     const housing = props.wildfireOverview ? figureItems.filter((item) => /homes-(?:destroyed|damaged)$/.test(item.key)) : [];
+    const cyberMap = cyber && mapEntry ? (mapEntry.data ?? data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
+    const dataSections = cyber
+      ? [...mainWidgets, ...(mapEntry && cyberMap?.points?.length ? [mapEntry] : [])]
+      : [...sections, ...figureSections];
+    const cyberDetails = cyber ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
+    const cyberOverview = cyber ? (
+      <CyberIncidentOverview
+        headline={header?.headline}
+        metrics={featured.flatMap((entry) => entry.widget.type === "stat-grid"
+          ? getStatItems((entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined, undefined)
+          : [])}
+        services={featured.flatMap((entry) => entry.widget.type === "status-grid"
+          ? ((entry.data ?? data?.widgets[entry.widget.id]) as StatusGridData | undefined)?.items ?? []
+          : [])}
+        advisories={sections.flatMap((entry) => entry.widget.type === "alert-list"
+          ? ((entry.data ?? data?.widgets[entry.widget.id]) as AlertListData | undefined)?.items ?? []
+          : [])}
+        tables={sections.flatMap(entry => {
+          if (entry.widget.type !== "table") return [];
+          const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+          return table ? [table] : [];
+        })}
+        trends={sections.flatMap(entry => {
+          if (entry.widget.type !== "trend") return [];
+          const trend = (entry.data ?? data?.widgets[entry.widget.id]) as TrendData | undefined;
+          return trend ? [trend] : [];
+        })}
+        resources={releases}
+        timeline={timeline ? (timeline.data ?? data?.widgets[timeline.widget.id]) as TimelineData | undefined : undefined}
+        sources={byId}
+        lastChecked={lastCheckedAt}
+      />
+    ) : undefined;
     return (
       <OfficialReleasesContext.Provider value={releases}>
         <div className={`@container fd-workspace-board${props.wildfireOverview ? " fd-wildfire-workspace" : ""}`}>
           {boardHeader}
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
+            main={cyberOverview}
             map={map ? <>
               <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
               {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
             </> : undefined}
             mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             timeline={timeline ? renderWorkspaceWidget(timeline, true) : undefined}
-            overview={<>
+            overview={cyber ? (cyberDetails ? <>
+              <h3 className="text-sm font-semibold">Incident summary</h3>
+              {lastChecked && <Text size="sm" tone="muted">{lastChecked}</Text>}
+              {header?.headline && <Text size="sm">{header.headline.text}</Text>}
+              <details className="min-w-0 rounded-md border border-hairline p-2">
+                <summary className="cursor-pointer text-sm font-medium">Background &amp; reports</summary>
+                <div className="mt-2">{renderWorkspaceWidget(cyberDetails, true)}</div>
+              </details>
+            </> : summary) : <>
               {evacuation && (
                 <section className="grid gap-1.5" aria-label="Evacuation and access">
                   <h3 className="text-base font-semibold">Evacuation &amp; access</h3>
@@ -318,7 +364,7 @@ export function Board(props: BoardProps) {
               )}
               {status === "error" && !widgets.length ? <EmptyState title="The board could not be built" description={events.find((e) => e.kind === "error")?.message} /> : null}
             </>}
-            sections={[...sections, ...figureSections].map((entry) => ({
+            sections={dataSections.map((entry) => ({
               key: entry.key,
               title: entry.widget.type === "stat-grid" ? "Figures and sources" : entry.widget.title,
               showsMapFigures: entry.widget.type === "stat-grid",

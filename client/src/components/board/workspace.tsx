@@ -14,6 +14,7 @@ type WorkspaceProps = {
   workspaceKey?: string;
   cardsOnMap?: boolean;
   flowingDetails?: boolean;
+  main?: ReactNode;
   map?: ReactNode;
   mapFigures?: ReactNode;
   timeline?: ReactNode;
@@ -25,7 +26,7 @@ type WorkspaceProps = {
   editor?: ReactNode;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -38,15 +39,15 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
   const detailsOpen = detailsOverride ?? legacy.inspector?.open ?? true;
   const [wide, setWide] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"timeline" | "details" | null>(null);
-  const detailsWidth: CornerWidth | undefined = map ? {
+  const detailsWidth: CornerWidth | undefined = map || main ? {
     measure: () => {
       const details = document.getElementById(`${id}-details`);
       const board = details?.parentElement;
       if (!details || !board || !getComputedStyle(details).getPropertyValue("--fd-workspace-details-min-width")) return null;
 
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-      const room = Math.min(board.clientWidth * (overlay ? 0.48 : 0.54), 46 * rem);
-      const min = overlay ? Math.min(23 * rem, room) : 23 * rem;
+      const room = Math.min(board.clientWidth * (overlay ? 0.48 : main ? 0.42 : 0.54), 46 * rem);
+      const min = main ? 17 * rem : overlay ? Math.min(23 * rem, room) : 23 * rem;
       const max = Math.max(min, room);
       return { size: details.getBoundingClientRect().width, bounds: { min, max } };
     },
@@ -127,13 +128,18 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
     : undefined;
 
   return (
-    <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined}
+    <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined} data-has-main={main ? "" : undefined}
+      data-flowing-details={flowingDetails && !overlay ? "" : undefined}
       data-mobile-panel={overlay && mobilePanel === "details" ? undefined : mobilePanel ?? undefined} onKeyDown={(event) => {
-        if (event.key === "Escape" && !event.defaultPrevented) setMobilePanel(null);
+        if (event.key === "Escape" && !event.defaultPrevented &&
+            !(main && event.target instanceof Element && event.target.closest('[role="listbox"]'))) setMobilePanel(null);
       }}>
-      {timeline && (
+      {(timeline || main) && (
         <div className="fd-workspace-mobile-tools">
-          <Button variant="secondary" size="sm" aria-controls={`${id}-timeline`} aria-expanded={mobilePanel === "timeline"} onClick={() => setMobilePanel("timeline")}>Timeline</Button>
+          {timeline && <Button variant="secondary" size="sm" aria-controls={`${id}-timeline`} aria-expanded={mobilePanel === "timeline"}
+            onClick={() => setMobilePanel("timeline")}>Timeline</Button>}
+          {main && <Button variant="secondary" size="sm" aria-controls={`${id}-details`} aria-expanded={mobilePanel === "details"}
+            onClick={() => setMobilePanel("details")}>Details</Button>}
         </div>
       )}
 
@@ -157,6 +163,13 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
         </aside>
       )}
 
+      {main && (
+        <section className="fd-workspace-main" aria-label="Incident overview">
+          <h2 className="text-sm font-semibold">Incident overview</h2>
+          {main}
+        </section>
+      )}
+
       {map && <div className="fd-workspace-map" aria-label="Situation map" role="region"
         data-cards-on-map={overlay ? "" : undefined} style={overlay ? detailsStyle : undefined}>
         {map}
@@ -172,18 +185,18 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
         style={detailsStyle}>
         <div className="fd-workspace-panel-header fd-workspace-details-row">
           <h2 className="text-sm font-semibold">Details</h2>
-          {map && detailsOpen && (
+          {(map || main) && detailsOpen && (
             <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
               aria-label={wide ? "Restore details width" : "Widen details"}
               leading={<Icon name="expand" width={16} height={16} />} onClick={() => setWide((value) => !value)} />
           )}
-          {map && (
+          {(map || main) && (
             <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
               aria-label={detailsOpen ? "Collapse details" : "Expand details"} aria-expanded={detailsOpen} aria-controls={`${id}-detail-cards`}
               leading={<Icon name={detailsOpen ? "chevron-right" : "chevron-left"} width={16} height={16} />}
               onClick={() => setDetailsOpen(!detailsOpen)} />
           )}
-          {map && (
+          {(map || main) && (
             <Button className="fd-workspace-details-mobile-action" size="sm" variant="ghost" iconOnly
               aria-label={mobilePanel === "details" ? "Close details" : "Open details"}
               aria-expanded={mobilePanel === "details"} aria-controls={`${id}-detail-cards`}

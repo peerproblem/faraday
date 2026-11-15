@@ -353,3 +353,23 @@ describe("newestFacts", () => {
     expect(facts.map((x) => x.id)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });
+
+
+describe("cyber extraction semantics", () => {
+  it("preserves tuple identity and planner roles through normalization", () => {
+    const cyber = normalizePlan({ ...plan, crisisType: "cyberattack", metrics: [{ key: "Any Key", label: "Any label", unit: null, why: "", cyberRole: "recovery" }], tables: [{ key: "products", title: "Affected releases", cyberRole: "affected-scope", columns: [
+      { key: "product", label: "Product", kind: "text", cyberRole: "subject" },
+      { key: "build", label: "Build", kind: "text", cyberRole: "subject" },
+    ] }] });
+    expect(cyber.metrics[0]).toMatchObject({ key: "any-key", cyberRole: "recovery" });
+    const rows = ["1.0", "2.0"].map(build => toExtracted(raw({ kind: "row", table: "products", cells: [{ column: "product", value: "Example" }, { column: "build", value: build }] }), cyber));
+    expect(rows[0]?.key).not.toBe(rows[1]?.key);
+    expect(rows[0]?.payload).toMatchObject({ cells: { product: "Example", build: "1.0" } });
+  });
+
+  it("preserves scope, intended audience and resource purpose in fact payloads", () => {
+    expect(toExtracted(raw({ kind: "status", group: "transit", name: "Portal", state: "degraded", statusScope: "overall" }), plan)?.payload).toMatchObject({ scope: "overall" });
+    expect(toExtracted(raw({ kind: "advisory", title: "Next steps", text: "Contact the provider", audience: "users" }), plan)?.payload).toMatchObject({ audience: "users" });
+    expect(toExtracted(raw({ kind: "resource", label: "Check here", url: "https://example.com/check", resourcePurpose: "verification" }), plan)?.payload).toMatchObject({ purpose: "verification" });
+  });
+});

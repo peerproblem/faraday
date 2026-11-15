@@ -5,6 +5,10 @@ import type { Usage } from "../../graph/runner";
 import { metricSpecSchema, planSchema, tableSpecSchema, widgetPlanSchema, type Plan } from "../../spec";
 import { call } from "./util";
 
+const CYBER_PLANNING = `For cyberattack boards, populate cyberRole on every metric, table and table column. These semantic roles drive the shared cyber overview independently of names and keys.
+Plan for affected people: which products/versions, services, customer groups or asset-network pairs are affected; what is usable now; what the user can do; and impact, containment and recovery. Include official status and user-guidance searches and an affected-scope table with subject columns and a reported status/note when relevant. Explicitly separate different product versions and asset-network pairs. Do not assume every cyber incident concerns cryptocurrency.
+Use impact for harm (lost funds, exposed records, affected systems); response for mitigation (frozen assets, funds supplied by the operator, patches deployed); recovery for actual restoration (returned funds, restored systems). Operator replacement, frozen funds and returned funds are different measures. Never plan a recovery percentage without a consistent population and denominator. Tables unrelated to affected scope and supporting metrics get context. Roles classify what to collect; they do not establish facts or prove any individual account is safe.`;
+
 const SYSTEM = (now: Date) => `You plan live crisis dashboards ("situation boards"). A user describes a crisis in a sentence or two.
 You decide what the board tracks, how to find it on the live web with a news search API and a web search API, and which widgets show it.
 Today is ${now.toISOString().slice(0, 10)}.
@@ -18,6 +22,8 @@ What to track:
 - questions: the 4 to 6 questions people affected need answered now.
 - entities: proper names that identify this specific crisis, so similar events elsewhere can be told apart.
 - location: a geocodable place name and a map zoom, or null when there is no physical place. Never give coordinates.
+
+${CYBER_PLANNING}
 
 Widgets (in reading order). Available types:
 - narrative: the current situation in a few sentences. Always first.
@@ -123,7 +129,8 @@ export async function makePlanPatch(plan: Plan, instruction: string, use: Usage,
     output: Output.object({ schema: planPatchSchema }),
     system: `A user is editing a live crisis board by instruction. Change the plan as little as possible to do what they ask.
 Today is ${now.toISOString().slice(0, 10)}. Use kebab-case keys that do not clash with existing ones. Widget types and rules are the same as when planning:
-stat-grid lists metric keys in metrics; trend binds a metric key; table binds a table key; status-grid binds a status group key.`,
+stat-grid lists metric keys in metrics; trend binds a metric key; table binds a table key; status-grid binds a status group key.
+${CYBER_PLANNING}`,
     prompt: `CURRENT PLAN:\n${JSON.stringify(plan)}\n\nINSTRUCTION: ${instruction}`,
     abortSignal: signal,
   });

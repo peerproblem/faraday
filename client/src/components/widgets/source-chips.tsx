@@ -135,13 +135,14 @@ export function SourceChips({
   ids,
   sources,
   evidence,
-  collapseAt,
+  collapseAt, compactLabel,
 }: {
   ids: string[] | undefined;
   sources: Map<string, Source>;
   /** The verified sentence behind this figure. It is shown in the preview of the source it was copied from. */
   evidence?: Evidence;
   collapseAt?: number;
+  compactLabel?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const groupId = useId();
@@ -169,14 +170,17 @@ export function SourceChips({
   if (collapseAt === undefined || known.length < collapseAt) return chips;
 
   const contextCount = known.filter((id) => sources.get(id)?.via === "contextdev").length;
+  const contextLabel = contextCount > 0 ? ` · ${contextCount} via Context.dev` : "";
   return (
     <span className="fd-deck-citation-group">
       <Button size="sm" variant="secondary" aria-expanded={expanded} aria-controls={groupId}
-        trailing={<Icon name={expanded ? "chevron-up" : "chevron-down"} />}
+        aria-label={compactLabel ? `Sources (${known.length})${contextLabel}` : undefined}
+        trailing={compactLabel ? undefined : <Icon name={expanded ? "chevron-up" : "chevron-down"} />}
         onClick={() => setExpanded((value) => !value)}>
-        Sources ({known.length}){contextCount > 0 ? ` · ${contextCount} via Context.dev` : ""}
+        {compactLabel ? `${known.length} sources` : `Sources (${known.length})${contextLabel}`}
       </Button>
       <span id={groupId} className="fd-deck-citation-group-body" hidden={!expanded}>
+        {expanded && compactLabel && contextCount > 0 && <span className="block text-xs text-muted-foreground">{contextCount} via Context.dev</span>}
         {expanded && chips}
       </span>
     </span>
