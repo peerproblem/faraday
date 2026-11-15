@@ -6,7 +6,7 @@ vi.mock("./repo/jobs", async (orig) => ({ ...(await orig<typeof import("./repo/j
 vi.mock("./repo/settings", () => settings);
 
 vi.mock("./pipeline/graphs", () => ({ buildGraph: async () => {}, editGraph: async () => {}, updateGraph: async () => {}, discoverGraph: async () => {} }));
-vi.mock("./monitors", () => ({ removeBoardMonitors: async () => 0, setBoardMonitorSchedule: async () => 0 }));
+vi.mock("./monitors", () => ({ pauseBoardMonitors: async () => {}, removeBoardMonitors: async () => 0, setBoardMonitorSchedule: async () => 0 }));
 vi.mock("./bus", () => ({ publish: () => {}, setBusMode: () => {}, flushRemote: async () => {} }));
 
 import { computeTier, maybeEnqueueDiscover } from "./worker";

@@ -49,6 +49,7 @@ export type BoardProps = {
   stage?: string;
   connected: boolean;
   lastPolledAt: number | null;
+  snapshotAt?: number;
   onRefresh?: () => Promise<unknown>;
   /** When the stream last changed each widget's data, by widget id. */
   updatedAt?: Record<string, number>;
@@ -146,6 +147,9 @@ export function Board(props: BoardProps) {
       <Heading as="h1" size="sm" className="fd-workspace-title min-w-0 flex-1 truncate" title={title ?? undefined}>
         {title ?? "Live board"}
       </Heading>
+      {props.snapshotAt !== undefined && <Badge variant="outline">
+        Snapshot · <time dateTime={new Date(props.snapshotAt).toISOString()}>{when(new Date(props.snapshotAt).toISOString())}</time>
+      </Badge>}
       {!legacy && (onRefresh && status === "live" && tier !== "paused" || props.actions) ? (
         <div role="group" aria-label="Dashboard controls" className="flex shrink-0 items-center gap-1.5">
           {onRefresh && status === "live" && tier !== "paused" ? (
@@ -208,7 +212,7 @@ export function Board(props: BoardProps) {
         status={status}
         tier={tier}
         building={building}
-        mapFocus={compact}
+        mapFocus={compact && (props.snapshotAt === undefined || entry.widget.type !== "link-list")}
         fillMap={fillMap}
         wrapSourceTitles={props.wildfireOverview}
         collapseSourceGroups={props.wildfireOverview || cyber}
@@ -233,7 +237,7 @@ export function Board(props: BoardProps) {
   }
 
   const lastCheckedAt = lastPolledAt == null ? null : new Date(lastPolledAt).toISOString();
-  const lastChecked = lastCheckedAt && (
+  const lastChecked = props.snapshotAt === undefined && lastCheckedAt && (
     <span>Last checked <time dateTime={lastCheckedAt}>{when(lastCheckedAt)}</time></span>
   );
   const conciseSummary = props.workspace && !!map;
@@ -374,6 +378,7 @@ export function Board(props: BoardProps) {
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
             main={cyberOverview}
             defaultEvidenceOpen={props.defaultEvidenceOpen}
+            showSavedSources={props.snapshotAt !== undefined}
             configuredCards={configuredCards?.map((card) => ({
               id: `card:${card.id}`, label: card.title, content: card.content, open: card.open,
             }))}

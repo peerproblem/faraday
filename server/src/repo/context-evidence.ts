@@ -50,12 +50,12 @@ export async function recordContextChanges(boardId: string, changes: MonitorChan
 
 const pageSize = 40;
 
-export async function contextEvidencePage(boardId: string, group: "search" | "monitor", before: number): Promise<ContextEvidencePage> {
+export async function contextEvidencePage(boardId: string, group: "search" | "monitor", before: number, through?: number): Promise<ContextEvidencePage> {
   const rows = await all<{ id: number; kind: ContextEvidenceKind; payload: string; collected_at: number }>(
     `SELECT id, kind, payload, collected_at FROM context_evidence
      WHERE board_id = ? AND kind ${group === "monitor" ? "= 'monitor'" : "IN ('web', 'news')"}
-     AND id < ? ORDER BY id DESC LIMIT ?`,
-    [boardId, before, pageSize + 1],
+     AND id < ? ${through === undefined ? "" : "AND collected_at <= ?"} ORDER BY id DESC LIMIT ?`,
+    through === undefined ? [boardId, before, pageSize + 1] : [boardId, before, through, pageSize + 1],
   );
   const items = rows.slice(0, pageSize).map((row) => ({
     ...json<Payload>(row.payload)!,
