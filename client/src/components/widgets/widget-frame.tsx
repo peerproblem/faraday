@@ -2,7 +2,6 @@
 
 import { Component, type ReactNode } from "react";
 import { Ago } from "@/components/ago";
-import { Badge } from "@/components/ui/badge";
 import { DashboardTile } from "@/components/ui/dashboard";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/typography";
@@ -61,35 +60,24 @@ export function WidgetFrame({
   span,
   resetKey,
   children,
-  transitionName,
   updatedAt,
-  isNew = false,
-  tools,
 }: {
   id: string;
   title: string;
   span: "full" | "half";
   resetKey: unknown;
   children: ReactNode;
-  /** Only on personal dashboards, where layout changes animate. */
-  transitionName?: string;
   /** When the stream last changed this widget's data in this session. Shows a brief ring and an "Updated" note. */
   updatedAt?: number;
-  /** Added to the baseline since the person last saved their layout. */
-  isNew?: boolean;
-  /** Edit-mode controls, drawn in the header bar. */
-  tools?: ReactNode;
 }) {
   const extras =
-    isNew || updatedAt || tools ? (
+    updatedAt ? (
       <span className="flex flex-wrap items-center gap-1.5">
-        {isNew ? <Badge variant="accent">New</Badge> : null}
         {updatedAt ? (
           <Text as="span" size="sm" tone="muted" data-updated>
             Updated <Ago t={updatedAt} />
           </Text>
         ) : null}
-        {tools}
       </span>
     ) : undefined;
   return (
@@ -103,7 +91,6 @@ export function WidgetFrame({
       aria-label={title}
       data-widget={id}
       padding="md"
-      style={transitionName ? { viewTransitionName: transitionName } : undefined}
     >
       <div className="@container relative min-w-0">
         <WidgetBoundary resetKey={resetKey}>{children}</WidgetBoundary>

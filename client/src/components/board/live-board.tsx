@@ -35,13 +35,14 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfireOv
   workspaceNavigation?: ReactNode;
 }) {
   const { board, partial, spec, data, connected, refresh, updatedAt } = useLiveBoard(initial, { live });
-  const mapWorkspace = workspace && spec?.widgets.some((widget) => widget.type === "map");
+  const displaySpec = board.displaySnapshot?.spec ?? spec;
+  const mapWorkspace = workspace && displaySpec?.widgets.some((widget) => widget.type === "map");
   return (
     <>
       <Board
         boardId={live ? board.id : undefined}
-        spec={spec}
-        data={data}
+        spec={displaySpec}
+        data={board.displaySnapshot?.data ?? data}
         specVersion={board.specVersion}
         title={board.title}
         prompt={board.prompt}
@@ -57,9 +58,12 @@ export function LiveBoard({ initial, live = true, actions, workspace, wildfireOv
         actions={actions}
         workspace={workspace}
         cardsOnMap={board.presentation?.cardsOnMap}
+        mapCard={board.presentation?.mapCard}
+        mapRegions={board.presentation?.mapRegions}
         defaultTimelineOpen={board.presentation?.timelineOpen}
         defaultEvidenceOpen={board.presentation?.evidenceOpen}
-        sharedOverviewChart={board.presentation?.overviewChart}
+        overviewStatusChart={board.presentation?.overviewStatusChart}
+        incidentOverview={board.presentation?.incidentOverview}
         sidebarSettings={board.presentation?.sidebar}
         configuredCards={board.presentation?.cards}
         wildfireOverview={wildfireOverview}

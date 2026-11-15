@@ -12,8 +12,9 @@ import { Text } from "@/components/ui/typography";
 import { toast } from "@/components/ui/toast";
 import { ApiError, clearAdminBoardLayout, getAdminBoardLayout, getLayoutLibrary, saveAdminBoardLayout, saveLayoutTemplate } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import type { BoardCard, BoardLayout, BoardLayoutAssignment, BoardLayoutTemplate } from "@/lib/spec";
+import { incidentReporting, type BoardCard, type BoardLayout, type BoardLayoutAssignment, type BoardLayoutTemplate } from "@/lib/spec";
 import { CardCompositionFields } from "./card-composition-fields";
+import { MapLayoutFields } from "./map-layout-fields";
 
 const defaults = (layout: BoardLayout["layout"]): BoardLayout => ({ layout, timelineOpen: true, evidenceOpen: false });
 type BoardChoice = Pick<BoardCard, "id" | "title" | "slug">;
@@ -37,9 +38,17 @@ function LayoutFields({ settings, onChange, canUseMap = true, widgets }: {
           </SelectContent>
         </Select>
       </Field>
-      {settings.layout === "map" && settings.cards === undefined && <Switch size="sm" label="Open Evidence by default" checked={settings.evidenceOpen}
+      {settings.layout === "map" && <Switch size="sm" label="Open Evidence by default" checked={settings.evidenceOpen}
         onCheckedChange={(evidenceOpen) => onChange({ ...settings, evidenceOpen })} />}
+      {settings.layout === "map" && <MapLayoutFields settings={settings} onChange={onChange} />}
       <CardCompositionFields settings={settings} onChange={onChange} widgets={widgets} />
+      {(incidentReporting(settings).status || incidentReporting(settings).tally) && (
+        <Field label="Official source domains" description="Comma-separated domains used to find official reports through Context.dev.">
+          <Input defaultValue={settings.officialDomains?.join(", ") ?? ""}
+            key={settings.officialDomains?.join(",") ?? ""}
+            onBlur={(event) => onChange({ ...settings, officialDomains: event.currentTarget.value.split(",").map((domain) => domain.trim()).filter(Boolean) })} />
+        </Field>
+      )}
     </>
   );
 }

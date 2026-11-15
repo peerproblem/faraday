@@ -2,8 +2,8 @@
 // Pure data access plus the pure scoring functions the discover graph and the worker share.
 import { createHash } from "node:crypto";
 import { all, json, one, run, type Param } from "../db/pool";
-import type { BoardCard, CandidateDecision, CrisisType, TopicState } from "../spec";
-import { cardCols, toCard } from "./boards";
+import type { BoardCard, CandidateDecision, CrisisType, TopicCategory, TopicState } from "../spec";
+import { cardCols, effectiveTopicCategory, toCard } from "./boards";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -35,6 +35,8 @@ export const TYPE_BOOST: Record<CrisisType, number> = {
   conflict: 1,
   storm: 1,
   heatwave: 0.9,
+  volcano: 1,
+  "other-natural-disaster": 1,
   health: 0.9,
   industrial: 0.9,
   transport: 0.9,
@@ -261,16 +263,25 @@ export function allowanceAt(index: number, limits = { monitored: TOPIC_LIMITS.mo
   return { search: index < limits.monitored, page: index < limits.page };
 }
 
+/** A priority topic can keep a search monitor outside the ranked allocation. */
+export function allowanceFor(boardId: string, index: number): MonitorAllowance {
+  const ranked = allowanceAt(index);
+  if (index < 0 || ranked.search) return ranked;
+  const priority = process.env.FARADAY_PRIORITY_SEARCH_MONITOR_BOARD_IDS?.split(",")
+    .some((id) => id.trim() === boardId);
+  return { ...ranked, search: priority === true };
+}
+
 /**
  * Which monitors a board may hold. Legacy user boards keep the old rule (no limit here). A system topic gets a search
- * monitor only in the top MONITORED_TOPICS by rank and page monitors only in the top PAGE_MONITORED_TOPICS; archived
- * or merged topics get none.
+ * monitor in the top MONITORED_TOPICS or when configured as a priority. Page monitoring follows
+ * PAGE_MONITORED_TOPICS. Archived and merged topics get neither.
  */
 export async function monitorAllowance(boardId: string): Promise<MonitorAllowance> {
   const b = await one<{ origin: string; topic_state: string | null }>(`SELECT origin, topic_state FROM boards WHERE id = ?`, [boardId]);
   if (!b || b.origin !== "system") return { search: true, page: true };
   if (b.topic_state !== "active") return { search: false, page: false };
-  return allowanceAt((await rankedTopicIds()).indexOf(boardId));
+  return allowanceFor(boardId, (await rankedTopicIds()).indexOf(boardId));
 }
 
 // ---------- admin ----------
@@ -278,7 +289,8 @@ export async function monitorAllowance(boardId: string): Promise<MonitorAllowanc
 /** Every system topic that is not deleted (active, archived and merged), newest first, for /admin. */
 export async function listAdminTopics(limit = 200): Promise<BoardCard[]> {
   const rows = await all<Parameters<typeof toCard>[0]>(
-    `SELECT ${cardCols()} FROM boards WHERE deleted_at IS NULL AND origin = 'system' ORDER BY created_at DESC LIMIT ?`,
+    `SELECT ${cardCols()}, topic_category, ${effectiveTopicCategory} AS effective_topic_category
+     FROM boards WHERE deleted_at IS NULL AND origin = 'system' ORDER BY created_at DESC LIMIT ?`,
     [Math.max(1, Math.min(500, Math.floor(limit)))],
   );
   return rows.map(toCard);
@@ -307,4 +319,10 @@ export async function setTopicState(id: string, state: "active" | "archived", no
     );
   }
   return true;
+}
+
+export async function setTopicCategory(id: string, category: TopicCategory | null): Promise<boolean> {
+  const topicById = "id = ? AND origin = 'system' AND deleted_at IS NULL";
+  const result = await run(`UPDATE boards SET topic_category = ? WHERE ${topicById}`, [category, id]);
+  return Number(result.affectedRows) > 0 || !!(await one<{ id: string }>(`SELECT id FROM boards WHERE ${topicById}`, [id]));
 }

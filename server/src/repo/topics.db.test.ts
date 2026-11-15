@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { all, one, run } from "../db/pool";
 import { useTestDb } from "../test/db";
-import { createBoard, saveMonitor, listMonitors } from "./boards";
+import { createBoard, saveMonitor, listMonitors, listTopics } from "./boards";
 import { claim, enqueue } from "./jobs";
 import {
   archivePausedTopics,
@@ -15,6 +15,7 @@ import {
   recentlyRejected,
   recomputeRanks,
   recordCandidates,
+  setTopicCategory,
   SKIPPED_PREFIX,
   type CandidateRecord,
 } from "./topics";
@@ -46,6 +47,22 @@ async function topic(set: Record<string, string | number | null> = {}, origin: "
 }
 
 describe.skipIf(!t.enabled)("repo/topics", () => {
+  it("groups hazard subtypes while honoring an individual topic's category override", async () => {
+    const finished = { spec_version: 2, status: "live", spec: JSON.stringify({ version: 2, widgets: [] }) };
+    const flood = await topic({ ...finished, crisis_type: "flood" });
+    const volcano = await topic({ ...finished, crisis_type: "other" });
+    const conflict = await topic({ ...finished, crisis_type: "conflict" });
+    const finance = await topic({ ...finished, crisis_type: "other", spec: JSON.stringify({ template: "finance" }) });
+    expect(await setTopicCategory(volcano, "volcano")).toBe(true);
+    expect(await setTopicCategory(volcano, "volcano")).toBe(true);
+    const allNatural = async () => (await listTopics({ crisisType: "natural-disasters", limit: 100 })).map(({ id }) => id);
+    expect(await allNatural()).toEqual(expect.arrayContaining([flood, volcano]));
+    expect(await allNatural()).not.toContain(conflict);
+    expect((await listTopics({ crisisType: "economy", limit: 100 })).map(({ id }) => id)).toContain(finance);
+    await setTopicCategory(volcano, null);
+    expect(await allNatural()).not.toContain(volcano);
+  });
+
   it("records candidates and finds recent judged rejections, not skips", async () => {
     const now = Date.now();
     await recordCandidates(

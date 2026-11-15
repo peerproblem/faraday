@@ -21,11 +21,15 @@ const board = (name: string, patch: Partial<BoardView> = {}) => ({ ...getFixture
 const section = (title: string) => screen.getByRole("region", { name: title });
 
 describe("board v2", () => {
-  test("opens Evidence and draws the assigned overview chart on the map", () => {
+  test("keeps the saved overview chart and open Evidence on the map when live data is empty", () => {
+    const saved = board("strike");
     const b = board("strike", {
+      spec: { version: 2, widgets: [] },
+      data: null,
+      displaySnapshot: { version: 2, spec: saved.spec!, data: saved.data! },
       presentation: {
         workspace: true, cardsOnMap: true, evidenceOpen: true,
-        overviewChart: { type: "donut", widget: "table:city-protests" },
+        overviewStatusChart: "table:city-protests",
       },
     });
     render(<LiveBoard initial={b} workspace live={false} />);

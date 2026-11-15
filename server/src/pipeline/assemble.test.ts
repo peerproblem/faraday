@@ -329,3 +329,26 @@ it("represents corroborated social claims using the independent news fact and re
   expect(out.data.widgets[stat.id]).toMatchObject({ items: [{ valueNum: 12, sources: ["s2"] }] });
   expect(out.spec.widgets.some((w) => w.type === "on-the-ground")).toBe(false);
 });
+
+
+it("carries cyber roles from the plan and facts into delivered widget data", () => {
+  const cyber: Plan = { ...plan, crisisType: "cyberattack", location: null, widgets: [],
+    metrics: [{ key: "alpha", label: "Affected accounts", unit: "accounts", why: "impact", cyberRole: "impact" }],
+    tables: [{ key: "releases", title: "Affected releases", cyberRole: "affected-scope", columns: [{ key: "build", label: "Build", kind: "text", cyberRole: "subject" }] }],
+    statusGroups: [{ key: "portal", title: "Portal" }],
+  };
+  const facts = [
+    f("metric", "alpha", mv(10)),
+    f("row", "releases:v1", { table: "releases", cells: { build: "v1" } }),
+    f("status", "portal:all", { group: "portal", name: "Portal", state: "degraded", note: "", scope: "overall" }),
+    f("advisory", "next", { issuer: "Provider", title: "Next steps", text: "Call support", level: "info", url: null, active: true, audience: "users" }),
+    f("resource", "check", { label: "Check here", url: "https://example.com/check", resourceKind: "official", note: "", purpose: "verification" }),
+  ];
+  const output = assemble({ plan: cyber, spec: specFromPlan(cyber), facts, metricHistory: [], sources, prev: null, overrides: {}, now: 0 });
+  const data = (type: string) => output.data.widgets[output.spec.widgets.find(widget => widget.type === type)!.id];
+  expect(data("stat-grid")).toMatchObject({ items: [{ key: "alpha", cyberRole: "impact" }] });
+  expect(data("table")).toMatchObject({ cyberRole: "affected-scope", columns: [{ cyberRole: "subject" }] });
+  expect(data("status-grid")).toMatchObject({ items: [{ scope: "overall" }] });
+  expect(data("alert-list")).toMatchObject({ items: [{ audience: "users" }] });
+  expect(data("link-list")).toMatchObject({ items: [{ purpose: "verification" }] });
+});

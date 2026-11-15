@@ -20,16 +20,20 @@ import { Caption, Display, Heading, Text } from "@/components/ui/typography";
 import { clientComputed, widgetComponent } from "@/components/widgets/registry";
 import { OfficialReleases, OfficialReleasesContext, SourceChips } from "@/components/widgets/source-chips";
 import { getStatItems, MapFigureCards } from "@/components/widgets/stat-grid";
-import { applyLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
-import { transitionName } from "@/lib/client/view-transition";
 import { SITE_URL } from "@/lib/config";
-import type { BoardCardContent, BoardCardSettings, BoardData, BoardEvent, BoardLayoutCard, BoardSpecV2, BoardStatus, BoardTier, LinkListData, PersonalLayout, NarrativeData, Source, StatGridData, TableData, Widget } from "@/lib/spec";
+import { widgetKeyOf, type AlertListData, type StatusGridData, type TimelineData, type TrendData, type BoardCardContent, type BoardCardSettings, type BoardData, type BoardEvent, type BoardLayoutCard, type BoardMapRegion, type BoardSpecV2, type BoardStatus, type BoardTier, type LinkListData, type MapData, type NarrativeData, type Source, type StatGridData, type TableData, type Widget } from "@/lib/spec";
 import { newest, when } from "@/lib/time";
+import type { BoardEntry } from "./entry";
+import { CyberIncidentOverview } from "./cyber-incident-overview";
 import { BoardHeaderButton } from "./header-button";
 import { ContextEvidence } from "./context-evidence";
 import { latestRestrictionFigure, selectMapFigures } from "./map-figures";
 import { BoardWorkspace } from "./workspace";
 import { StatusBreakdown } from "./status-breakdown";
+import { automaticChartEntry } from "./automatic-chart";
+import { IncidentReports } from "./incident-reports";
+import { RegionSwitch, RegionInset } from "./map-regions";
+import { MapWidget } from "@/components/widgets/map";
 
 export type BoardProps = {
   boardId?: string;
@@ -46,29 +50,23 @@ export type BoardProps = {
   connected: boolean;
   lastPolledAt: number | null;
   onRefresh?: () => Promise<unknown>;
-  /** A personal dashboard's layout over this baseline. Null or absent draws the baseline as it is. */
-  layout?: PersonalLayout | null;
-  /** Baseline version on screen, for the New badge of a personal layout. */
-  version?: number;
-  /** Give every widget a view-transition-name, so layout changes animate (personal dashboards only). */
-  animate?: boolean;
   /** When the stream last changed each widget's data, by widget id. */
   updatedAt?: Record<string, number>;
-  /** Extra controls in the header (for example "Add to my dashboard"). */
+  /** Extra controls in the header. */
   actions?: ReactNode;
-  /** Edit-mode controls for one widget. */
-  tools?: (w: LaidOutWidget) => ReactNode;
   workspace?: boolean;
   cardsOnMap?: boolean;
   defaultTimelineOpen?: boolean;
   defaultEvidenceOpen?: boolean;
-  sharedOverviewChart?: PersonalLayout["overviewChart"];
+  overviewStatusChart?: string;
+  incidentOverview?: { status: boolean; tally: boolean };
   wildfireOverview?: boolean;
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
-  workspaceEditor?: ReactNode;
   sidebarSettings?: BoardCardSettings | null;
   configuredCards?: BoardLayoutCard[];
+  mapCard?: BoardCardSettings;
+  mapRegions?: BoardMapRegion[];
 };
 
 const stageText: Record<string, string> = {
@@ -107,12 +105,20 @@ export function Board(props: BoardProps) {
   const { spec, data, sources, events, status, tier, connected, lastPolledAt, onRefresh } = props;
   const byId = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const [refreshing, setRefreshing] = useState(false);
+  const [regionLabel, setRegionLabel] = useState<string>();
+  const regions = props.workspace ? props.mapRegions ?? [] : [];
+  const activeRegion = regions.find((region) => region.label === regionLabel) ?? regions[0];
   const building = isBuilding(status);
   const header = data?.header ?? null;
   const visible = visibleWidgets(spec, data, building);
-  const laid = applyLayout({ version: 2, widgets: visible }, data, props.layout ?? null, { version: props.version });
-  const widgets = laid.widgets;
-  const map = widgets.find(({ widget }) => widget.type === "map");
+  if (activeRegion && !visible.some((widget) => widget.type === "map")) {
+    const configuredMap = spec?.widgets.find((widget) => widget.type === "map");
+    if (configuredMap) visible.push(configuredMap);
+  }
+  const widgets: BoardEntry[] = visible.map((widget) => ({ key: widgetKeyOf(widget), widget }));
+  const cyber = props.workspace && header?.crisisType === "cyberattack";
+  const mapEntry = widgets.find(({ widget }) => widget.type === "map");
+  const map = cyber ? undefined : mapEntry;
   const timeline = map || props.workspace ? widgets.find(({ widget }) => widget.type === "timeline") : undefined;
   const changelog = widgets.find(({ widget }) => widget.type === "changelog");
   const sourcesWidget = widgets.find(({ widget }) => widget.type === "sources");
@@ -120,12 +126,11 @@ export function Board(props: BoardProps) {
   const linkData = linkList ? (data?.widgets[linkList.id] as LinkListData | undefined) : undefined;
   const releases = (linkData?.items ?? []).filter((item) => item?.kind === "official" && /^https?:\/\//.test(item.url));
   const mainWidgets = widgets.filter((entry) => {
-    if (entry === map || entry === timeline || entry === changelog || entry === sourcesWidget) return false;
+    if (entry === mapEntry || entry === timeline || entry === changelog || entry === sourcesWidget) return false;
     if (entry.widget.type !== "link-list" || building) return true;
     const links = data?.widgets[entry.widget.id] as LinkListData | undefined;
     return !!links?.items?.some((item) => item && item.kind !== "official" && /^https?:\/\//.test(item.url));
   });
-  const compact = laid.compactHeader;
   const newestSource = useMemo(() => newest(sources.map((s) => s.publishedAt)), [sources]);
   const outlets = useMemo(() => outletsOf(sources), [sources]);
   const wire = useMemo(() => wireItems(sources), [sources]);
@@ -189,15 +194,14 @@ export function Board(props: BoardProps) {
     }
   }
 
-  function renderContent(entry: LaidOutWidget, compact: boolean, fillMap = false) {
+  function renderContent(entry: BoardEntry, compact: boolean, fillMap = false) {
     const Comp = widgetComponent(entry.widget.type)!;
     return (
       <Comp
         widget={props.wildfireOverview && entry.widget.type === "timeline"
           ? { ...entry.widget, display: "story" }
           : entry.widget}
-        data={(entry.data ?? data?.widgets[entry.widget.id]) as never}
-        filter={entry.filter as never}
+        data={data?.widgets[entry.widget.id] as never}
         sources={byId}
         allSources={sources}
         events={events}
@@ -207,24 +211,23 @@ export function Board(props: BoardProps) {
         mapFocus={compact}
         fillMap={fillMap}
         wrapSourceTitles={props.wildfireOverview}
-        collapseSourceGroups={props.wildfireOverview}
+        collapseSourceGroups={props.wildfireOverview || cyber}
         compactTrendAxis={props.wildfireOverview && compact}
+        cyberPresentation={cyber}
       />
     );
   }
 
-  function renderWorkspaceWidget(entry: LaidOutWidget, hideTitle = false) {
+  function renderWorkspaceWidget(entry: BoardEntry, hideTitle = false) {
     const widget = entry.widget;
-    const tools = props.tools?.(entry);
     return (
       <section key={entry.key} aria-label={widget.title} data-widget={widget.id} className="@container fd-workspace-widget">
-        {(!hideTitle || tools) && (
+        {!hideTitle && (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {!hideTitle && <h3 className="min-w-0 flex-1 text-sm font-semibold">{widget.title}</h3>}
-            {tools && <div className="ml-auto flex flex-wrap items-center gap-1">{tools}</div>}
+            <h3 className="min-w-0 flex-1 text-sm font-semibold">{widget.title}</h3>
           </div>
         )}
-        <WidgetBoundary resetKey={entry.data ?? data?.widgets[widget.id]}>{renderContent(entry, true)}</WidgetBoundary>
+        <WidgetBoundary resetKey={data?.widgets[widget.id]}>{renderContent(entry, true)}</WidgetBoundary>
       </section>
     );
   }
@@ -234,8 +237,8 @@ export function Board(props: BoardProps) {
     <span>Last checked <time dateTime={lastCheckedAt}>{when(lastCheckedAt)}</time></span>
   );
   const conciseSummary = props.workspace && !!map;
-  const headline = compact ? undefined : header?.headline;
-  const summaryText = compact ? undefined : headline?.text || header?.subtitle;
+  const headline = header?.headline;
+  const summaryText = headline?.text || header?.subtitle;
   const summary = (
     <div className={conciseSummary ? "grid min-w-0 gap-2" : "grid min-w-0 gap-3"}>
       {headline?.text ? (
@@ -257,12 +260,14 @@ export function Board(props: BoardProps) {
     </div>
   );
 
-  function cardEntry(content: Exclude<BoardCardContent, { kind: "summary" }>) {
+  function cardEntry(content: BoardCardContent) {
+    if (content.kind === "automatic-chart") return automaticChartEntry(widgets, data);
+    if (content.kind !== "widget" && content.kind !== "status-chart") return;
     const type = content.kind === "widget" ? content.type : "table";
     return widgets.find((entry) => {
       if (entry.widget.type !== type || (content.key && content.key !== entry.key)) return false;
       if (content.kind === "widget") return true;
-      const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+      const table = data?.widgets[entry.widget.id] as TableData | undefined;
       return table?.columns?.some((column) => column.kind === "status");
     });
   }
@@ -270,8 +275,18 @@ export function Board(props: BoardProps) {
   function renderCardContents(contents: BoardCardContent[]) {
     const sections = contents.flatMap((content) => {
       if (content.kind === "summary") return [summary];
+      if (content.kind === "incident-status" || content.kind === "official-tally") return [
+        <IncidentReports kind={content.kind} chart={content.kind === "official-tally" ? content.chart : undefined}
+          widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />,
+      ];
       const entry = cardEntry(content);
+      if (!entry && content.kind === "automatic-chart") {
+        return [<Text size="sm" tone="muted">Waiting for dated observations or reported statuses.</Text>];
+      }
       if (!entry || (props.workspace && entry === map)) return [];
+      if (content.kind === "automatic-chart" && entry.widget.type === "table") {
+        return [<StatusBreakdown entry={entry} data={data} chart="auto" />];
+      }
       return [content.kind === "status-chart"
         ? <StatusBreakdown entry={entry} data={data} chart={content.chart} fallback={renderWorkspaceWidget(entry)} />
         : renderWorkspaceWidget(entry)];
@@ -284,8 +299,8 @@ export function Board(props: BoardProps) {
     );
   }
   const configuredCards = props.configuredCards?.map((card) => ({ ...card, content: renderCardContents(card.contents) }));
-  const cardIncludes = (entry: LaidOutWidget) =>
-    [...(props.configuredCards ?? []), ...(props.sidebarSettings ? [props.sidebarSettings] : [])]
+  const cardIncludes = (entry: BoardEntry) =>
+    [...(props.configuredCards ?? []), ...(props.sidebarSettings ? [props.sidebarSettings] : []), ...(props.mapCard ? [props.mapCard] : [])]
       .some(({ contents }) => contents.some((content) => content.kind !== "summary" && cardEntry(content) === entry));
 
   if (props.workspace) {
@@ -298,45 +313,97 @@ export function Board(props: BoardProps) {
     } : undefined;
     const featured = mainWidgets.filter((entry) => entry.widget.type === "stat-grid" || entry.widget.type === "status-grid");
     const sections = mainWidgets.filter((entry) => !featured.includes(entry));
-    const chart = props.layout?.overviewChart ?? props.sharedOverviewChart;
-    const chartEntry = chart?.type === "donut" ? sections.find((entry) => entry.key === chart.widget) : undefined;
+    const overviewChart = props.overviewStatusChart && sections.find((entry) => entry.key === props.overviewStatusChart);
     const figureSections = map ? featured.filter((entry) => entry.widget.type === "stat-grid" && !cardIncludes(entry)) : [];
     const figureItems = figureSections.flatMap((entry) => {
-      const figures = (entry.data ?? data?.widgets[entry.widget.id]) as StatGridData | undefined;
-      const metrics = entry.filter?.kind === "stat-grid" ? entry.filter.metrics : undefined;
-      return getStatItems(figures, metrics);
+      const figures = data?.widgets[entry.widget.id] as StatGridData | undefined;
+      return getStatItems(figures);
     });
     const hasDatedFigures = figureItems.some((item) => item.asOf || item.history?.length);
     const restrictionFigure = figureSections.length > 0 && !hasDatedFigures && latestRestrictionFigure(
       sections.flatMap((entry) => {
-        const table = (entry.data ?? data?.widgets[entry.widget.id]) as TableData | undefined;
+        const table = data?.widgets[entry.widget.id] as TableData | undefined;
         return entry.widget.type === "table" && table?.columns?.length && table.rows?.length ? [table] : [];
       }),
       byId,
     );
     const mapFigures = restrictionFigure ? [restrictionFigure] : selectMapFigures(figureItems, summaryText ?? undefined);
     const overviewFigures = featured.filter((entry) => !figureSections.includes(entry));
-    const mapTools = map && props.tools?.(map);
+    const mapData = (map && data?.widgets[map.widget.id]) as MapData | undefined;
     const narrative = props.wildfireOverview ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
-    const narrativeData = (narrative && (narrative.data ?? data?.widgets[narrative.widget.id])) as NarrativeData | undefined;
+    const narrativeData = (narrative && data?.widgets[narrative.widget.id]) as NarrativeData | undefined;
     const evacuation = narrativeData?.sentences.find((sentence) => /evacuation orders? (?:were |was )?lifted/i.test(sentence?.text ?? ""));
     const housing = props.wildfireOverview ? figureItems.filter((item) => /homes-(?:destroyed|damaged)$/.test(item.key)) : [];
+    const cyberMap = cyber && mapEntry ? (data?.widgets[mapEntry.widget.id]) as MapData | undefined : undefined;
+    const dataSections = cyber
+      ? [...mainWidgets, ...(mapEntry && cyberMap?.points?.length ? [mapEntry] : [])]
+      : [...sections, ...figureSections];
+    const cyberDetails = cyber ? sections.find(({ widget }) => widget.type === "narrative") : undefined;
+    const cyberOverview = cyber ? (
+      <CyberIncidentOverview
+        headline={header?.headline}
+        metrics={featured.flatMap((entry) => entry.widget.type === "stat-grid"
+          ? getStatItems((data?.widgets[entry.widget.id]) as StatGridData | undefined)
+          : [])}
+        services={featured.flatMap((entry) => entry.widget.type === "status-grid"
+          ? ((data?.widgets[entry.widget.id]) as StatusGridData | undefined)?.items ?? []
+          : [])}
+        advisories={sections.flatMap((entry) => entry.widget.type === "alert-list"
+          ? ((data?.widgets[entry.widget.id]) as AlertListData | undefined)?.items ?? []
+          : [])}
+        tables={sections.flatMap(entry => {
+          if (entry.widget.type !== "table") return [];
+          const table = (data?.widgets[entry.widget.id]) as TableData | undefined;
+          return table ? [table] : [];
+        })}
+        trends={sections.flatMap(entry => {
+          if (entry.widget.type !== "trend") return [];
+          const trend = (data?.widgets[entry.widget.id]) as TrendData | undefined;
+          return trend ? [trend] : [];
+        })}
+        resources={releases}
+        timeline={timeline ? (data?.widgets[timeline.widget.id]) as TimelineData | undefined : undefined}
+        sources={byId}
+        lastChecked={lastCheckedAt}
+      />
+    ) : undefined;
     return (
       <OfficialReleasesContext.Provider value={releases}>
         <div className={`@container fd-workspace-board${props.wildfireOverview ? " fd-wildfire-workspace" : ""}`}>
           {boardHeader}
           <BoardWorkspace key={props.workspaceKey} workspaceKey={props.workspaceKey} cardsOnMap={props.cardsOnMap} flowingDetails={props.wildfireOverview}
+            main={cyberOverview}
             defaultEvidenceOpen={props.defaultEvidenceOpen}
             configuredCards={configuredCards?.map((card) => ({
               id: `card:${card.id}`, label: card.title, content: card.content, open: card.open,
             }))}
             map={map ? <>
-              <WidgetBoundary resetKey={map.data ?? data?.widgets[map.widget.id]}>{renderContent(map, true, true)}</WidgetBoundary>
-              {mapTools ? <div className="fd-workspace-map-tools">{mapTools}</div> : null}
+              <WidgetBoundary resetKey={mapData}>
+                {activeRegion ? (
+                  <MapWidget key={activeRegion.label} widget={{ ...map.widget, type: "map" }}
+                    data={{ points: mapData?.points ?? [], center: { ...activeRegion, name: activeRegion.label } }}
+                    sources={byId} allSources={sources} events={events} status={status} tier={tier} building={building} fillMap fixedCamera />
+                ) : renderContent(map, true, true)}
+              </WidgetBoundary>
+              {(props.mapCard || regions.length > 1) && <div className="fd-board-map-overlay">
+                {props.mapCard && <Card title={props.mapCard.title} headingLevel={2} padding="sm" radius="lg">
+                  {renderCardContents(props.mapCard.contents)}
+                </Card>}
+                {activeRegion && regions.length > 1 && <RegionSwitch regions={regions} selected={activeRegion.label} onChange={setRegionLabel} />}
+              </div>}
+              {activeRegion?.inset && <RegionInset key={activeRegion.label} inset={activeRegion.inset} points={mapData?.points ?? []} />}
             </> : undefined}
-            mapFigures={mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
+            mapFigures={!props.mapCard && regions.length < 2 && mapFigures.length ? <MapFigureCards items={mapFigures} sources={byId} /> : undefined}
             sidebar={leftPanel}
-            overview={<>
+            overview={cyber ? (cyberDetails ? <>
+              <h3 className="text-sm font-semibold">Incident summary</h3>
+              {lastChecked && <Text size="sm" tone="muted">{lastChecked}</Text>}
+              {header?.headline && <Text size="sm">{header.headline.text}</Text>}
+              <details className="min-w-0 rounded-md border border-hairline p-2">
+                <summary className="cursor-pointer text-sm font-medium">Background &amp; reports</summary>
+                <div className="mt-2">{renderWorkspaceWidget(cyberDetails, true)}</div>
+              </details>
+            </> : summary) : <>
               {evacuation && (
                 <section className="grid gap-1.5" aria-label="Evacuation and access">
                   <h3 className="text-base font-semibold">Evacuation &amp; access</h3>
@@ -357,7 +424,11 @@ export function Board(props: BoardProps) {
                 </section>
               )}
               {summary}
-              {chartEntry && <StatusBreakdown entry={chartEntry} data={data} />}
+              {overviewChart && <StatusBreakdown entry={overviewChart} data={data} fallback={renderWorkspaceWidget(overviewChart)} />}
+              {props.incidentOverview?.status && <IncidentReports kind="incident-status" hideEmpty
+                widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />}
+              {props.incidentOverview?.tally && <IncidentReports kind="official-tally" chart="auto" hideEmpty
+                widgets={spec?.widgets ?? []} data={data} sources={byId} areas={activeRegion?.areas ?? []} />}
               {overviewFigures.map((entry) => renderWorkspaceWidget(entry))}
               {props.wildfireOverview && releases.length > 0 && (
                 <details className="border-t border-hairline pt-3">
@@ -367,7 +438,7 @@ export function Board(props: BoardProps) {
               )}
               {status === "error" && !widgets.length ? <EmptyState title="The board could not be built" description={events.find((e) => e.kind === "error")?.message} /> : null}
             </>}
-            sections={[...sections, ...figureSections].map((entry) => ({
+            sections={dataSections.map((entry) => ({
               key: entry.key,
               title: entry.widget.type === "stat-grid" ? "Figures and sources" : entry.widget.title,
               showsMapFigures: entry.widget.type === "stat-grid",
@@ -381,7 +452,6 @@ export function Board(props: BoardProps) {
             sourceCount={sources.length}
             changes={changelog ? renderWorkspaceWidget(changelog, true) : undefined}
             contextEvidence={props.boardId ? <ContextEvidence boardId={props.boardId} checkedAt={lastPolledAt} /> : undefined}
-            editor={props.workspaceEditor}
           />
         </div>
       </OfficialReleasesContext.Provider>
@@ -415,9 +485,9 @@ export function Board(props: BoardProps) {
               <Skeleton inline width="12ch" />
             </Display>
           )}
-          {header?.subtitle && !compact ? <Text tone="muted">{header.subtitle}</Text> : null}
+          {header?.subtitle ? <Text tone="muted">{header.subtitle}</Text> : null}
 
-          {compact ? null : header?.headline?.text ? (
+          {header?.headline?.text ? (
             <Text size="lg" tone="subtle" className="max-w-4xl">
               {header.headline.text} <SourceChips ids={header.headline.sources} sources={byId} />
             </Text>
@@ -486,7 +556,7 @@ export function Board(props: BoardProps) {
           </Card>
         </header>
 
-        {compact ? null : <SourceWire items={wire} />}
+        <SourceWire items={wire} />
 
         {configuredCards ? (
           <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
@@ -500,7 +570,7 @@ export function Board(props: BoardProps) {
           <DashboardGrid aria-label={`${title ?? "Board"} sections`} minTileWidth={420}>
             {widgets.map((lw) => {
               const w = lw.widget;
-              const d = lw.data ?? data?.widgets[w.id];
+              const d = data?.widgets[w.id];
               // Keyed by the stable widget key, so a moved map or chart is not remounted.
               return (
                 <WidgetFrame
@@ -509,10 +579,7 @@ export function Board(props: BoardProps) {
                   title={w.title}
                   span={w.span}
                   resetKey={d}
-                  transitionName={props.animate ? transitionName(lw.key) : undefined}
-                  updatedAt={lw.extra ? undefined : props.updatedAt?.[w.id]}
-                  isNew={lw.isNew}
-                  tools={props.tools?.(lw)}
+                  updatedAt={props.updatedAt?.[w.id]}
                 >
                   {renderContent(lw, false)}
                 </WidgetFrame>

@@ -29,9 +29,8 @@ export function feedItems(sources: Source[], limit = 15): Source[] {
     .slice(0, limit);
 }
 
-export function FeedWidget({ allSources, building, filter }: WidgetProps<"feed">) {
-  const types = filter?.sourceTypes?.length ? new Set(filter.sourceTypes) : null;
-  const news = feedItems(types ? allSources.filter((s) => s.sourceType !== null && types.has(s.sourceType)) : allSources);
+export function FeedWidget({ allSources, building }: WidgetProps<"feed">) {
+  const news = feedItems(allSources);
   // Coverage that came in over the stream while the board was open is marked and settles into the list.
   const arrived = useArrivals(useMemo(() => allSources.map((s) => s.id), [allSources]));
   if (!news.length) return <Empty building={building} title="No coverage yet" description="News and monitored pages appear here as they are read." />;

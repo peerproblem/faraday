@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Link } from "@/components/ui/link";
 import { Pagination } from "@/components/ui/pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Table, type TableColumn, type TableRow, type TableSort } from "@/components/ui/table";
 import { Text } from "@/components/ui/typography";
 import type { ColumnKind, TableData } from "@/lib/spec";
@@ -127,19 +128,11 @@ export function sortRows(data: TableData, sort: TableSort | null) {
 }
 
 /** Rows whose cells contain the text, ignoring case. */
-export function matchRows(rows: TableData["rows"], query: string | null | undefined) {
-  const q = query?.trim().toLowerCase();
-  if (!q) return rows;
-  return rows.filter((r) => Object.values(r.cells).some((v) => (v ?? "").toLowerCase().includes(q)));
-}
-
-export function TableWidget({ widget, data, sources, tier, building, filter, mapFocus: compact }: WidgetProps<"table">) {
+export function TableWidget({ widget, data, sources, tier, building, mapFocus: compact, cyberPresentation }: WidgetProps<"table">) {
   const [sort, setSort] = useState<TableSort | null>(null);
   const [page, setPage] = useState(1);
-  const query = filter?.query ?? null;
-  const rows = useMemo(() => (data ? matchRows(sortRows(data, sort), query) : []), [data, sort, query]);
+  const rows = useMemo(() => (data ? sortRows(data, sort) : []), [data, sort]);
   if (!data?.columns?.length || !data.rows?.length) return <Empty building={building} title="No rows yet" />;
-  if (!rows.length) return <Empty building={false} title={`No rows match “${query}”`} description="Change the filter to see the other rows." />;
   const pageSize = compact ? MAP_FOCUS_PAGE_SIZE : PAGE_SIZE;
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const current = Math.min(page, pageCount);
@@ -181,6 +174,41 @@ export function TableWidget({ widget, data, sources, tier, building, filter, map
           {pageCount > 1 && <Pagination aria-label={`${widget.title} pages`} size="sm" variant="compact" pageCount={pageCount} page={current} onPageChange={setPage} />}
         </div>
       )}
+      {cyberPresentation && compact && (
+        <div className="fd-cyber-records">
+          <Select aria-label={`${widget.title} sort`} size="sm"
+            value={sort ? `${dataColumns.findIndex(column => column.key === sort.columnId)}:${sort.direction}` : "original"}
+            onValueChange={(value) => {
+              const [index, direction] = (value ?? "original").split(":");
+              const column = dataColumns[Number(index)];
+              setSort(column && (direction === "ascending" || direction === "descending") ? { columnId: column.key, direction } : null);
+              setPage(1);
+            }}>
+            <SelectTrigger />
+            <SelectContent>
+              <SelectItem value="original">Original report order</SelectItem>
+              {dataColumns.flatMap((column, index) => [
+                <SelectItem key={`${column.key}:asc`} value={`${index}:ascending`}>{column.label} · ascending</SelectItem>,
+                <SelectItem key={`${column.key}:desc`} value={`${index}:descending`}>{column.label} · descending</SelectItem>,
+              ])}
+            </SelectContent>
+          </Select>
+          <ol aria-label={`${widget.title} records`} className="fd-cyber-record-list">
+            {shown.map(row => <li key={row.id}>
+              <dl>{dataColumns.map(column => <div key={column.key}>
+                <dt>{column.label}</dt>
+                <dd><Cell kind={column.kind} value={row.cells[column.key] ?? ""} compact /></dd>
+              </div>)}</dl>
+              <div className="fd-cyber-record-citations">
+                {citationFallback(row) && <Cell kind="link" value={citationFallback(row)} compact />}
+                <SourceChips ids={row.sources} sources={sources} evidence={row.evidence} collapseAt={4} />
+                <AsOf t={row.asOf} tier={tier} prefix="" />
+              </div>
+            </li>)}
+          </ol>
+        </div>
+      )}
+      <div className={cyberPresentation && compact ? "fd-cyber-table-view" : "contents"}>
       <Table
         // The card already shows the title. Keep the caption as the accessible table and scroll region name.
         caption={`${widget.title}: ${rows.length === 1 ? "1 row" : `${rows.length} rows`}`}
@@ -208,6 +236,7 @@ export function TableWidget({ widget, data, sources, tier, building, filter, map
           };
         })}
       />
+      </div>
       {!compact && pageCount > 1 ? (
         <div className="flex flex-wrap items-center justify-end gap-3">
           <Pagination aria-label={`${widget.title} pages`} size="sm" pageCount={pageCount} page={current} onPageChange={setPage} />

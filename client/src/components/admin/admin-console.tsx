@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Link } from "@/components/ui/link";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { EmptyState, Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Table, type TableColumn, type TableRow } from "@/components/ui/table";
@@ -35,16 +36,18 @@ import {
   deleteTopic,
   listAdminTopics,
   listCandidates,
-  listRequests,
   registerTopic,
   setAdminSettings,
+  setTopicCategory,
   setTopicState,
 } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import type { AdminSettings, BoardCard, TopicCandidateView, TopicRequestView } from "@/lib/spec";
+import { isNaturalDisaster, naturalDisasterCategories, topicCategories, type AdminSettings, type BoardCard, type TopicCandidateView, type TopicCategory } from "@/lib/spec";
 
 const MIN_PROMPT = 8;
 const MAX_PROMPT = 1000;
+const categoryLabel = (category: string) => category.charAt(0).toUpperCase() + category.slice(1).replaceAll("-", " ");
+const otherCategories = topicCategories.filter((category) => !isNaturalDisaster(category));
 
 /** Username and password sign-in for the admin console. Independent of the Google sign-in. */
 export function AdminLogin() {
@@ -102,7 +105,7 @@ export function AdminLogin() {
 
 type SwitchName = "discoverEnabled" | "distributeLive";
 
-/** The admin dashboard: discovery and sharing switches, topic registration, the topic list, discovery results and requests. */
+/** The admin dashboard: discovery and sharing switches, topic registration, the topic list and discovery results. */
 export function AdminDashboard({ initialSettings, initialTopics }: { initialSettings: AdminSettings; initialTopics: BoardCard[] }) {
   const router = useRouter();
   const [settings, setSettings] = useState(initialSettings);
@@ -215,7 +218,6 @@ export function AdminDashboard({ initialSettings, initialTopics }: { initialSett
             <Tab value="topics">Topics</Tab>
             <Tab value="layouts">Layouts</Tab>
             <Tab value="discovery">Discovery results</Tab>
-            <Tab value="requests">Requests</Tab>
           </TabsList>
           <TabsPanel value="topics">
             <TopicList topics={topics} onChanged={reload} onRemoved={(id) => setTopics((prev) => prev.filter((t) => t.id !== id))} />
@@ -225,9 +227,6 @@ export function AdminDashboard({ initialSettings, initialTopics }: { initialSett
           </TabsPanel>
           <TabsPanel value="discovery">
             <DiscoveryPanel />
-          </TabsPanel>
-          <TabsPanel value="requests">
-            <RequestsPanel topics={topics} />
           </TabsPanel>
         </Tabs>
       </Card>
@@ -319,6 +318,18 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
     }
   }
 
+  async function changeCategory(id: string, category: TopicCategory | null) {
+    setBusy(id);
+    try {
+      await setTopicCategory(id, category);
+      await onChanged();
+    } catch (e) {
+      toast.danger("Could not change the category", { description: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function remove(t: BoardCard) {
     try {
       await deleteTopic(t.id);
@@ -333,6 +344,7 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
     const s = boardBadge(t);
     const archived = t.topicState === "archived";
     const name = t.title ?? t.prompt;
+    const category = t.topicCategory ?? t.crisisType;
     return {
       id: t.id,
       cells: {
@@ -345,12 +357,24 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
             <Badge variant={archived ? "outline" : "neutral"} mono>
               {archived ? "archived" : (t.topicState ?? "active")}
             </Badge>
-            {t.crisisType ? (
-              <Badge variant="neutral" mono>
-                {t.crisisType}
-              </Badge>
-            ) : null}
           </span>
+        ),
+        category: (
+          <Select aria-label={`Category for ${name}`} size="sm" value={t.topicCategoryOverride ?? "automatic"}
+            disabled={busy !== null} onValueChange={(value) => {
+              if (value === "automatic") return void changeCategory(t.id, null);
+              const selected = topicCategories.find((option) => option === value);
+              if (selected) void changeCategory(t.id, selected);
+            }}>
+            <SelectTrigger />
+            <SelectContent>
+              <SelectItem value="automatic">Automatic{!t.topicCategoryOverride && category ? ` (${categoryLabel(category)})` : ""}</SelectItem>
+              <SelectGroup label="Natural disasters">
+                {naturalDisasterCategories.map((option) => <SelectItem key={option} value={option}>{categoryLabel(option)}</SelectItem>)}
+              </SelectGroup>
+              {otherCategories.map((option) => <SelectItem key={option} value={option}>{categoryLabel(option)}</SelectItem>)}
+            </SelectContent>
+          </Select>
         ),
         updated: <Ago t={t.updatedAt} />,
         links: (
@@ -398,6 +422,7 @@ function TopicList({ topics, onChanged, onRemoved }: { topics: BoardCard[]; onCh
   const columns: TableColumn[] = [
     { id: "topic", label: "Topic", rowHeader: true, compare: (a, b) => (of(a).title ?? of(a).prompt).localeCompare(of(b).title ?? of(b).prompt) },
     { id: "status", label: "Status" },
+    { id: "category", label: "Category" },
     { id: "updated", label: "Updated", compare: (a, b) => of(a).updatedAt - of(b).updatedAt },
     { id: "links", label: "Open" },
     { id: "actions", label: "Actions", align: "end" },
@@ -503,41 +528,6 @@ function DiscoveryPanel() {
           },
         }));
         return <Table caption="Discovery results" columns={columns} rows={rows} />;
-      }}
-    </Loaded>
-  );
-}
-
-const loadRequests = () => listRequests();
-
-function RequestsPanel({ topics }: { topics: BoardCard[] }) {
-  const r = useLoad(loadRequests);
-  const titles = new Map(topics.map((t) => [t.id, t.title ?? t.prompt]));
-  return (
-    <Loaded label="Requests" value={r}>
-      {({ requests }: { requests: TopicRequestView[] }) => {
-        if (!requests.length) return <EmptyState title="No requests" description="Nobody has asked a topic to track anything new." />;
-        const byId = new Map(requests.map((q) => [String(q.id), q]));
-        const columns: TableColumn[] = [
-          { id: "when", label: "When", compare: (a, b) => byId.get(a.id)!.createdAt - byId.get(b.id)!.createdAt },
-          { id: "text", label: "Request", rowHeader: true },
-          { id: "topic", label: "Topic" },
-          { id: "status", label: "Status" },
-        ];
-        const rows: TableRow[] = requests.map((q) => ({
-          id: String(q.id),
-          cells: {
-            when: <Ago t={q.createdAt} />,
-            text: q.text,
-            topic: titles.get(q.boardId) ?? q.boardId,
-            status: (
-              <Badge variant="neutral" mono>
-                {q.status}
-              </Badge>
-            ),
-          },
-        }));
-        return <Table caption="Requests" columns={columns} rows={rows} />;
       }}
     </Loaded>
   );

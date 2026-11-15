@@ -33,6 +33,8 @@ export default function PointMap({
   label = "Places on the map",
   height = 340,
   fill = false,
+  fixedCamera = false,
+  interactive = true,
   onLoad,
 }: {
   points: MapPoint[];
@@ -40,6 +42,8 @@ export default function PointMap({
   label?: string;
   height?: number;
   fill?: boolean;
+  fixedCamera?: boolean;
+  interactive?: boolean;
   onLoad?: (map: Map) => void;
 }) {
   const [style, setStyle] = useState<MapStyle>("streets");
@@ -83,7 +87,8 @@ export default function PointMap({
       bordered={!fill}
       onLoad={handleMapLoad}
       basemap={basemaps[style].style}
-      controls={
+      interactive={interactive}
+      controls={interactive ? (
         <Popover open={styleOpen} onOpenChange={setStyleOpen}>
           <PopoverTrigger
             variant="secondary"
@@ -114,17 +119,17 @@ export default function PointMap({
             />
           </PopoverContent>
         </Popover>
-      }
+      ) : undefined}
       height={height}
       markerListLabel={label}
       markers={points.map((p) => ({
         lngLat: [p.lon, p.lat],
-        kind: p.kind,
+        kind: interactive ? p.kind : "default",
         label: fill ? undefined : p.name,
-        description: p.note || undefined,
-        popup: p.note || fill ? { title: p.name, description: p.note ?? "" } : undefined,
+        description: interactive ? p.note || undefined : undefined,
+        popup: interactive && (p.note || fill) ? { title: p.name, description: p.note ?? "" } : undefined,
       }))}
-      fitToData={points.length > 1}
+      fitToData={!fixedCamera && points.length > 1}
       center={center ? [center.lon, center.lat] : first ? [first.lon, first.lat] : [0, 20]}
       zoom={center?.zoom ?? (first ? 10 : 1.5)}
     />

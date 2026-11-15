@@ -7,7 +7,7 @@ import { getAdminSession, getBoard, getLatestRun } from "@/lib/engine";
 
 export const dynamic = "force-dynamic";
 
-// The admin console for one topic. Everyone else uses the shared board and their own dashboard.
+// The admin console for one topic. Everyone else uses the shared board.
 export default async function StudioPage({ params }: PageProps<"/studio/[id]">) {
   const { id } = await params;
   const cookie = (await headers()).get("cookie");

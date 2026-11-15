@@ -6,12 +6,14 @@ import { shortTime } from "@/lib/time";
 import { cleanPoints, trendSummary } from "./chart";
 import { SourceChips } from "./source-chips";
 import type { WidgetProps } from "./types";
+import { CyberTrend } from "./cyber-trend";
 import { Empty } from "./widget-frame";
 
-export function TrendWidget({ data, sources, building, mapFocus, compactTrendAxis }: WidgetProps<"trend">) {
+export function TrendWidget({ data, sources, building, mapFocus, compactTrendAxis, cyberPresentation }: WidgetProps<"trend">) {
   const points = data?.points ?? [];
   const pts = cleanPoints(points);
   if (pts.length < 2 || !data) return <Empty building={building} title="Not enough reports for a trend" description="A trend needs at least two reports of the figure." />;
+  if (cyberPresentation) return <CyberTrend data={data} sources={sources} />;
   const summary = trendSummary(data.label, points, data.unit);
   const last = data.points[data.points.length - 1];
   return (

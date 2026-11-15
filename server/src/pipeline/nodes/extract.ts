@@ -5,6 +5,8 @@ import type { Usage } from "../../graph/runner";
 import { factKinds, type ExtractedFact, type FactKind, type Plan, type Source } from "../../spec";
 import { call, LIMITS, slugify, sourceLine } from "./util";
 
+import { advisoryAudiences, resourcePurposes, statusScopes } from "../../spec/cyber";
+
 const n = <T extends z.ZodTypeAny>(t: T) => t.nullable();
 
 /** Flat on purpose: one object shape for every kind keeps structured output reliable. */
@@ -34,6 +36,9 @@ const rawFactSchema = z.object({
   table: n(z.string()).describe("row: a table key from the plan"),
   cells: n(z.array(z.object({ column: z.string(), value: z.string() }))).describe("row: one entry per column key"),
   group: n(z.string()).describe("status: a status group key from the plan"),
+  audience: n(z.enum(advisoryAudiences)).optional().describe("advisory: intended audience explicitly supported by the source. users = affected individuals; operators = organisations or system administrators; both; unknown when unclear. Null for other fact kinds."),
+  resourcePurpose: n(z.enum(resourcePurposes)).optional().describe("resource: availability = service or product status; verification = official personal eligibility/account check; guidance = instructions or patches; updates = incident announcements; other. Classify the linked page's stated purpose, never invent a URL."),
+  statusScope: n(z.enum(statusScopes)).optional().describe("status: overall only if the source explicitly covers the entire affected service; component for a subset, region, network or feature; unknown otherwise. A restored subset does not mean overall recovery."),
   state: n(z.enum(["operational", "degraded", "down", "unknown"])),
 });
 type RawFact = z.infer<typeof rawFactSchema>;
@@ -161,14 +166,14 @@ export function toExtracted(f: RawFact, plan: Plan): ExtractedFact | null {
         ...base,
         kind,
         key: slugify(title),
-        payload: { issuer: str(f.issuer) ?? "", title, text: str(f.text) ?? "", level: f.level ?? "info", url: str(f.url), active: f.active !== false },
+        payload: { issuer: str(f.issuer) ?? "", title, text: str(f.text) ?? "", level: f.level ?? "info", url: str(f.url), active: f.active !== false, ...(plan.crisisType === "cyberattack" && f.audience ? { audience: f.audience } : {}) },
       };
     }
     case "resource": {
       const url = str(f.url);
       const label = str(f.label) ?? str(f.title);
       if (!url || !label) return null;
-      return { ...base, kind, key: slugify(label), payload: { label, url, resourceKind: f.resourceKind ?? "info", note: str(f.note) ?? "" } };
+      return { ...base, kind, key: slugify(label), payload: { label, url, resourceKind: f.resourceKind ?? "info", note: str(f.note) ?? "", ...(plan.crisisType === "cyberattack" && f.resourcePurpose ? { purpose: f.resourcePurpose } : {}) } };
     }
     case "row": {
       const table = plan.tables.find((t) => t.key === str(f.table));
@@ -180,13 +185,19 @@ export function toExtracted(f: RawFact, plan: Plan): ExtractedFact | null {
       }
       const first = cells[table.columns[0]?.key ?? ""];
       if (!first) return null;
-      return { ...base, kind, key: `${table.key}:${slugify(first)}`, payload: { table: table.key, cells } };
+      const responseTime = table.key === "incident-totals" ? cells["reporting-window-end"]
+        : table.key === "operational-incidents" ? cells["status-as-of"] : undefined;
+      // Cyber scope rows identify a product/version or asset/network tuple, not just their first cell.
+      const subjects = plan.crisisType === "cyberattack" && table.cyberRole === "affected-scope" ? table.columns.filter(column => column.cyberRole === "subject") : [];
+      const identity = table.key === "operational-incidents" ? cells["incident-id"] || `${cells.region ?? ""} ${first}`
+        : subjects.length ? subjects.map(column => cells[column.key] ?? "").join(" · ") : first;
+      return { ...base, asOf: responseTime || base.asOf, kind, key: `${table.key}:${slugify(identity)}`, payload: { table: table.key, cells } };
     }
     case "status": {
       const group = plan.statusGroups.find((g) => g.key === str(f.group));
       const name = str(f.name);
       if (!group || !name) return null;
-      return { ...base, kind, key: `${group.key}:${slugify(name)}`, payload: { group: group.key, name, state: f.state ?? "unknown", note: str(f.note) ?? "" } };
+      return { ...base, kind, key: `${group.key}:${slugify(name)}`, payload: { group: group.key, name, state: f.state ?? "unknown", note: str(f.note) ?? "", ...(plan.crisisType === "cyberattack" && f.statusScope ? { scope: f.statusScope } : {}) } };
     }
   }
 }
