@@ -15,6 +15,7 @@ type WorkspaceProps = {
   workspaceKey?: string;
   cardsOnMap?: boolean;
   flowingDetails?: boolean;
+  main?: ReactNode;
   defaultEvidenceOpen?: boolean;
   map?: ReactNode;
   mapFigures?: ReactNode;
@@ -28,7 +29,7 @@ type WorkspaceProps = {
   configuredCards?: WorkspaceCard[];
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, main, defaultEvidenceOpen, map, mapFigures, sidebar, overview, sections, sources, sourceCount, changes, contextEvidence, configuredCards }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -40,15 +41,15 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   const detailsOpen = detailsOverride ?? legacy.inspector?.open ?? true;
   const [wide, setWide] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"sidebar" | "details" | null>(null);
-  const detailsWidth: CornerWidth | undefined = map ? {
+  const detailsWidth: CornerWidth | undefined = map || main ? {
     measure: () => {
       const details = document.getElementById(`${id}-details`);
       const board = details?.parentElement;
       if (!details || !board || !getComputedStyle(details).getPropertyValue("--fd-workspace-details-min-width")) return null;
 
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-      const room = Math.min(board.clientWidth * (overlay ? 0.48 : 0.54), 46 * rem);
-      const min = overlay ? Math.min(23 * rem, room) : 23 * rem;
+      const room = Math.min(board.clientWidth * (overlay ? 0.48 : main ? 0.42 : 0.54), 46 * rem);
+      const min = main ? 17 * rem : overlay ? Math.min(23 * rem, room) : 23 * rem;
       const max = Math.max(min, room);
       return { size: details.getBoundingClientRect().width, bounds: { min, max } };
     },
@@ -133,14 +134,27 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
   const visibleMobilePanel = (overlay && mobilePanel === "details") || (!sidebar && mobilePanel === "sidebar") ? null : mobilePanel;
 
   return (
-    <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined}
+    <section className="fd-board-workspace" aria-label="Board workspace" data-has-map={map ? "" : undefined} data-has-main={main ? "" : undefined}
       data-mobile-panel={visibleMobilePanel ?? undefined} onKeyDown={(event) => {
-        if (event.key === "Escape" && !event.defaultPrevented) setMobilePanel(null);
+        if (event.key === "Escape" && !event.defaultPrevented && !(main && event.target instanceof Element && event.target.closest('[role="listbox"]'))) setMobilePanel(null);
       }}>
+      {main && <div className="fd-workspace-mobile-tools fd-cyber-mobile-tools">
+        {sidebar && <Button variant="secondary" size="sm" aria-controls={`${id}-sidebar`} aria-expanded={visibleMobilePanel === "sidebar"}
+          onClick={() => setMobilePanel("sidebar")}>{sidebar.title}</Button>}
+        <Button variant="secondary" size="sm" aria-controls={`${id}-details`} aria-expanded={visibleMobilePanel === "details"}
+          onClick={() => setMobilePanel("details")}>Details</Button>
+      </div>}
       {sidebar && <WorkspaceSidebar id={`${id}-sidebar`} size={sidebarSize}
         sidebar={{ ...sidebar, defaultOpen: sidebar.defaultOpen ?? legacy.sidebar?.open }}
         mobileOpen={visibleMobilePanel === "sidebar"}
         onMobileOpenChange={(open) => setMobilePanel(open ? "sidebar" : null)} />}
+
+      {main && (
+        <section className="fd-workspace-main" aria-label="Incident overview">
+          <h2 className="text-sm font-semibold">Incident overview</h2>
+          {main}
+        </section>
+      )}
 
       {map && <div className="fd-workspace-map" aria-label="Situation map" role="region"
         data-cards-on-map={overlay && cards ? "" : undefined} style={overlay ? detailsStyle : undefined}>
@@ -157,18 +171,18 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, defau
         style={detailsStyle}>
         <div className="fd-workspace-panel-header fd-workspace-details-row">
           <h2 className="text-sm font-semibold">Details</h2>
-          {map && detailsOpen && (
+          {(map || main) && detailsOpen && (
             <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
               aria-label={wide ? "Restore details width" : "Widen details"}
               leading={<Icon name="expand" width={16} height={16} />} onClick={() => setWide((value) => !value)} />
           )}
-          {map && (
+          {(map || main) && (
             <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
               aria-label={detailsOpen ? "Collapse details" : "Expand details"} aria-expanded={detailsOpen} aria-controls={`${id}-detail-cards`}
               leading={<Icon name={detailsOpen ? "chevron-right" : "chevron-left"} width={16} height={16} />}
               onClick={() => setDetailsOpen(!detailsOpen)} />
           )}
-          {map && (
+          {(map || main) && (
             <Button className="fd-workspace-details-mobile-action" size="sm" variant="ghost" iconOnly
               aria-label={mobilePanel === "details" ? "Close details" : "Open details"}
               aria-expanded={mobilePanel === "details"} aria-controls={`${id}-detail-cards`}

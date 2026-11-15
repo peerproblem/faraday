@@ -16,4 +16,5 @@ export type WidgetProps<T extends WidgetType = WidgetType> = {
   wrapSourceTitles?: boolean;
   collapseSourceGroups?: boolean;
   compactTrendAxis?: boolean;
+  cyberPresentation?: boolean;
 };

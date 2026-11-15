@@ -93,6 +93,7 @@ export type Evidence = {
 export type Cited = { sources: string[]; asOf: string | null; evidence?: Evidence };
 
 export type StatItem = Cited & {
+  cyberRole?: import("./cyber").CyberMetricRole | null;
   key: string;
   label: string;
   valueText: string;
@@ -123,11 +124,12 @@ export type MapData = {
 };
 export type ColumnKind = "text" | "number" | "time" | "status" | "link";
 export type TableData = {
-  columns: { key: string; label: string; kind: ColumnKind }[];
+  cyberRole?: "affected-scope" | "context" | null;
+  columns: { key: string; label: string; kind: ColumnKind; cyberRole?: import("./cyber").CyberColumnRole | null }[];
   rows: (Cited & { id: string; cells: Record<string, string> })[];
 };
 export type ServiceState = "operational" | "degraded" | "down" | "unknown";
-export type StatusGridData = { items: (Cited & { id: string; name: string; state: ServiceState; note: string })[] };
+export type StatusGridData = { items: (Cited & { id: string; name: string; state: ServiceState; note: string; scope?: import("./cyber").StatusScope | null })[] };
 export type AlertListData = {
   items: (Cited & {
     id: string;
@@ -137,10 +139,11 @@ export type AlertListData = {
     level: "warning" | "watch" | "info";
     url: string | null;
     active: boolean;
+    audience?: import("./cyber").AdvisoryAudience | null;
   })[];
 };
 export type ResourceKind = "official" | "donate" | "shelter" | "hotline" | "volunteer" | "info";
-export type LinkListData = { items: { id: string; label: string; url: string; kind: ResourceKind; note: string; sources: string[] }[] };
+export type LinkListData = { items: { id: string; label: string; url: string; kind: ResourceKind; note: string; sources: string[]; purpose?: import("./cyber").ResourcePurpose | null }[] };
 /** feed, changelog and sources are computed in the browser from sources and events. */
 export type ClientComputedData = Record<string, never>;
 
