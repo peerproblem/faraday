@@ -374,14 +374,15 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-workspace-details {
   min-width: 0;
   min-height: 0;
-  background: var(--sw-background);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+.fd-workspace-timeline {
+  background: var(--sw-background);
+}
 .fd-workspace-details {
   flex: 1;
-  background: var(--sw-canvas);
 }
 .fd-workspace-panel-header {
   display: flex;
@@ -391,6 +392,9 @@ body:has(.fd-workspace-shell) .fd-site-header {
   gap: var(--sw-space-1);
   border-block-end: 1px solid var(--sw-hairline);
   padding-inline: var(--sw-space-3);
+}
+.fd-workspace-details-row {
+  border-block-end: 0;
 }
 .fd-workspace-panel-header > h2 {
   flex: 1;
@@ -574,7 +578,8 @@ body:has(.fd-workspace-shell) .fd-site-header {
 .fd-workspace-mobile-tools {
   display: none;
 }
-.fd-workspace-close {
+.fd-workspace-close,
+.fd-workspace-details-mobile-action {
   display: none;
 }
 .fd-map-workspace {
@@ -697,8 +702,18 @@ body:has(.fd-workspace-shell) .fd-site-header {
   }
   .fd-workspace-desktop-action,
   .fd-workspace-timeline,
-  .fd-board-workspace[data-has-map] > .fd-workspace-details {
+  .fd-board-workspace[data-mobile-panel="timeline"][data-has-map] > .fd-workspace-details,
+  .fd-board-workspace[data-has-map]:not([data-mobile-panel="details"]) > .fd-workspace-details > .fd-workspace-card-stack {
     display: none;
+  }
+  .fd-board-workspace[data-has-map] > .fd-workspace-details {
+    position: absolute;
+    z-index: 2;
+    inset-inline-end: var(--sw-space-3);
+    inset-block-end: var(--sw-space-20);
+  }
+  .fd-board-workspace[data-has-map]:not([data-mobile-panel="details"]) > .fd-workspace-details > .fd-workspace-details-row {
+    background: var(--sw-canvas);
   }
   .fd-board-workspace[data-mobile-panel="timeline"] > .fd-workspace-timeline,
   .fd-board-workspace[data-mobile-panel="details"][data-has-map] > .fd-workspace-details {
@@ -708,7 +723,7 @@ body:has(.fd-workspace-shell) .fd-site-header {
     inset: 0;
   }
   .fd-board-workspace[data-mobile-panel="timeline"] > .fd-workspace-timeline .fd-workspace-close,
-  .fd-board-workspace[data-mobile-panel="details"][data-has-map] > .fd-workspace-details .fd-workspace-close {
+  .fd-board-workspace[data-has-map] > .fd-workspace-details .fd-workspace-details-mobile-action {
     display: inline-flex;
   }
 }

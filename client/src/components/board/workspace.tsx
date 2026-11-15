@@ -2,14 +2,12 @@
 
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Icon } from "@/components/ui/icon";
-import { useReorder } from "@/components/ui/reorder";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 
-import { cardBounds, timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
+import { BoardCardStack } from "./card-stack";
+import { timelineBounds, useLegacyWorkspacePanels, useWorkspaceSizes, WorkspaceResizeHandle, type CornerWidth } from "./workspace-resize";
 
 type Panel = { key: string; title: string; content: ReactNode; showsMapFigures?: boolean };
 type WorkspaceProps = {
@@ -57,7 +55,6 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
   const editing = !!editor;
   const [selection, setSelection] = useState({ tab: editing ? "layout" : "overview", editing });
   const [open, setOpen] = useState({ situation: true, evidence: false });
-  const [cardOrder, setCardOrder] = useState(["situation", "evidence"]);
   const [evidenceTab, setEvidenceTab] = useState<string | null>(null);
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   if (selection.editing !== editing) {
@@ -74,16 +71,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
     ? selection.tab
     : "overview";
   const figuresOpen = detailsOpen && open.situation && situationTab === "data" && activeSection?.showsMapFigures;
-  const hasEvidence = !!(sources || changes);
   const visibleEvidenceTab = evidenceTab === "changes" && changes ? "changes" : sources ? "sources" : "changes";
-  const cardLabels = { situation: "Situation", evidence: "Evidence" };
-  const reorder = useReorder({
-    ids: hasEvidence ? cardOrder : ["situation"],
-    onReorder: setCardOrder,
-    disabled: !hasEvidence,
-    getLabel: (key) => cardLabels[key as keyof typeof cardLabels],
-  });
-
   const situation = (
     <Tabs value={situationTab} onValueChange={(tab) => setSelection({ tab, editing })} size="sm" className="fd-workspace-tabs">
       <TabsList aria-label="Situation views" className="fd-workspace-tab-list">
@@ -123,10 +111,9 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
       data-mobile-panel={mobilePanel ?? undefined} onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented) setMobilePanel(null);
       }}>
-      {(map || timeline) && (
+      {timeline && (
         <div className="fd-workspace-mobile-tools">
-          {timeline && <Button variant="secondary" size="sm" aria-controls={`${id}-timeline`} aria-expanded={mobilePanel === "timeline"} onClick={() => setMobilePanel("timeline")}>Timeline</Button>}
-          {map && <Button variant="secondary" size="sm" aria-controls={`${id}-details`} aria-expanded={mobilePanel === "details"} onClick={() => setMobilePanel("details")}>Details</Button>}
+          <Button variant="secondary" size="sm" aria-controls={`${id}-timeline`} aria-expanded={mobilePanel === "timeline"} onClick={() => setMobilePanel("timeline")}>Timeline</Button>
         </div>
       )}
 
@@ -156,7 +143,7 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
 
       <aside id={`${id}-details`} className="fd-workspace-details" aria-label="Board details" data-open={detailsOpen ? "" : undefined} data-wide={wide && !detailsSize.resizing ? "" : undefined}
         style={detailsSize.value ? { "--fd-workspace-details-width": `${detailsSize.value}px` } as CSSProperties : undefined}>
-        <div className="fd-workspace-panel-header">
+        <div className="fd-workspace-panel-header fd-workspace-details-row">
           <h2 className="text-sm font-semibold">Details</h2>
           {map && detailsOpen && (
             <Button className="fd-workspace-desktop-action" size="sm" variant="ghost" iconOnly
@@ -169,43 +156,23 @@ export function BoardWorkspace({ workspaceKey, map, mapFigures, timeline, overvi
               leading={<Icon name={detailsOpen ? "chevron-right" : "chevron-left"} width={16} height={16} />}
               onClick={() => setDetailsOpen(!detailsOpen)} />
           )}
-          <Button className="fd-workspace-close" size="sm" variant="ghost" iconOnly aria-label="Close details"
-            leading={<Icon name="close" width={16} height={16} />} onClick={() => setMobilePanel(null)} />
+          {map && (
+            <Button className="fd-workspace-details-mobile-action" size="sm" variant="ghost" iconOnly
+              aria-label={mobilePanel === "details" ? "Close details" : "Open details"}
+              aria-expanded={mobilePanel === "details"} aria-controls={`${id}-detail-cards`}
+              leading={<Icon name={mobilePanel === "details" ? "chevron-right" : "chevron-left"} width={16} height={16} />}
+              onClick={() => setMobilePanel(mobilePanel === "details" ? null : "details")} />
+          )}
         </div>
-        <div {...reorder.getContainerProps()} id={`${id}-detail-cards`} className="fd-workspace-card-stack">
-          {cardOrder.filter((key) => key !== "evidence" || hasEvidence).map((key) => {
-            const name = key as keyof typeof cardLabels;
-            const label = cardLabels[name];
-            const cardId = `${id}-${name}`;
-            const cardSize = resize(name);
-            return (
-              <Card key={name} {...reorder.getItemProps(name)} id={cardId} role="region" aria-label={label}
-                radius="lg" padding="none" bordered className="fd-workspace-detail-card" data-open={open[name] ? "" : undefined}
-                data-fixed-height={cardSize.value ? "" : undefined}
-                style={cardSize.value ? { "--fd-workspace-card-height": `${cardSize.value}px` } as CSSProperties : undefined}>
-                <Collapsible open={open[name]} onOpenChange={(value) => setOpen((current) => ({ ...current, [name]: value }))}
-                  keepMounted={name === "situation"} className="fd-workspace-card-fold">
-                  <div className="fd-workspace-card-header">
-                    {/* The 24px grip sits 8px inside the card's 20px corners. */}
-                    {hasEvidence && <Button {...reorder.getHandleProps(name)} variant="ghost" size="sm" radius={12}
-                      className="size-[var(--sw-space-6)] shrink-0 cursor-grab touch-none" iconOnly title={`Reorder ${label}`}
-                      leading={<Icon name="grip" width={16} height={16} />} />}
-                    <h3 className="min-w-0 flex-1 text-sm font-semibold">
-                      <CollapsibleTrigger className="mx-0 w-full justify-between px-1">{label}</CollapsibleTrigger>
-                    </h3>
-                  </div>
-                  <CollapsiblePanel className="fd-workspace-card-body">
-                    {name === "situation" ? situation : evidence}
-                  </CollapsiblePanel>
-                </Collapsible>
-                {open[name] && <WorkspaceResizeHandle {...cardSize} target={cardId} label={`Resize ${label} card`}
-                  axis="height" getBounds={cardBounds} cornerWidth={detailsWidth} />}
-              </Card>
-            );
-          })}
-          {reorder.dropIndicator}
-          {reorder.overlay}
-        </div>
+        <BoardCardStack
+          id={`${id}-detail-cards`}
+          situation={situation}
+          evidence={sources || changes ? evidence : undefined}
+          open={open}
+          onOpenChange={(name, value) => setOpen((current) => ({ ...current, [name]: value }))}
+          resize={resize}
+          detailsWidth={detailsWidth}
+        />
       </aside>
     </section>
   );
