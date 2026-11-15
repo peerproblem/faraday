@@ -30,12 +30,16 @@ export function TimelineWidget({ widget, data, sources, building, filter: person
   const keep = personal?.minImportance === "high" ? ["high"] : personal?.minImportance === "medium" ? ["high", "medium"] : null;
   const all = (data?.items ?? []).filter((t) => t && typeof t.id === "string" && t.title && (!keep || keep.includes(t.importance)));
   if (!all.length) return <Empty building={building} title="No events yet" />;
-  const items = filter === "high" ? all.filter((t) => t.importance === "high") : all;
+  // A personal "Major" filter already shows only high-importance events, so the board's own switch would only disagree.
+  const onlyHigh = personal?.minImportance === "high";
+  const items = filter === "high" && !onlyHigh ? all.filter((t) => t.importance === "high") : all;
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <SegmentedControl<Filter> aria-label={`Filter ${widget.title}`} size="sm" value={filter} onValueChange={setFilter} options={filters} />
-      </div>
+      {!onlyHigh && (
+        <div>
+          <SegmentedControl<Filter> aria-label={`Filter ${widget.title}`} size="sm" value={filter} onValueChange={setFilter} options={filters} />
+        </div>
+      )}
       {items.length && widget.display === "story" ? (
         // Remounted per filter, so the story starts again at its first step.
         <TimelineStory key={filter} items={items} sources={sources} label={widget.title} />

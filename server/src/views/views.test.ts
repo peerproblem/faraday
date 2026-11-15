@@ -127,6 +127,7 @@ describe("sanitizeLayout", () => {
 
 const output = (over: Partial<LayoutEditOutput> = {}): LayoutEditOutput => ({
   reply: "Moved the map up.",
+  view: "keep",
   order: ["map"],
   hidden: [],
   size: [],
@@ -167,7 +168,8 @@ describe("editLayout", () => {
     );
     const r = await editLayout(input, AbortSignal.timeout(1000), model);
     expect(r.layout).toEqual({
-      order: ["map"],
+      // "nope" is dropped; the widgets the model left out keep their current order after the map.
+      order: ["map", "narrative", "stat-grid", "trend:deaths", "table:shelters", "timeline", "alert-list", "feed"],
       hidden: ["feed"],
       size: { map: "half" },
       pinned: [],
@@ -217,6 +219,46 @@ describe("editLayout", () => {
     });
     await editLayout(input, ac.signal, model);
     expect(model).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the current order of widgets the model leaves out", async () => {
+    const layout = { ...emptyLayout(3), order: ["feed", "timeline", "narrative", "stat-grid", "trend:deaths", "map", "table:shelters", "alert-list"] };
+    const r = await editLayout({ ...input, layout }, AbortSignal.timeout(1000), async () => output({ order: ["map"] }));
+    expect(r.layout.order).toEqual(["map", "feed", "timeline", "narrative", "stat-grid", "trend:deaths", "table:shelters", "alert-list"]);
+  });
+
+  it("switches the dashboard view on request without resetting the rest", async () => {
+    const layout = { ...emptyLayout(3), hidden: ["feed"], filters: { timeline: { kind: "timeline" as const, minImportance: "high" as const } } };
+    const toMonitor = await editLayout({ ...input, layout }, AbortSignal.timeout(1000), async () => output({ view: "monitor", hidden: ["feed"], filters: [{ key: "timeline", kind: "timeline", minImportance: "high", pointKinds: [], query: null, activeOnly: null, metrics: [], sourceTypes: [] }] }));
+    expect(toMonitor.layout).toMatchObject({ design: "map-overlay", hidden: ["feed"], filters: { timeline: { kind: "timeline", minImportance: "high" } } });
+    const back = await editLayout({ ...input, layout: { ...layout, design: "map-focus" } }, AbortSignal.timeout(1000), async () => output({ view: "standard" }));
+    expect(back.layout.design).toBe("standard");
+    const kept = await editLayout({ ...input, layout: { ...layout, design: "map-focus" } }, AbortSignal.timeout(1000), async () => output({ view: "monitor" }));
+    expect(kept.layout.design).toBe("map-focus");
+  });
+
+  it("says so when the monitor view is not offered", async () => {
+    const noMap = { ...spec, widgets: spec.widgets.filter((x) => x.type !== "map") };
+    const r = await editLayout({ ...input, spec: noMap }, AbortSignal.timeout(1000), async () => output({ view: "monitor" }));
+    expect(r.layout.design).toBeUndefined();
+    expect(r.reply).toBe("Moved the map up. This topic has no map, so it stays on the standard dashboard.");
+    const finance = await editLayout({ ...input, spec: { ...spec, template: "finance" } }, AbortSignal.timeout(1000), async () => output({ view: "monitor" }));
+    expect(finance.layout.design).toBeUndefined();
+  });
+
+  it("tells the person that widths do not show in the map monitor", async () => {
+    const layout = { ...emptyLayout(3), design: "map-overlay" as const };
+    const r = await editLayout({ ...input, layout }, AbortSignal.timeout(1000), async () => output({ size: [{ key: "map", span: "half" }] }));
+    expect(r.reply).toBe("Moved the map up. Section widths stay fixed in the map monitor; they apply in the standard dashboard.");
+    const same = await editLayout({ ...input, layout: { ...layout, size: { map: "half" as const } } }, AbortSignal.timeout(1000), async () => output({ size: [{ key: "map", span: "half" }] }));
+    expect(same.reply).toBe("Moved the map up.");
+  });
+
+  it("gives the model the view in use and the current order", () => {
+    const p = buildPrompt(spec, plan, { ...emptyLayout(), order: ["map"], design: "map-overlay" }, "x");
+    expect(p).toContain("Dashboard view: monitor. Views offered: standard, monitor");
+    expect(p.indexOf('"key":"map"')).toBeLessThan(p.indexOf('"key":"narrative"'));
+    expect(p).toContain('"key":"map","type":"map","title":"map","span":"full","fixedPlace":true');
   });
 
   it("describes widgets by stable key in the prompt", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Board, isBuilding, visibleWidgets } from "@/components/board/board";
 import { BoardHeaderButton } from "@/components/board/header-button";
 import { BoardToasts, useLiveBoard } from "@/components/board/live-board";
@@ -31,10 +31,11 @@ import { toast } from "@/components/ui/toast";
 import { Toggle } from "@/components/ui/toggle";
 import { Heading, Text } from "@/components/ui/typography";
 import { applyLayout, moveKey, settleLayout, type LaidOutWidget } from "@/lib/client/apply-layout";
+import { defaultLayout } from "@/lib/client/default-layout";
 import { useLayout } from "@/lib/client/use-layout";
 import { ApiError, editView, removeView, undoView } from "@/lib/client/views-api";
 import { boardUrl } from "@/lib/config";
-import { emptyLayout, widgetKeyOf, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type TableData, type WidgetFilter } from "@/lib/spec";
+import { widgetKeyOf, type BoardView, type CrisisType, type MapPointKind, type PersonalLayout, type PersonalViewState, type SourceType, type TableData, type WidgetFilter } from "@/lib/spec";
 
 const monitorCategories = new Set<CrisisType>(["flood", "wildfire", "earthquake", "storm", "heatwave", "conflict"]);
 
@@ -100,13 +101,22 @@ export function PersonalBoard({
   const [reply, setReply] = useState<{ text: string; unsupported: string[] } | null>(null);
   const [busy, setBusy] = useState<"undo" | "remove" | null>(null);
 
-  const current: PersonalLayout = useMemo(() => layout ?? emptyLayout(board.version), [layout, board.version]);
+  // No saved layout yet: the baseline as it is, in the shared board's design.
+  const current: PersonalLayout = useMemo(() => layout ?? defaultLayout({ version: board.version, spec }), [layout, board.version, spec]);
   const full = useMemo(() => (spec ? applyLayout(spec, data, current, { version: board.version }) : null), [spec, data, current, board.version]);
 
   const commit = (next: PersonalLayout) => {
     if (!spec) return;
     change(settleLayout(spec, data, next, board.version));
   };
+
+  // Arriving without a saved layout (signing in from Add to my dashboard) adds the topic: the default layout is saved once.
+  const addedOnce = useRef(false);
+  useEffect(() => {
+    if (localPreview || addedOnce.current || layout || initialView?.layout || !spec) return;
+    addedOnce.current = true;
+    change(settleLayout(spec, data, defaultLayout({ version: board.version, spec }), board.version));
+  }, [localPreview, layout, initialView, spec, data, board.version, change]);
 
   // New sections keep their badge for a moment, then the layout is saved as seen.
   const hasNew = !!layout && !!full?.widgets.some((w) => w.isNew);
@@ -150,6 +160,8 @@ export function PersonalBoard({
       const r = await editView(board.id, text);
       replace(r.layout, r.rev);
       setReply({ text: r.reply, unsupported: r.unsupported ?? [] });
+      // A new design moves the prompt form (bottom bar or the monitor's Layout tab), so the reply is also announced.
+      if ((r.layout.design ?? "standard") !== (current.design ?? "standard")) toast(r.reply);
       setInstruction("");
     } catch (e) {
       toast.danger("Could not change your dashboard", { description: (e as Error).message });
@@ -366,7 +378,7 @@ export function PersonalBoard({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => commit(emptyLayout(board.version))}>
+            <AlertDialogAction variant="danger" data-sw-confirm="" onClick={() => commit(defaultLayout({ version: board.version, spec }))}>
               Reset layout
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -442,7 +454,9 @@ export function PersonalBoard({
                 onValueChange={(v) => setInstruction(v.slice(0, MAX_INSTRUCTION))}
                 minRows={1}
                 maxRows={4}
-                placeholder="Make the map bigger and put shelters at the top"
+                placeholder={workspace
+                  ? "Show only shelters and resources on the map"
+                  : hasMap ? "Put the map first and show only major events" : "Show only major events and hide the changelog"}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -485,7 +499,8 @@ export function PersonalBoard({
         cardsOnMap={workspace}
         workspaceNavigation={workspaceNavigation}
         workspaceKey={`personal:${board.id}`}
-        workspaceEditor={workspace && editing ? <>{!localPreview && editForm}{hiddenSections}</> : undefined}
+        workspaceEditor={workspace && (editing || !localPreview) ? <>{!localPreview && editForm}{editing && hiddenSections}</> : undefined}
+        workspaceEditing={workspace && editing}
       />
 
       {!workspace && editing ? hiddenSections : null}

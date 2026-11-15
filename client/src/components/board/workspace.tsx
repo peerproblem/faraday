@@ -22,10 +22,13 @@ type WorkspaceProps = {
   sources?: ReactNode;
   sourceCount: number;
   changes?: ReactNode;
+  /** The Layout tab's content (a personal board's prompt form, and its edit tools while editing). */
   editor?: ReactNode;
+  /** Editing the layout: the Layout tab opens. Without it the tab stays available but Overview shows first. */
+  editing?: boolean;
 };
 
-export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor }: WorkspaceProps) {
+export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, mapFigures, timeline, overview, sections, sources, sourceCount, changes, editor, editing: editingProp }: WorkspaceProps) {
   const id = useId();
   const overlay = Boolean(map && cardsOnMap);
   const legacy = useLegacyWorkspacePanels(workspaceKey);
@@ -56,7 +59,7 @@ export function BoardWorkspace({ workspaceKey, cardsOnMap, flowingDetails, map, 
       detailsSize.onCommit(size);
     },
   } : undefined;
-  const editing = !!editor;
+  const editing = !!editor && !!editingProp;
   const [selection, setSelection] = useState({ tab: editing ? "layout" : "overview", editing });
   const [open, setOpen] = useState({ situation: true, evidence: false });
   const [evidenceTab, setEvidenceTab] = useState<string | null>(null);

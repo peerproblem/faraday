@@ -53,4 +53,15 @@ describe("timeline display", () => {
     const steps = within(screen.getByRole("region", { name: /as a story/ })).getByRole("list");
     expect(titles(steps)).toEqual(["First", "Third"]);
   });
+
+  it("drops the board's own filter when the personal filter already shows only major events", () => {
+    render(<TimelineWidget {...props()} filter={{ kind: "timeline", minImportance: "high" }} />);
+    expect(screen.queryByRole("radiogroup", { name: "Filter How it unfolded" })).toBeNull();
+    expect(titles(screen.getByRole("list", { name: "How it unfolded" }))).toEqual(["Third", "First"]);
+  });
+
+  it("keeps the board's own filter under a Notable personal filter", () => {
+    render(<TimelineWidget {...props()} filter={{ kind: "timeline", minImportance: "medium" }} />);
+    expect(screen.getByRole("radiogroup", { name: "Filter How it unfolded" })).toBeTruthy();
+  });
 });

@@ -192,7 +192,7 @@ describe("personal dashboard", () => {
     const other: PersonalLayout = { ...emptyLayout(b.version), hidden: ["narrative"] };
     fetchMock.mockImplementation(async () => json({ error: "Changed elsewhere", layout: other, rev: 9 }, 409));
     const narrative = b.spec!.widgets.find((w) => w.type === "narrative")!;
-    const { container } = render(<PersonalBoard initial={b} initialView={{ layout: null, rev: 0 }} />);
+    const { container } = render(<PersonalBoard initial={b} initialView={{ layout: emptyLayout(b.version), rev: 3 }} />);
     fireEvent.click(screen.getByRole("button", { name: "Edit layout" }));
     fireEvent.click(screen.getAllByRole("button", { name: /^Move .* down$/ })[0]);
     await act(async () => {
@@ -203,18 +203,84 @@ describe("personal dashboard", () => {
   });
 
   test("a prompt edit applies the returned layout and says what is not tracked", async () => {
+    const user = userEvent.setup();
     const b = board();
-    const layout: PersonalLayout = { ...emptyLayout(b.version), pinned: ["map"] };
-    fetchMock.mockImplementation(async () => json({ layout, rev: 5, reply: "The map is on top now.", unsupported: ["school closures"] }));
+    const layout: PersonalLayout = { ...emptyLayout(b.version), pinned: ["map"], design: "standard" };
+    fetchMock.mockImplementation(async (url, init) =>
+      url.endsWith("/edit")
+        ? json({ layout, rev: 5, reply: "The map is on top now.", unsupported: ["school closures"] })
+        : json({ layout: JSON.parse(String(init!.body)).layout, rev: 1 }),
+    );
     const { container } = render(<PersonalBoard initial={b} initialView={null} />);
+    // Without a saved layout the board opens in the shared board's monitor, whose Layout tab holds the prompt.
+    await user.click(screen.getByRole("tab", { name: "Layout" }));
+    expect(screen.queryByRole("heading", { name: "Hidden sections" })).toBeNull();
     fireEvent.change(screen.getByLabelText("Describe how you want your dashboard"), { target: { value: "Put the map first" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-    await waitFor(() => expect(screen.getByText(/The map is on top now\./)).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText(/The map is on top now\./).length).toBeGreaterThan(0));
     expect(screen.getByText(/request noted: school closures/)).toBeTruthy();
     const map = b.spec!.widgets.find((w) => w.type === "map")!;
     expect(order(container)[0]).toBe(map.id);
     const call = posts("/edit")[0];
     expect(JSON.parse(String(call[1]!.body))).toEqual({ instruction: "Put the map first" });
+  });
+});
+
+describe("default design", () => {
+  test("a topic without a saved layout opens in the shared board's design and is added once", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fetchMock.mockImplementation(async (_u, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 1 }));
+    const b = board();
+    render(<PersonalBoard initial={b} initialView={{ layout: null, rev: 0 }} />);
+    expect(screen.getByRole("region", { name: "Situation map" })).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(SAVE_DEBOUNCE_MS + 10);
+    });
+    await act(async () => {});
+    const saves = posts(`/api/me/views/${b.id}`);
+    expect(saves).toHaveLength(1);
+    const body = JSON.parse(String(saves[0][1]!.body)) as { layout: PersonalLayout; rev: number };
+    expect(body.rev).toBe(0);
+    expect(body.layout.design).toBe("map-overlay");
+    expect(body.layout.hidden).toEqual([]);
+    await act(async () => {
+      vi.advanceTimersByTime(SAVE_DEBOUNCE_MS * 4);
+    });
+    expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1);
+  });
+
+  test("a saved layout is not saved again on open, and old layouts without a design stay standard", () => {
+    const b = board();
+    render(<PersonalBoard initial={b} initialView={{ layout: emptyLayout(b.version), rev: 2 }} live={false} />);
+    expect(screen.queryByRole("region", { name: "Board workspace" })).toBeNull();
+    expect(posts("/api/me/views/")).toHaveLength(0);
+  });
+
+  test("the monitor's prompt is reachable without editing; edit tools stay behind Edit layout", async () => {
+    const user = userEvent.setup();
+    const b = board();
+    render(<PersonalBoard initial={b} initialView={{ layout: { ...emptyLayout(b.version), design: "map-overlay" }, rev: 2 }} live={false} />);
+    await user.click(screen.getByRole("tab", { name: "Layout" }));
+    const prompt = screen.getByLabelText("Describe how you want your dashboard");
+    expect(prompt.getAttribute("placeholder")).toBe("Show only shelters and resources on the map");
+    expect(screen.queryByRole("heading", { name: "Hidden sections" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Edit layout" }));
+    expect(screen.getByRole("heading", { name: "Hidden sections" })).toBeTruthy();
+  });
+
+  test("reset keeps the shared board's design", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(async (_u, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 3 }));
+    const b = board();
+    const layout: PersonalLayout = { ...emptyLayout(b.version), design: "standard", hidden: ["narrative"] };
+    render(<PersonalBoard initial={b} initialView={{ layout, rev: 2 }} live={false} />);
+    await user.click(screen.getByRole("button", { name: "Board actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Reset layout" }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Reset layout" }));
+    await waitFor(() => expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1));
+    const body = JSON.parse(String(posts(`/api/me/views/${b.id}`)[0][1]!.body)) as { layout: PersonalLayout };
+    expect(body.layout.design).toBe("map-overlay");
+    expect(body.layout.hidden).toEqual([]);
   });
 });
 
@@ -240,6 +306,17 @@ describe("shared board", () => {
     expect(link.getAttribute("href")).toContain("/login?next=");
     const tile = container.querySelector("[data-widget]")!.closest<HTMLElement>('[data-sw="dashboard-tile"]')!;
     expect(tile.style.viewTransitionName).toBe("");
+  });
+
+  test("adding saves the shared board's design", async () => {
+    fetchMock.mockImplementation(async (_u, init) => json({ layout: JSON.parse(String(init!.body)).layout, rev: 1 }));
+    const b = board();
+    render(<AddToDashboard boardId={b.id} slug={b.slug} version={b.version} signedIn added={false} design="map-overlay" />);
+    fireEvent.click(screen.getByRole("button", { name: "Add to my dashboard" }));
+    await waitFor(() => expect(posts(`/api/me/views/${b.id}`)).toHaveLength(1));
+    const body = JSON.parse(String(posts(`/api/me/views/${b.id}`)[0][1]!.body)) as { layout: PersonalLayout; rev: number };
+    expect(body.rev).toBe(0);
+    expect(body.layout.design).toBe("map-overlay");
   });
 
   test("already added opens the personal dashboard", () => {

@@ -62,6 +62,8 @@ export type BoardProps = {
   workspaceNavigation?: ReactNode;
   workspaceKey?: string;
   workspaceEditor?: ReactNode;
+  /** The person is editing the layout: the workspace opens its Layout tab. */
+  workspaceEditing?: boolean;
 };
 
 const stageText: Record<string, string> = {
@@ -332,6 +334,7 @@ export function Board(props: BoardProps) {
             sourceCount={sources.length}
             changes={changelog ? renderWorkspaceWidget(changelog, true) : undefined}
             editor={props.workspaceEditor}
+            editing={props.workspaceEditing}
           />
         </div>
       </OfficialReleasesContext.Provider>

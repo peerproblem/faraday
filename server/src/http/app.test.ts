@@ -279,6 +279,7 @@ describe("personal views", () => {
   it("edits by prompt with the injected model, stores unsupported parts as requests and limits edits per hour", async () => {
     const layoutModel = vi.fn(async () => ({
       reply: "Moved the map to the top.",
+      view: "keep" as const,
       order: ["map", "ghost"],
       hidden: [],
       size: [{ key: "map", span: "full" as const }],
@@ -294,7 +295,7 @@ describe("personal views", () => {
     const r = await app.request("/api/me/views/b1/edit", json({ instruction: "Map first, and shelter capacity" }));
     expect(r.status).toBe(200);
     const body = await r.json();
-    expect(body.layout.order).toEqual(["map"]);
+    expect(body.layout.order).toEqual(["map", "narrative", "stat-grid", "table:shelters"]);
     expect(body.rev).toBe(1);
     expect(body.unsupported).toEqual(["shelter capacity"]);
     expect(body.reply).toBe("Moved the map to the top. This topic doesn't track shelter capacity yet. I left a request.");
